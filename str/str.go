@@ -1,5 +1,6 @@
 // Copyright 2012 Apcera Inc. All rights reserved.
 
+// Miscellaneous utilities formatting, coloring terminal output, and similar.
 package str
 
 import (
