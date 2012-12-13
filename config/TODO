@@ -1,0 +1,15 @@
+
+- Finish ReturnError and ContinueOnError.
+- Implement time.Duration.
+- Implement multi-values into slices.
+- Fix unidentified JSON fields in sub-structures.
+
+Later:
+
+- Custom value parsing via user-supplied function.
+
+Possibly:
+
+- Custom config parsing via user-supplied function. 
+
+
