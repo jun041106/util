@@ -7,9 +7,13 @@
 Later:
 
 - Custom value parsing via user-supplied function.
+- Allow integer values to be entered with commas as 1,000,000.
 
 Possibly:
 
 - Custom config parsing via user-supplied function. 
 
+Suggestions:
 
+- Have "range=min:max" tag?
+- Have "split=delimiter" tag that splits value into []string?
