@@ -1,6 +1,6 @@
-
 - Finish ReturnError and ContinueOnError.
 - Implement time.Duration.
+- Implement mandatory parameters (not checked currently).
 - Implement multi-values into slices.
 - Fix unidentified JSON fields in sub-structures.
 
