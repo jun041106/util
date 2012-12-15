@@ -90,6 +90,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const cfgTagName = "conf"
@@ -242,6 +243,7 @@ const (
 	dt_int
 	dt_uint
 	dt_float
+	dt_duration
 	dt_struct
 	dt_map
 	dt_slice
@@ -528,7 +530,7 @@ func (cfg *Config) parseOneCmd() (bool, error) {
 	
 	// Get field value in the struct
 	fieldVal := reflect.Indirect(cfg.config).FieldByName(fi.fieldName)
-
+	
 	if fi.valueSource == FromCmdLine {
 		return false, fmt.Errorf("'%s' is a duplicate parameter", src) 
 	}
@@ -537,19 +539,23 @@ func (cfg *Config) parseOneCmd() (bool, error) {
 		// a switch has no parameters and we do allow to repeat it
 		// because it has no effect
 		fi.valueSource = FromCmdLine
-		if eqval == false {
-			fieldVal.SetBool(true)
-		} else {
+		bv := "true"
+		if eqval {
 			if strval == "true" || strval == "t" || strval == "True" ||
 				strval == "TRUE" || strval == "1" {
-				fieldVal.SetBool(true)
+				bv = "true"
 			} else if strval == "false" || strval == "f" || strval == "False" ||
 				strval == "FALSE" || strval == "0" {
-				fieldVal.SetBool(false)
+				bv = "false"
 			} else {
 				return false, fmt.Errorf("'%s' is not a valid boolean " +
 					"value of parameter '%s'", strval, name) 
 			}	 
+		}
+		errstr := cfg.setFromString(fi, fieldVal, bv)
+		if len(errstr) > 0 {
+			return false, fmt.Errorf("error setting boolean " +
+				"value of parameter '%s': %v", name, errstr) 
 		}
 		return false, nil		
 	}
@@ -578,7 +584,7 @@ func (cfg *Config) parseOneCmd() (bool, error) {
 }
 
 //===========================================================================
-// reaqConfig
+// readConfig
 //
 // User may simply not define 'configfile' tag and provide no default
 // config file name if there is no config to read.
@@ -679,15 +685,19 @@ func (cfg *Config) readConfig(fileName string, source int) error {
 
 func createField(fieldVal reflect.Value) reflect.Value {
 	if fieldVal.Type().Kind() == reflect.Ptr {
-		newval := reflect.New(fieldVal.Type().Elem())
-		fieldVal.Set(newval)
-		fieldVal = reflect.Indirect(newval)
+	 	if fieldVal.IsNil() {
+			fieldVal.Set(reflect.New(fieldVal.Type().Elem()))
+		}
+		fieldVal = reflect.Indirect(fieldVal)
 	}
 	return fieldVal
 }
 
 func (cfg *Config) setFromString(fi *fieldInfo, fieldVal reflect.Value,
 	strval string) string {
+	
+	// TODO: resolve what to do with empty string, not sure if it
+	// has to be an error...
 	
 	fieldVal = createField(fieldVal)
 
@@ -767,6 +777,18 @@ func (cfg *Config) setFromString(fi *fieldInfo, fieldVal reflect.Value,
 		return ""
 	}
 	
+	if fi.vtype == dt_duration {
+		if len(strval) == 0 {
+			return fmt.Sprintf("value must not be an empty string") 
+		}
+		duration, err := time.ParseDuration(strval)
+		if err != nil {
+			return fmt.Sprintf("invalid syntax of duration: '%s'", strval)
+		}
+		fieldVal.Set(reflect.ValueOf(duration))		
+		return ""
+	}
+	
 	panic("not implemented here")
 }
 	
@@ -821,7 +843,7 @@ func (cfg *Config) processField(field *reflect.StructField) error {
 	} else {
 		fieldName = rt.PkgPath() + "." + rt.Name()
 	}
-
+	
 	if ptrs > 1 {
 		return fmt.Errorf("too many pointers in field '%s'", fieldName)
 	}
@@ -922,7 +944,7 @@ func (cfg *Config) inspectField(fieldName string, field *reflect.StructField,
 	//cfgval := reflect.ValueOf(cfg.config)
 	
 	//ft, fk, ptrs := dereferenceType(field.Type)
-	_, fk, ptrs := dereferenceType(field.Type)
+	ft, fk, ptrs := dereferenceType(field.Type)
 	
 	if ptrs > 1 {
 		return fmt.Errorf("invalid type of field %s: "+
@@ -936,6 +958,12 @@ func (cfg *Config) inspectField(fieldName string, field *reflect.StructField,
 				"type '%v' not supported", fieldName, field.Type)
 	}
 
+	// Check first because the kind is int64
+	if ft == reflect.TypeOf((*time.Duration)(nil)).Elem() {
+		fi.vtype = dt_duration
+		return nil		
+	}
+	
 	switch fk {
 		case reflect.Int, reflect.Int8, reflect.Int16,
 			 reflect.Int32, reflect.Int64:
@@ -1103,5 +1131,3 @@ func (cfg *Config) parseTag(fieldName, src_name string, num int,
 	return fmt.Errorf("invalid tag for field %s: '%s' is not a valid tag",
 		fieldName, src_name)
 }
-
-
