@@ -1,12 +1,9 @@
-- Finish ReturnError and ContinueOnError.
-- Implement mandatory parameters (not checked currently).
-- Implement multi-values into slices.
 - Fix unidentified JSON fields in sub-structures.
+- Implement merged params like -DTV, -xvf, etc.
 
 Later:
 
 - Custom value parsing via user-supplied function.
-- Allow integer values to be entered with commas as 1,000,000.
 
 Possibly:
 

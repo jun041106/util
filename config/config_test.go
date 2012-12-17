@@ -113,7 +113,7 @@ type testTypesConfig struct {
 	U64		uint64			`conf:"cmd=u64"`
 	F32		float32			`conf:"cmd=f32"`
 	F64		float64			`conf:"cmd=f64"`
-	D		time.Duration	`conf:"cmd=d"`
+	D		time.Duration	`conf:"cmd=d,default=2000ms"`
 	// We allow any to be a pointer. Rare use but is supported.
 	PT		*bool			`conf:"cmd=pt"`		
 	PF		*bool			`conf:"cmd=pf"`		
@@ -136,14 +136,14 @@ type testTypesConfig struct {
 var cmdTypes = []string {
 	"-t", "--f=false", "-s", "string",
 	"-i", "0x10", "--i8", "-11", "-i16=12",
-	"--i32=-1000000000", "--i64=10000000000",
+	"--i32=-1000000000", "--i64=10,000,000,000",
 	"-u", "30", "--u8", "0x31", "-u16=0x7fff",
 	"--u32=2000000000", "--u64", "20000000000",
 	"-f32=123.123", "--f64", "4444.5555",
 	"-d", "200ms",
 	"-pt=1", "--pf=False", "-ps", "pstring2",
 	"-pi", "0x20", "--pi8", "-11", "-pi16=12",
-	"--pi32=-1000000030", "--pi64=10000000030",
+	"--pi32=-1,000,000,030", "--pi64=10000000030",
 	"-pu", "33", "--pu8", "0x31", "-pu16=0x7ff1",
 	"--pu32=2000000001", "--pu64", "20000000001",
 	"-pf32=777.888", "--pf64", "4321.1234",
@@ -210,9 +210,101 @@ func TestCmdLineTypes(t *testing.T) {
 	testnn(t, int64(tu32), 2000000001)
 }
 
+//===========================================================================
+// Test extras
+//===========================================================================
+type testExtraConfig struct {
+	Port	int			`conf:"cmd=p|port"`
+	Name	string		`conf:"cmd=n|name"`
+}
+
+var cmdTrailingExtra = []string {
+	"-p=1000", "-n=A", "a", "b",  
+}
+
+var cmdAnyExtra = []string {
+	"a", "-p=1000", "b", "-n", "A", "c", "d",  
+}
+
+func TestCmdLineExtra(t *testing.T) {
+	var opts *ConfigOptions
+	var cfg *Config
+	var err error
+	var config interface{}
+
+	opts = &ConfigOptions{Args:cmdTrailingExtra}
+	opts.AllowCmdLineTrailingExtra = true
+	config = &testExtraConfig{}
+	cfg, err = opts.Parse(config)
+	if err != nil {
+		t.Fatalf("***Error*** %v\n", err)
+	}
+	testeq(t, cfg.RemainingArgs(), []string{"a", "b"})
+
+	opts = &ConfigOptions{Args:cmdAnyExtra}
+	opts.AllowCmdLineAnyExtra = true
+	config = &testExtraConfig{}
+	cfg, err = opts.Parse(config)
+	if err != nil {
+		t.Fatalf("***Error*** %v\n", err)
+	}
+	testeq(t, cfg.RemainingArgs(), []string{"a", "b", "c", "d"})
+
+	// Getting error
+	opts = &ConfigOptions{Args:cmdTrailingExtra}
+	opts.CmdLineError = ReturnError
+	config = &testExtraConfig{}
+	cfg, err = opts.Parse(config)
+	if err == nil {
+		t.Fatalf("***Error*** no error when expected\n")
+	}
+	testeq(t, cfg.RemainingArgs(), []string{"a", "b"})
+
+	opts = &ConfigOptions{Args:cmdAnyExtra}
+	opts.CmdLineError = ReturnError
+	config = &testExtraConfig{}
+	cfg, err = opts.Parse(config)
+	if err == nil {
+		t.Fatalf("***Error*** no error when expected\n")
+	}
+	testeq(t, cfg.RemainingArgs(), cmdAnyExtra)
+}
+
+//===========================================================================
+// Test command-line slice
+//===========================================================================
+type testSliceConfig struct {
+	Ports	[]int			`conf:"cmd=p|port"`
+	Names	[]string		`conf:"cmd=n|name"`
+}
+
+var cmdSlice = []string {
+	"--p=1,000", "-port=10,010", "-p", "100,200", 
+	"-n=A", "--name", "B", "-name=C", 
+}
+
+func TestCmdLineSlice(t *testing.T) {
+	model := &testSliceConfig{
+			Ports:	[]int{1000, 10010, 100200}, 
+			Names:	[]string{"A", "B", "C"}, 
+		}
+
+	opts := &ConfigOptions{Args:cmdSlice}
+	config := &testSliceConfig{}
+	_, err := opts.Parse(config)
+	if err != nil {
+		t.Fatalf("***Error*** %v\n", err)
+	}
+
+	testeq(t, config, model)
+}
+
+//===========================================================================
+// Helpers
+//===========================================================================
 func testeq(t *testing.T, a interface{}, b interface{}) {
 	if reflect.DeepEqual(a, b) == false {
-		t.Fatalf("***Error*** Different %v:\n%  a=+v\n  b=%+v\n",
+		t.Fatalf("***Error*** Different %v:\n  a=%+v\n  b=%+v\n",
 			reflect.ValueOf(a).Type(), a, b)
 	}
 }

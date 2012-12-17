@@ -42,7 +42,8 @@
 		
 		// Boolean tag specifying that the parameter is mandatory.
 		// Mandatory parameters must be specified on the command line
-		// or in the configuration file.
+		// or in the configuration file. Mandatory fields must not specify
+		// default value.
 		must
 		
 	For exampe, to describe an integer parameter Port that can be entered
@@ -61,10 +62,14 @@
 		bool
 		int, int8, int16, int32, int64	    
 		uint, uint8, uint16, uint32, uint64	    
-		float32, float64	    
-
-	Anonymous struct fields are allowed and treated as if their fields are
-	included directly into the top-level struct.
+		float32, float64
+		time.Duration
+		
+	Values of primitive types are allowed in the same format as documented
+	in the "flag" package. Additionally, base-10 integer values are accepted
+	in a comma-separated format, such as "1,000,000" or "-12,123". Anonymous
+	struct fields are allowed and treated as if their fields are included
+	directly into the top-level struct.
 		
 	Fields of the following types can be read only from the configuration file:
 
@@ -93,7 +98,7 @@ import (
 	"time"
 )
 
-const cfgTagName = "conf"
+const confTagsName = "conf"
 
 // ValueSource specifies the source of the value set into the configuration
 // field.
@@ -133,7 +138,13 @@ func (v ValueSource) String() string {
 }
 
 // ErrorHandling specifies how to process errors in the command line
-// parameters.
+// or configuration file parameters. ConfigOptions allows to configure
+// reaction to errors in the command line and configuration file separately.
+// By default both are set to ExitOnError, i.e. the program will exit on any
+// encountered error. Notice this does not affect programmatic errors that may
+// be returned if the configuration structure contains errors, for example
+// two fields declare same name of the command-line parameter, have invalid
+// default value, etc.
 type ErrorHandling int
 const (
 	// Print error message and exit on any error.
@@ -143,9 +154,10 @@ const (
 	// Parse...() functions.
 	ReturnError
 	
-	// Stop parsing command line on first error and leave invalid parameter
-	// in remaining parameters. Errors in the configuration file are ignored.
-	ContinueOnError
+	// Panic on any error. This may be useful in some cases, for example,
+	// when the set of parameters or a configuration file were generated
+	// by the program and no errors are expected.
+	PanicOnError
 )
 
 type ConfigOptions struct {
@@ -159,7 +171,13 @@ type ConfigOptions struct {
 	// on the command line must exist.
 	ConfigFileMustExist	bool
 	
-	// Specifies reaction to errors in the command line parameters.  
+	// Specifies reaction to program errors in the config structure.
+	// Program errors are, for example, if two fields specify the same
+	// name of the command line parameter, or if the default field value
+	// is invalid, and similar.  
+	DataError			ErrorHandling
+
+	// Specifies reaction to errors in the configuration file.  
 	ConfigFileError		ErrorHandling
 
 	// Specifies reaction to errors in the command line parameters.  
@@ -173,11 +191,20 @@ type ConfigOptions struct {
 	// specified in the "cmd" tag.
 	AllowAllCmdLine		bool
 	
-	// If true then all extra non-parameter values are ignored and
+	// If true then all trailing extra non-parameter values are ignored and
 	// collected in remaining params. By default the command line can
 	// contain only valid parameters and their values, presence of any
 	// extra values is an error.
-	AllowExtraCmdLine		bool
+	AllowCmdLineTrailingExtra	bool
+	
+	// If true then all extra non-parameter values, before or after valid
+	// parameters and their values, are ignored and collected in remaining
+	// params. If this is set to true it superceeds AllowCmdLineTrailingExtra.
+	AllowCmdLineAnyExtra	bool
+	
+	// If true then double dash is allowed on the command line. All 
+	// parameters after the double dash are placed in remaining params.
+	AllowCmdLineDoubleDash	bool
 	
 	// If true then parameters '-h' and '-help' are not automatically
 	// processed as a help request.  
@@ -196,22 +223,29 @@ type ConfigOptions struct {
 // Contains information about parsed configuration.
 type Config struct {
 
+	// Returned error is a programmatic error, for example in the
+	// configuration struct field tags or similar.
+	ProgramError	bool
+
+	// Returned error occured when parsing the command line parameters.
+	CmdLineError	bool
+
+	// Returned error occured when parsing the configuration file.
+	ConfigFileError	bool
+
 	options			ConfigOptions			// copy of user's options
 	args			[]string				// from user or os.Args from 1
 	remaining		[]string
 	
 	parseCmdLine	bool					// need to parse cmd line
 	parseConfigFile	bool					// parse config file if specified
-	
+	canHaveExtra	bool					// if any Extra option=true
 	configFile		string					// value from cmd line					
 	ncfgfile		int						// track configfile tags
 	readFile		string					// what we actually read, if any
 
 	fields			map[string]*fieldInfo	// mapped by each name
 	
-	cmdLineError	bool					// error was in cmd line
-	configFileError	bool					// error was in config file
-
 	helpRequested	bool
 	doubleDash		bool
 	
@@ -231,29 +265,39 @@ func (cfg *Config) GetValueSource(fieldName string) ValueSource {
 }
 
 // Returns command line parameters remaining after parsing.
+// This may return non-empty slice if AllowCmdLineTrailingExtra
+// or AllowCmdLineAllExtra are set to true in ConfigOptions, or if the
+// command line contained double dash "--".
 func (cfg *Config) RemainingArgs() []string {
 	return cfg.remaining
 }
 
-type dataType int
+// Returns the name of the processed configuration file or empty string
+// if the configuration file was not processed.
+func (cfg *Config) ProcessedConfigFile() string {
+	return cfg.readFile
+}
+
+type valueType int
 const (
-	dt_invalid	dataType = iota
-	dt_bool
-	dt_string
-	dt_int
-	dt_uint
-	dt_float
-	dt_duration
-	dt_struct
-	dt_map
-	dt_slice
+	vt_invalid	valueType = iota
+	vt_bool
+	vt_string
+	vt_int
+	vt_uint
+	vt_float
+	vt_duration
+	vt_struct
+	vt_map
+	vt_slice
 )
 
 type fieldInfo struct {
 	fieldName		string
 	names			[]string
 	defaultValue	string
-	vtype			dataType
+	vtype			valueType
+	sevtype			valueType		// type of slice element, if primitive
 	primitive		bool
 	hasTags			bool
 	configFile		bool
@@ -269,90 +313,103 @@ const (
 )    
 
 // Parses the command line parameters and the configuration file,
-// if configuration file was specified. Parameter "config" must be a pointer
-// to the structure containing configuration fields.
-// Currently this function exits on any error, error is never returned.
+// if configuration file was specified.
+// Parameter "config" must be a pointer to the structure containing
+// configuration fields. This function panics if the config parameter is not
+// a non-nil poointer to some struct.
+// All errors in the command line or configuration file are processed
+// according to the CmdLineError and ConfigFileError values in ConfigOptions.
+// By default both are set to ExitOnError.
 func (options ConfigOptions) Parse(config interface{}) (*Config, error) {
-	cfg := &Config{}
-	cfg.options = options
-	cfg.parseCmdLine = true
-	cfg.parseConfigFile = true
-	return cfg.parse(config)
+	return parse(config, &options, true, true)
 }
 	
 // Parses the command line parameters only.
 // All options related to the configuration file parsing are ignored.
 // Parameter "config" must be a pointer to the structure containing
-// configuration fields.
-// Currently this function exits on any error, error is never returned.
+// configuration fields. This function panics if the config parameter is not
+// a non-nil poointer to some struct.
+// All errors in the command line are processed according to the CmdLineError
+// value in ConfigOptions which is set to ExitOnError by default.
 func (options ConfigOptions) ParseCmdLine(config interface{}) (*Config, error) {
-	cfg := &Config{}
-	cfg.options = options
-	cfg.parseCmdLine = true
-	return cfg.parse(config)
+	return parse(config, &options, true, false)
 }
 	
 // Parses the configuration file only.
 // All options related to the command line parsing are ignored.
 // Parameter "config" must be a pointer to the structure containing
-// configuration fields.
-// Currently this function exits on any error, error is never returned.
+// configuration fields. This function panics if the config parameter is not
+// a non-nil poointer to some struct.
+// All errors in the config file are processed according to the ConfigFileError
+// value in ConfigOptions which is set to ExitOnError by default.
 func (options ConfigOptions) ParseConfig(config interface{}) (*Config, error) {
-	cfg := &Config{}
-	cfg.options = options
-	cfg.parseConfigFile = true
-	return cfg.parse(config)
+	return parse(config, &options, false, true)
 }
 	
-func (cfg *Config) parse(config interface{}) (*Config, error) {
+func parse(config interface{}, options *ConfigOptions,
+	parseCmdLine, parseConfigFile bool) (*Config, error) {
 
+	if config == nil {
+		panic("config parameter is nil")
+	}
+	
+	cfg := &Config{}
+	cfg.options = (*options)
+	cfg.parseCmdLine = parseCmdLine
+	cfg.parseConfigFile = parseConfigFile
+	
 	err := cfg.parseImpl(config)
 	
-	if err != nil {
+	if err == nil {
+		return cfg, nil
+	}
 		
-		if cfg == nil {
-			// temp
-			fmt.Printf("%v\n", err)
-			os.Exit(2)			
-			// TODO: finish
-			//return nil, err
-		}
-		
-		if cfg.cmdLineError {
-			// TODO: finish. currently always exit
-			//if cfg.options.CmdLineError == ExitOnError {
+	if cfg.CmdLineError {
+		switch cfg.options.CmdLineError {
+			case ReturnError:
+				return cfg, err;
+			case ExitOnError:	
 				fmt.Printf("Parameter error: %v\n", err)
 				if cfg.haveHelp() && cfg.options.DisableHelpParams == false {
 					fmt.Printf("Use -h or -help for help.\n")
 				}				
 				os.Exit(2)
-			//}				
-
-			// TODO: finish
-			//return cfg, err
+			default:	
+				panic(fmt.Sprintf("Parameter error: %v\n", err))
 		}
+	}
 		
-		if cfg.configFileError {
-			fmt.Printf("Error reading configuration file '%s': %v\n",
-				cfg.readFile, err)
-			os.Exit(2)
-		}
-		
-		// Otherwise it is a programmatic error
-		fmt.Printf("%v\n", err)
-		os.Exit(2)			
-		//return nil, err
+	if cfg.ConfigFileError {
+		switch cfg.options.ConfigFileError {
+			case ReturnError:
+				return cfg, err;
+			case ExitOnError:	
+				fmt.Printf("Error reading configuration file '%s': %v\n",
+					cfg.readFile, err)
+				os.Exit(2)
+			default:	
+				panic(fmt.Sprintf("Error reading configuration file '%s': %v\n",
+					cfg.readFile, err))
+		} 
 	}
 	
-	return cfg, nil
+	switch cfg.options.DataError {
+		case ReturnError:
+			return cfg, err;
+		case ExitOnError:	
+			fmt.Printf("Program error in configuration fields: %v\n",
+				err)
+			os.Exit(2)
+		default:	
+			panic(fmt.Sprintf("Program error in configuration fields: %v\n",
+				err))
+	} 
+
+	return cfg, err			// for compiler
 }
 
 func (cfg *Config) parseImpl(config interface{}) error {
 
-	if config == nil {
-		panic("config structure is nil")
-	}
-	
 	var err error
 	
 	ct := reflect.ValueOf(config).Type()
@@ -360,8 +417,8 @@ func (cfg *Config) parseImpl(config interface{}) error {
 	// root type, root kind, count of pointers
 	rt, rk, ptrs := dereferenceType(ct)
 	if ptrs != 1 || rk != reflect.Struct {
-		return fmt.Errorf("config parameter must be a pointer to a " +
-			"struct, passed parameter is of type '%v'", ct)	
+		panic(fmt.Errorf("config parameter must be a pointer to a " +
+			"struct, passed parameter is of type '%v'", ct))	
 	}
 	
 	cfg.config = reflect.ValueOf(config)
@@ -383,7 +440,7 @@ func (cfg *Config) parseImpl(config interface{}) error {
 	if cfg.parseCmdLine {
 		err = cfg.processCmdLine()
 		if err != nil {
-			cfg.cmdLineError = true
+			cfg.CmdLineError = true
 			return err
 		}
 		if cfg.helpRequested {
@@ -402,10 +459,35 @@ func (cfg *Config) parseImpl(config interface{}) error {
 			cfg.readFile = fileName
 			err = cfg.readConfig(fileName, source)
 			if err != nil {
-				cfg.configFileError = true
+				cfg.ConfigFileError = true
 				return err 
 			}			
 		}		
+	}
+	
+	// check mandatory params
+	for _, fi := range cfg.fields {
+		if fi.mandatory && (fi.valueSource == NotSet) {
+			// mandatory parameter not specified anyhow
+			// pick correct error type and name to report
+			name := fi.fieldName
+			if (cfg.parseConfigFile && (len(cfg.readFile) > 0)) ||
+				cfg.parseCmdLine == false {
+				cfg.ConfigFileError = true
+			} else {
+				cfg.CmdLineError = true
+				if len(fi.names) > 0 {
+					name = ""
+					for _, n := range fi.names {
+						if len(n) > len(name) {
+							name = n
+						}
+					}
+				}
+				name = "-" + name						
+			}
+			return fmt.Errorf("mandatory parameter '%s' not specified", name)
+		}
 	}
 			
 	return nil		
@@ -423,13 +505,18 @@ func (cfg *Config) printHelp() {
 }
 
 //===========================================================================
-// Parse command line functions
+// Parse command line
 //===========================================================================
+
 func (cfg *Config) processCmdLine() error {
+
+	cfg.canHaveExtra = cfg.options.AllowCmdLineTrailingExtra || 
+					   cfg.options.AllowCmdLineAnyExtra 	
+
 	for  {
 		stop, err := cfg.parseOneCmd()
 		if err != nil {
-			cfg.cmdLineError = true
+			cfg.CmdLineError = true
 			cfg.remaining = append(cfg.remaining, cfg.args...)
 			return err
 		}
@@ -437,11 +524,19 @@ func (cfg *Config) processCmdLine() error {
 			break
 		}
 	}
+
 	cfg.remaining = append(cfg.remaining, cfg.args...)
-	if len(cfg.remaining) > 0 && cfg.options.AllowExtraCmdLine == false {
-		cfg.cmdLineError = true
-		return fmt.Errorf("invalid parameters: %v", cfg.remaining) 
+
+	if len(cfg.remaining) > 0 && 
+		cfg.options.AllowCmdLineTrailingExtra == false &&
+		cfg.options.AllowCmdLineAnyExtra == false {
+		cfg.CmdLineError = true
+		if len(cfg.remaining) == 1 {
+			return fmt.Errorf("invalid parameter: %s", cfg.remaining[0])
+		}
+		return fmt.Errorf("invalid parameters: %v", cfg.remaining)
 	}
+
 	return nil
 }
 
@@ -451,23 +546,43 @@ func (cfg *Config) parseOneCmd() (bool, error) {
 	}		
 
 	src := cfg.args[0]
-	if len(src) <= 1 || src[0] != '-' {
-		if cfg.options.AllowExtraCmdLine {
+	if len(src) == 0 {
+		// Ignore empty strings (???)
+		return false, nil
+	}
+	
+	if len(src) == 1 && src[0] == '-' {
+		return false, fmt.Errorf("invalid parameter '%s'", src) 
+	}
+	
+	if src[0] != '-' {
+		if cfg.canHaveExtra {
 			cfg.remaining = append(cfg.remaining, src)
 			cfg.args = cfg.args[1:]
 			return false, nil
 		}
-		return true, nil
+		return false, fmt.Errorf("invalid parameter '%s'", src) 
+	}
+	
+	if len(cfg.remaining) > 0 {
+		// We had extra params that we assumed are trailing, now they're not.
+		if cfg.options.AllowCmdLineAnyExtra == false {
+			cfg.args = append(cfg.remaining, cfg.args...)
+			cfg.remaining = cfg.remaining[:0]
+			return false, fmt.Errorf("invalid parameter '%s'", cfg.args[0]) 
+		}
 	}
 	
 	dash_num := 1
 	if src[1] == '-' {
 		dash_num++
 		if len(src) == 2 {
-			cfg.doubleDash = true
-			cfg.remaining = append(cfg.remaining, cfg.args[1:]...)
-			cfg.args = make([]string, 0, 1)
-			return true, nil
+			if cfg.options.AllowCmdLineDoubleDash {
+				cfg.doubleDash = true
+				cfg.args = cfg.args[1:]
+				return true, nil
+			}
+			return false, fmt.Errorf("invalid parameter '%s'", src) 
 		}
 	}
 	
@@ -488,86 +603,66 @@ func (cfg *Config) parseOneCmd() (bool, error) {
 		eqval = true
 	}
 	
-	cfg.args = cfg.args[1:]
-	
 	if cfg.options.DisableHelpParams == false {
 		if name == "h" || name == "help" {
 			if eqval {
 				return false, fmt.Errorf("parameter %s must have no value") 
 			}
+			cfg.args = cfg.args[1:]
 			cfg.helpRequested = true
 			return true, nil
 		}
-	} 
+	}
 	
-	// Find struct field for this
+	// Find struct field for this parameter
 	fi := cfg.getField(name, false)
+
 	if fi == nil {
-		if cfg.options.CmdLineError == ContinueOnError {
-			// We hit something we don't understand. Then if user asked to
-			// continue we keep all rest of params and abort parsing the
-			// command line
-			return true, nil
-		}
+		return false, fmt.Errorf("invalid parameter '%s'", src) 
+	}
+	
+	cmdName := cfg.isCmdName(fi, name)
+	if cfg.options.AllowAllCmdLine == false && cmdName == false {
 		return false, fmt.Errorf("'%s' is not a valid parameter", src) 
 	}
 	
-	// Check valid name
-	if cfg.options.AllowAllCmdLine == false {
-		found := false
-		if len(fi.names) > 0 {
-			for _, fn := range fi.names {
-				if fn == name {
-					found = true
-					break
-				}
-			}
-		}
-		if found == false {
-			return false, fmt.Errorf("'%s' is not a valid parameter", src) 
-		}			
+	sliceParam := false
+	
+	if fi.vtype == vt_slice && fi.sevtype != vt_invalid {
+		sliceParam = true		// OK, allow multiple
+	} else if fi.primitive {
+		// OK as a cmd line param						
+	} else {
+		return false, fmt.Errorf("'%s' is not a valid parameter", src) 
 	}
+
+	// Check valid name
+	if sliceParam == false && fi.valueSource == FromCmdLine {
+		return false, fmt.Errorf("'%s' is a duplicate parameter", src) 
+	}
+	
+	// We have a valid parameter
+	
+	// If all is OK only then remove the param (???)
+	cfg.args = cfg.args[1:]
 	
 	// Get field value in the struct
 	fieldVal := reflect.Indirect(cfg.config).FieldByName(fi.fieldName)
 	
-	if fi.valueSource == FromCmdLine {
-		return false, fmt.Errorf("'%s' is a duplicate parameter", src) 
-	}
-	
-	if fi.vtype == dt_bool {
-		// a switch has no parameters and we do allow to repeat it
-		// because it has no effect
-		fi.valueSource = FromCmdLine
-		bv := "true"
-		if eqval {
-			if strval == "true" || strval == "t" || strval == "True" ||
-				strval == "TRUE" || strval == "1" {
-				bv = "true"
-			} else if strval == "false" || strval == "f" || strval == "False" ||
-				strval == "FALSE" || strval == "0" {
-				bv = "false"
-			} else {
-				return false, fmt.Errorf("'%s' is not a valid boolean " +
-					"value of parameter '%s'", strval, name) 
-			}	 
+	if fi.vtype == vt_bool {
+		if eqval == false {
+			strval = "true"					 
 		}
-		errstr := cfg.setFromString(fi, fieldVal, bv)
-		if len(errstr) > 0 {
-			return false, fmt.Errorf("error setting boolean " +
-				"value of parameter '%s': %v", name, errstr) 
+	} else {
+		// All other should have a value
+		if eqval == false {
+			if len(cfg.args) < 1 {
+				return false, fmt.Errorf("parameter '%s' must specify a value",
+					src) 
+			}
+			strval = cfg.args[0]
+			cfg.args = cfg.args[1:]
 		}
-		return false, nil		
-	}
-	
-	// All other should have a value
-	if eqval == false {
-		if len(cfg.args) < 1 {
-			return false, fmt.Errorf("parameter '%s' must have a value", src) 
-		}
-		
-		strval = cfg.args[0]
-		cfg.args = cfg.args[1:]
 	}
 	
 	errstr := cfg.setFromString(fi, fieldVal, strval)
@@ -587,7 +682,7 @@ func (cfg *Config) parseOneCmd() (bool, error) {
 // readConfig
 //
 // User may simply not define 'configfile' tag and provide no default
-// config file name if there is no config to read.
+// config file name if there is no config to read, or call ParseCmdLine.
 //===========================================================================
 
 func (cfg *Config) getConfigFileName() (string, int) {
@@ -695,17 +790,39 @@ func createField(fieldVal reflect.Value) reflect.Value {
 
 func (cfg *Config) setFromString(fi *fieldInfo, fieldVal reflect.Value,
 	strval string) string {
+
+	if fi.vtype == vt_slice {
+	 	if fieldVal.IsNil() {
+			ns := reflect.MakeSlice(fieldVal.Type(), 0, 8)
+			reflect.Copy(ns, fieldVal)
+			fieldVal.Set(ns)
+		}
+		n := fieldVal.Len()
+		if n == fieldVal.Cap() {
+			ns := reflect.MakeSlice(fieldVal.Type(), n, 2 * n)
+			reflect.Copy(ns, fieldVal)
+			fieldVal.Set(ns)
+		}
+		fieldVal.SetLen(n + 1)
+		return cfg.setPrimFromString(fi.sevtype, fieldVal.Index(n), strval)
+	}
+	
+	fieldVal = createField(fieldVal)
+	return cfg.setPrimFromString(fi.vtype, fieldVal, strval)
+}
+	
+func (cfg *Config) setPrimFromString(vt valueType, fieldVal reflect.Value,
+	strval string) string {
 	
 	// TODO: resolve what to do with empty string, not sure if it
 	// has to be an error...
 	
-	fieldVal = createField(fieldVal)
-
-	if fi.vtype == dt_int {
+	if vt == vt_int {
 		if len(strval) == 0 {
 			return fmt.Sprintf("value must not be an empty string") 
 		}
-		i64, err := strconv.ParseInt(strval, 0, 64)
+		nocommas := removeCommas(strval)
+		i64, err := strconv.ParseInt(nocommas, 0, 64)
 		if err != nil { 
 			ne := err.(*strconv.NumError)
 			if ne.Err == strconv.ErrRange {				
@@ -720,11 +837,12 @@ func (cfg *Config) setFromString(fi *fieldInfo, fieldVal reflect.Value,
 		return ""
 	}
 	
-	if fi.vtype == dt_uint {
+	if vt == vt_uint {
 		if len(strval) == 0 {
 			return fmt.Sprintf("value must not be an empty string") 
 		}
-		u64, err := strconv.ParseUint(strval, 0, 64)
+		nocommas := removeCommas(strval)
+		u64, err := strconv.ParseUint(nocommas, 0, 64)
 		if err != nil { 
 			ne := err.(*strconv.NumError)
 			if ne.Err == strconv.ErrRange {				
@@ -739,7 +857,7 @@ func (cfg *Config) setFromString(fi *fieldInfo, fieldVal reflect.Value,
 		return ""
 	}
 	
-	if fi.vtype == dt_float {
+	if vt == vt_float {
 		if len(strval) == 0 {
 			return fmt.Sprintf("value must not be an empty string") 
 		}
@@ -758,26 +876,27 @@ func (cfg *Config) setFromString(fi *fieldInfo, fieldVal reflect.Value,
 		return ""
 	}
 	
-	if fi.vtype == dt_string {
+	if vt == vt_string {
 		fieldVal.SetString(strval)
 		return ""
 	}
 	
-	if fi.vtype == dt_bool {
+	if vt == vt_bool {
 		if len(strval) == 0 {
 			return fmt.Sprintf("value must not be an empty string") 
 		}
-		if strings.ToLower(strval) == "true" {
+		v := strings.ToLower(strval) 
+		if v == "true" || v == "t" || v == "1" {
 			fieldVal.SetBool(true)
-		} else if strings.ToLower(strval) == "false" {
+		} else if v == "false" || v == "f" || v == "0" {
 			fieldVal.SetBool(false)
 		} else {
-			return fmt.Sprintf("not a boolean value: '%s'", strval)
+			return fmt.Sprintf("'%s' is not a valid boolean value", strval) 
 		}		
 		return ""
 	}
 	
-	if fi.vtype == dt_duration {
+	if vt == vt_duration {
 		if len(strval) == 0 {
 			return fmt.Sprintf("value must not be an empty string") 
 		}
@@ -789,9 +908,49 @@ func (cfg *Config) setFromString(fi *fieldInfo, fieldVal reflect.Value,
 		return ""
 	}
 	
-	panic("not implemented here")
+	return fmt.Sprintf("invalid field value type %v", fieldVal)
 }
-	
+
+// Remove commas from number string, i.e. 1,000,000 returns 1000000.
+// Returns original string if "s" is not a valid comma-separated integer.
+func removeCommas(s string) string {
+	src := s
+	sign := ""
+	if len(s) > 0 && s[0] == '-' {
+		sign = "-"
+		s = s[1:]		
+	}
+	if len(s) <= 3 || s[0] == '0' || s[0] == ',' {
+		return src
+	}
+	for _, r := range s {
+		if (r != ',') && (r < '0' || r > '9') {
+			return src
+		}
+	}
+	rs := s
+	n := strings.LastIndex(rs, ",")
+	if n < 0 {
+		return src
+	} 
+	ns := ""
+	for {
+		if n != len(rs)-4 {
+			return src
+		}
+		ns = rs[n+1:] + ns
+		rs = rs[:n]
+		n = strings.LastIndex(rs, ",")
+		if len(rs) <= 3 {
+			if n >= 0 {
+				return src
+			}
+			return sign + rs + ns
+		}
+	}
+	return src		// not used, for compiler who want s a return
+}
+
 //===========================================================================
 // Inspect fields of user's config struct
 //===========================================================================
@@ -818,6 +977,15 @@ func (cfg *Config) getField(name string, nocase bool) *fieldInfo {
 	return nil
 }
 
+func (cfg *Config) isCmdName(fi *fieldInfo, name string) bool {
+	for _, fn := range fi.names {
+		if fn == name {
+			return true
+		}
+	}
+	return false
+}
+	
 func (cfg *Config) inspect(structType reflect.Type) error {
 	for i := 0; i < structType.NumField(); i++ {
 		field := structType.Field(i)
@@ -849,19 +1017,17 @@ func (cfg *Config) processField(field *reflect.StructField) error {
 	}
 	
 	// Ignore some
+	if len(field.PkgPath) > 0 {
+		return nil		// ignore unexported
+	}
+	if rt.Kind() == reflect.Struct && rt.NumField() == 0 {
+		return nil		// ignore structs with no fields
+	}
 	if field.Anonymous && (rt.Kind() != reflect.Struct) {
-		return nil
+		return nil		// ignore anonymous fields that are not struct
 	}
 	switch rt.Kind() {
 	case reflect.Invalid, reflect.Chan, reflect.Func, reflect.UnsafePointer:
-		return nil
-	}
-	if rt.Kind() == reflect.Struct && rt.NumField() == 0 {
-		// ignore structs with no fields
-		return nil
-	}
-	if len(field.PkgPath) > 0 {
-		// ignore unexported
 		return nil
 	}
 	
@@ -872,9 +1038,14 @@ func (cfg *Config) processField(field *reflect.StructField) error {
 	if err != nil {
 		return err
 	}
+	
+	// Check tag consistency
+	if fi.mandatory && (len(fi.defaultValue) > 0) {
+		return fmt.Errorf("mandatory field '%s' must not specify default value",
+			fieldName)
+	}
 
-	// If FieldInfo says Exclude then don't verify anything else?
-	// ???
+	// If FieldInfo says Exclude then don't verify anything else? ???
 	if fi.exclude {
 		return nil
 	}
@@ -900,8 +1071,8 @@ func (cfg *Config) processField(field *reflect.StructField) error {
 	if err != nil {
 		return err
 	}
-
-	if fi.configFile && (fi.vtype != dt_string) {
+	
+	if fi.configFile && (fi.vtype != vt_string) {
 		return fmt.Errorf("invalid type of field '%s': configfile field " +
 			"must be a string", fieldName)
 	}
@@ -909,7 +1080,6 @@ func (cfg *Config) processField(field *reflect.StructField) error {
 	// set default value
 	if len(fi.defaultValue) > 0 {
 		if fi.primitive == false {
-			// TODO: allow time.Duration
 			return fmt.Errorf("illegal to specify default value for " +
 				"non-primitive field '%s'", fieldName)
 		} 
@@ -941,9 +1111,6 @@ func (cfg *Config) processField(field *reflect.StructField) error {
 func (cfg *Config) inspectField(fieldName string, field *reflect.StructField,
 	fi *fieldInfo) error {
 
-	//cfgval := reflect.ValueOf(cfg.config)
-	
-	//ft, fk, ptrs := dereferenceType(field.Type)
 	ft, fk, ptrs := dereferenceType(field.Type)
 	
 	if ptrs > 1 {
@@ -958,49 +1125,33 @@ func (cfg *Config) inspectField(fieldName string, field *reflect.StructField,
 				"type '%v' not supported", fieldName, field.Type)
 	}
 
-	// Check first because the kind is int64
-	if ft == reflect.TypeOf((*time.Duration)(nil)).Elem() {
-		fi.vtype = dt_duration
-		return nil		
-	}
-	
-	switch fk {
-		case reflect.Int, reflect.Int8, reflect.Int16,
-			 reflect.Int32, reflect.Int64:
-			fi.vtype = dt_int
-			fi.primitive = true
-			return nil
-		case reflect.Uint, reflect.Uint8, reflect.Uint16,
-			 reflect.Uint32, reflect.Uint64:
-			fi.vtype = dt_uint
-			fi.primitive = true
-			return nil
-		case reflect.Float32, reflect.Float64:
-			fi.vtype = dt_float
-			fi.primitive = true
-			return nil
-		case reflect.String:
-			fi.vtype = dt_string
-			fi.primitive = true
-			return nil
-		case reflect.Bool:
-			fi.vtype = dt_bool
-			fi.primitive = true
-			return nil
+	vt := cfg.getPrimType(ft, fk)
+
+	if vt != vt_invalid {
+		fi.vtype = vt
+		fi.primitive = true
+		return nil
 	}
 
-	if fk == reflect.Struct {
-		fi.vtype = dt_struct
+	if fk == reflect.Slice {
+		fi.vtype = vt_slice
+		srt, srk, sptrs := dereferenceType(ft.Elem())
+		if sptrs == 0 {
+			vt = cfg.getPrimType(srt, srk)
+			if vt != vt_invalid {
+				fi.sevtype = vt
+			}
+		}			 
 		return nil		
 	}
 	
-	if fk == reflect.Slice {
-		fi.vtype = dt_slice
+	if fk == reflect.Struct {
+		fi.vtype = vt_struct
 		return nil		
 	}
 	
 	if fk == reflect.Map {
-		fi.vtype = dt_map
+		fi.vtype = vt_map
 		return nil		
 	}
 	
@@ -1009,6 +1160,31 @@ func (cfg *Config) inspectField(fieldName string, field *reflect.StructField,
 }
 
 
+func (cfg *Config) getPrimType(t reflect.Type, k reflect.Kind) valueType {
+
+	// Check first because the kind is int64
+	if t == reflect.TypeOf((*time.Duration)(nil)).Elem() {
+		return vt_duration
+	}
+	
+	switch k {
+		case reflect.Int, reflect.Int8, reflect.Int16,
+			 reflect.Int32, reflect.Int64:
+			return vt_int
+		case reflect.Uint, reflect.Uint8, reflect.Uint16,
+			 reflect.Uint32, reflect.Uint64:
+			return vt_uint
+		case reflect.Float32, reflect.Float64:
+			return vt_float
+		case reflect.String:
+			return vt_string
+		case reflect.Bool:
+			return vt_bool
+	}
+
+	return vt_invalid
+}
+
 //===========================================================================
 // Tags
 //===========================================================================
@@ -1016,7 +1192,7 @@ func (cfg *Config) inspectField(fieldName string, field *reflect.StructField,
 func (cfg *Config) parseTags(fieldName string, field *reflect.StructField,
 	fi *fieldInfo) error {
 
-	tag := field.Tag.Get(cfgTagName)
+	tag := field.Tag.Get(confTagsName)
 	if tag == "" {
 		return nil
 	}
@@ -1131,3 +1307,4 @@ func (cfg *Config) parseTag(fieldName, src_name string, num int,
 	return fmt.Errorf("invalid tag for field %s: '%s' is not a valid tag",
 		fieldName, src_name)
 }
+
