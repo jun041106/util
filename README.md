@@ -1,4 +1,0 @@
-util
-====
-
-Common generic utilities
