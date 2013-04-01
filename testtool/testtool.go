@@ -7,10 +7,22 @@ import (
 	"io/ioutil"
 	"os"
 	"runtime"
+	"strings"
 	"testing"
 
+	"github.com/apcera/logging"
 	"github.com/apcera/logging/unittest"
 )
+
+// Common interface that can be used to allow testing.B and testing.T objects
+// to by passed to the same function.
+type Logger interface {
+	Error(args ...interface{})
+	Errorf(format string, args ...interface{})
+	Failed() bool
+	Fatal(args ...interface{})
+	Fatalf(format string, args ...interface{})
+}
 
 // -----------------------------------------------------------------------
 // Initialization, cleanup, and shutdown functions.
@@ -83,4 +95,31 @@ func TempDir(t *testing.T) string {
 		os.RemoveAll(f)
 	})
 	return f
+}
+
+// -----------------------------------------------------------------------
+// Fatalf wrapper.
+// -----------------------------------------------------------------------
+
+// This function wraps Fatalf in order to provide a functional stack trace
+// on failures rather than just a line number of the failing check. This
+// helps if you have a test that fails in a loop since it will show
+// the path to get there as well as the error directly.
+func Fatalf(t Logger, f string, args ...interface{}) {
+	lines := make([]string, 0, 100)
+	msg := fmt.Sprintf(f, args...)
+	lines = append(lines, msg)
+
+	// Generate the Stack of callers:
+	for i := 0; true; i++ {
+		_, file, line, ok := runtime.Caller(i)
+		if ok == false {
+			break
+		}
+		msg := fmt.Sprintf("%d - %s:%d", i, file, line)
+		lines = append(lines, msg)
+	}
+
+	logging.Errorf("Test has failed: %s", msg)
+	t.Fatalf("%s", strings.Join(lines, "\n"))
 }

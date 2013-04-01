@@ -25,9 +25,9 @@ func TestParseSimpleProcFile(t *testing.T) {
 		f,
 		func(index int, line string) error {
 			if index > len(lines) {
-				t.Fatalf("Too many lines read: %d", index)
+				testtool.Fatalf(t, "Too many lines read: %d", index)
 			} else if line != lines[index] {
-				t.Fatalf("Invalid line read: %s", line)
+				testtool.Fatalf(t, "Invalid line read: %s", line)
 			}
 			return nil
 		},
@@ -41,18 +41,19 @@ func TestParseSimpleProcFile(t *testing.T) {
 			case line == 1 && index == 2 && elm == "belm2":
 			case line == 3 && index == 0 && elm == "delm0":
 			default:
-				t.Fatalf("Unknown element read: %d, %d, %s", line, index, elm)
+				testtool.Fatalf(
+					t, "Unknown element read: %d, %d, %s", line, index, elm)
 			}
 			return nil
 		})
 	if err != nil {
-		t.Fatalf("Unexpected error from ParseSimpleProcFile()")
+		testtool.Fatalf(t, "Unexpected error from ParseSimpleProcFile()")
 	}
 
 	// Test 2: No function defined. This should be successful.
 	err = ParseSimpleProcFile(f, nil, nil)
 	if err != nil {
-		t.Fatalf("Unexpected error from ParseSimpleProcFile()")
+		testtool.Fatalf(t, "Unexpected error from ParseSimpleProcFile()")
 	}
 
 	// Test 3: ef returns an error.
@@ -63,7 +64,7 @@ func TestParseSimpleProcFile(t *testing.T) {
 		},
 		nil)
 	if err == nil {
-		t.Fatalf("Expected error not returned.")
+		testtool.Fatalf(t, "Expected error not returned.")
 	}
 
 	// Test 4: lf returns an error.
@@ -74,7 +75,7 @@ func TestParseSimpleProcFile(t *testing.T) {
 			return fmt.Errorf("error.")
 		})
 	if err == nil {
-		t.Fatalf("Expected error not returned.")
+		testtool.Fatalf(t, "Expected error not returned.")
 	}
 
 	// Test 6: last case lf operation.
