@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/apcera/logging"
 	"github.com/apcera/logging/unittest"
@@ -30,7 +31,7 @@ type Logger interface {
 
 // Stores output from the logging system so it can be written only if
 // the test actually fails.
-var logBuffer unittest.LogBuffer = unittest.SetupBuffer()
+var LogBuffer unittest.LogBuffer = unittest.SetupBuffer()
 
 // This is a list of functions that will be run on test completion. Having
 // this allows us to clean up temporary directories or files after the
@@ -51,7 +52,7 @@ func FinishTest(t *testing.T) {
 		Finalizers[len(Finalizers)-1-i]()
 	}
 	Finalizers = nil
-	logBuffer.FinishTest(t)
+	LogBuffer.FinishTest(t)
 }
 
 // -----------------------------------------------------------------------
@@ -97,6 +98,21 @@ func TempDir(t *testing.T) string {
 	return f
 }
 
+// Allocate a temporary file and ensure that it gets cleaned up when the
+// test is completed.
+func TempFile(t *testing.T) string {
+	file, err := ioutil.TempFile("", "unittest")
+	if err != nil {
+		Fatalf(t, "Error making temporary file: %s", err)
+	}
+	defer file.Close()
+	name := file.Name()
+	Finalizers = append(Finalizers, func() {
+		os.RemoveAll(name)
+	})
+	return name
+}
+
 // -----------------------------------------------------------------------
 // Fatalf wrapper.
 // -----------------------------------------------------------------------
@@ -122,4 +138,25 @@ func Fatalf(t Logger, f string, args ...interface{}) {
 
 	logging.Errorf("Test has failed: %s", msg)
 	t.Fatalf("%s", strings.Join(lines, "\n"))
+}
+
+// -----------------------------------------------------------------------
+// Simple Timeout functions
+// -----------------------------------------------------------------------
+
+// runs the given function until 'timeout' has passed, sleeping 'sleep'
+// duration in between runs. If the function returns true this exits,
+// otherwise after timeout this will fail the test.
+func Timeout(
+	t *testing.T, timeout time.Duration, sleep time.Duration,
+	f func() bool) {
+	//
+	end := time.Now().Add(timeout)
+	for time.Now().Before(end) {
+		if f() == true {
+			return
+		}
+		time.Sleep(sleep)
+	}
+	Fatalf(t, "Timeout.")
 }
