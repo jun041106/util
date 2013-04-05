@@ -38,6 +38,11 @@ var LogBuffer unittest.LogBuffer = unittest.SetupBuffer()
 // test is done which is a huge win.
 var Finalizers []func() = nil
 
+// Adds a function to be called once the test finishes.
+func AddTestFinalizer(f func()) {
+	Finalizers = append(Finalizers, f)
+}
+
 // Called at the start of a test to setup all the various state bits that
 // are needed. All tests in this module should start by calling this
 // function.
@@ -85,7 +90,7 @@ func WriteTempFile(t *testing.T, contents string) string {
 
 // Makes a temporary directory
 func TempDir(t *testing.T) string {
-	f, err := ioutil.TempDir("", "golangunittest")
+	f, err := ioutil.TempDir(RootTempDir(t), "golangunittest")
 	if f == "" {
 		t.Fatalf("ioutil.TempFile() return an empty string.")
 	} else if err != nil {
@@ -101,7 +106,7 @@ func TempDir(t *testing.T) string {
 // Allocate a temporary file and ensure that it gets cleaned up when the
 // test is completed.
 func TempFile(t *testing.T) string {
-	file, err := ioutil.TempFile("", "unittest")
+	file, err := ioutil.TempFile(RootTempDir(t), "unittest")
 	if err != nil {
 		Fatalf(t, "Error making temporary file: %s", err)
 	}
