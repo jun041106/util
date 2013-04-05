@@ -145,6 +145,10 @@ func Fatalf(t Logger, f string, args ...interface{}) {
 	t.Fatalf("%s", strings.Join(lines, "\n"))
 }
 
+func Fatal(t Logger, args ...interface{}) {
+	Fatalf(t, fmt.Sprint(args...))
+}
+
 // -----------------------------------------------------------------------
 // Simple Timeout functions
 // -----------------------------------------------------------------------
