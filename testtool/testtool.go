@@ -47,6 +47,7 @@ func AddTestFinalizer(f func()) {
 // are needed. All tests in this module should start by calling this
 // function.
 func StartTest(t *testing.T) {
+	LogBuffer = unittest.SetupBuffer()
 }
 
 // Called as a defer to a test in order to clean up after a test run. All
