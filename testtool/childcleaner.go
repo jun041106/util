@@ -59,13 +59,15 @@ func RootTempDir(t *testing.T) string {
 		var reader *os.File
 		var err error
 
+		mode := os.FileMode(0777)
 		rootDirectory, err = ioutil.TempDir("", "rootunittest")
 		if rootDirectory == "" {
 			t.Fatalf("ioutil.TempFile() return an empty string.")
 		} else if err != nil {
 			t.Fatalf("ioutil.TempFile() return an err: %s", err)
-		}
-		if reader, rootDirectoryStdin, err = os.Pipe(); err != nil {
+		} else if err := os.Chmod(rootDirectory, mode); err != nil {
+			t.Fatalf("os.Chmod error: %s", err)
+		} else if reader, rootDirectoryStdin, err = os.Pipe(); err != nil {
 			t.Fatalf("io.Pipe() failed: %s", err)
 		}
 		cmd := exec.Command(os.Args[0], startupInterceptorToken, rootDirectory)

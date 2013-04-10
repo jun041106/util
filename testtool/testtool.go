@@ -69,11 +69,18 @@ func FinishTest(t *testing.T) {
 // the file once the test is complete, and then returns the newly
 // created filename to the caller.
 func WriteTempFile(t *testing.T, contents string) string {
+	return WriteTempFileMode(t, contents, os.FileMode(0644))
+}
+
+// Like WriteTempFile but sets the mode.
+func WriteTempFileMode(t *testing.T, contents string, mode os.FileMode) string {
 	f, err := ioutil.TempFile("", "golangunittest")
 	if f == nil {
 		t.Fatalf("ioutil.TempFile() return nil.")
 	} else if err != nil {
 		t.Fatalf("ioutil.TempFile() return an err: %s", err)
+	} else if err := os.Chmod(f.Name(), mode); err != nil {
+		t.Fatalf("os.Chmod() returned an error: %s", err)
 	}
 	defer f.Close()
 	Finalizers = append(Finalizers, func() {
@@ -91,11 +98,18 @@ func WriteTempFile(t *testing.T, contents string) string {
 
 // Makes a temporary directory
 func TempDir(t *testing.T) string {
+	return TempDirMode(t, os.FileMode(0755))
+}
+
+// Makes a temporary directory with the given mode.
+func TempDirMode(t *testing.T, mode os.FileMode) string {
 	f, err := ioutil.TempDir(RootTempDir(t), "golangunittest")
 	if f == "" {
 		t.Fatalf("ioutil.TempFile() return an empty string.")
 	} else if err != nil {
 		t.Fatalf("ioutil.TempFile() return an err: %s", err)
+	} else if err := os.Chmod(f, mode); err != nil {
+		t.Fatalf("os.Chmod failure.")
 	}
 
 	Finalizers = append(Finalizers, func() {
@@ -107,12 +121,19 @@ func TempDir(t *testing.T) string {
 // Allocate a temporary file and ensure that it gets cleaned up when the
 // test is completed.
 func TempFile(t *testing.T) string {
-	file, err := ioutil.TempFile(RootTempDir(t), "unittest")
+	return TempFileMode(t, os.FileMode(0644))
+}
+
+// Writes a temp file with the given mode.
+func TempFileMode(t *testing.T, mode os.FileMode) string {
+	f, err := ioutil.TempFile(RootTempDir(t), "unittest")
 	if err != nil {
 		Fatalf(t, "Error making temporary file: %s", err)
+	} else if err := os.Chmod(f.Name(), mode); err != nil {
+		t.Fatalf("os.Chmod failure.")
 	}
-	defer file.Close()
-	name := file.Name()
+	defer f.Close()
+	name := f.Name()
 	Finalizers = append(Finalizers, func() {
 		os.RemoveAll(name)
 	})
