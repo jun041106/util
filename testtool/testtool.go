@@ -61,6 +61,21 @@ func FinishTest(t *testing.T) {
 	LogBuffer.FinishTest(t)
 }
 
+// Call this to require that your test is run as root. NOTICE: this does not
+// cause the test to FAIL. This seems like the most sane thing to do based on
+// the shortcomings of Go's test utilities.
+func TestRequiresRoot() {
+	if os.Getuid() != 0 {
+		fmt.Println("\t------------------------------")
+		fmt.Println("\tTHIS TEST MUST BE RUN AS ROOT.")
+		fmt.Println("\t------------------------------")
+		// We can safely exit since this is how testing.T manages
+		// failures. Since we have not "failed" the test then it will
+		// be marked as passing.
+		runtime.Goexit()
+	}
+}
+
 // -----------------------------------------------------------------------
 // Temporary file helpers.
 // -----------------------------------------------------------------------
