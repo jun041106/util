@@ -206,3 +206,21 @@ func Timeout(
 	}
 	Fatalf(t, "Timeout.")
 }
+
+// -----------------------------------------------------------------------
+// Error object handling functions.
+// -----------------------------------------------------------------------
+
+// Fatal's the test if err is nil.
+func TestExpectError(t *testing.T, err error) {
+	if err == nil {
+		Fatalf(t, "Expected error not returned.")
+	}
+}
+
+// Fatal's the test if err is not nil.
+func TestExpectSuccess(t *testing.T, err error) {
+	if err != nil {
+		Fatalf(t, "Unexpected error: %s", err)
+	}
+}
