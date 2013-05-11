@@ -76,6 +76,16 @@ func (e *EnvMap) Get(key string) (string, bool) {
 	return e.get(key, e, processQueue, cache)
 }
 
+func (e *EnvMap) GetRaw(key string) (string, bool) {
+	for e != nil {
+		if value, ok := e.env[key]; ok == true {
+			return value, true
+		}
+		e = e.parent
+	}
+	return "", false
+}
+
 func (e *EnvMap) Map() map[string]string {
 	cache := make(map[string]string, len(e.env))
 	processQueue := make(map[string]*EnvMap, 10)

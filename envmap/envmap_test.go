@@ -128,3 +128,27 @@ func TestEnvMap(t *testing.T) {
 		Fatalf(t, "results are not the same:\n%s", strings.Join(msg, "\n"))
 	}
 }
+
+func TestEnvMapGetRaw(t *testing.T) {
+	StartTest(t)
+	defer FinishTest(t)
+
+	root := NewEnvMap()
+	root.Set("VARIABLE", "foo bar $STR")
+	root.Set("VAR1", "abc 123 $VAR2")
+	root.Set("VAR2", "xyz")
+
+	if v, _ := root.Get("VARIABLE"); v != "foo bar " {
+		Fatalf(t, "Get(VARIABLE) should have blanked out STR: %q", v)
+	}
+	if v, _ := root.GetRaw("VARIABLE"); v != "foo bar $STR" {
+		Fatalf(t, "GetRaw(VARIABLE) should include raw $STR: %q", v)
+	}
+
+	if v, _ := root.Get("VAR1"); v != "abc 123 xyz" {
+		Fatalf(t, "Get(VAR1) should have parsed mentioned variables: %q", v)
+	}
+	if v, _ := root.GetRaw("VAR1"); v != "abc 123 $VAR2" {
+		Fatalf(t, "GetRaw(VAR1) should be the raw string: %q", v)
+	}
+}
