@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"reflect"
+	"path"
 	"runtime"
 	"strings"
 	"testing"
@@ -169,11 +169,21 @@ func Fatalf(t Logger, f string, args ...interface{}) {
 	msg := fmt.Sprintf(f, args...)
 	lines = append(lines, msg)
 
+	// Get the directory of testtool in order to ensure that we don't show
+	// it in the stack traces (it can be spammy).
+	_, myfile, _, _ := runtime.Caller(0)
+	mydir := path.Dir(myfile)
+
 	// Generate the Stack of callers:
 	for i := 0; true; i++ {
 		_, file, line, ok := runtime.Caller(i)
 		if ok == false {
 			break
+		}
+		// Don't print the stack line if its within testtool since its
+		// annoying to see the testtool internals.
+		if path.Dir(file) == mydir {
+			continue
 		}
 		msg := fmt.Sprintf("%d - %s:%d", i, file, line)
 		lines = append(lines, msg)
@@ -224,22 +234,4 @@ func TestExpectSuccess(t *testing.T, err error) {
 	if err != nil {
 		Fatalf(t, "Unexpected error: %s", err)
 	}
-}
-
-// -----------------------------------------------------------------------
-// Equality tests.
-// -----------------------------------------------------------------------
-
-func TestEqual(t *testing.T, a1 interface{}, a2 interface{}) {
-	if a1 == nil && a2 != nil {
-		Fatalf(t, "Expected nil, got non nil.")
-	} else if a1 != nil && a2 == nil {
-		Fatalf(t, "Expected non nil, got nil.")
-	}
-	v1 := reflect.ValueOf(a1)
-	v2 := reflect.ValueOf(a2)
-	if v1.Type() != v2.Type() {
-		Fatalf(t, "Types are not the same.")
-	}
-	deepValueEqual(t, "", v1, v2, 0, make(map[uintptr]*visit))
 }

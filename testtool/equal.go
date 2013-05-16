@@ -8,6 +8,26 @@ import (
 	"testing"
 )
 
+// -----------------------------------------------------------------------
+// Equality tests.
+// -----------------------------------------------------------------------
+
+func TestEqual(t *testing.T, have, want interface{}) {
+	if have == nil && want != nil {
+		Fatalf(t, "Expected non nil, got nil.")
+	} else if have != nil && want == nil {
+		Fatalf(t, "Expected nil, got non nil.")
+	}
+	haveValue := reflect.ValueOf(have)
+	wantValue := reflect.ValueOf(want)
+	deepValueEqual(t, "", haveValue, wantValue, make(map[uintptr]*visit))
+}
+
+// ---------
+// Internals
+// ---------
+
+// Tracks access to specific pointers so we do not recurse.
 type visit struct {
 	a1   uintptr
 	a2   uintptr
@@ -21,21 +41,26 @@ type visit struct {
 // comparisons that have already been seen, which allows short circuiting on
 // recursive types.
 func deepValueEqual(
-	t *testing.T, description string, v1, v2 reflect.Value, depth int,
+	t *testing.T, description string, have, want reflect.Value,
 	visited map[uintptr]*visit,
 ) {
-	if !v1.IsValid() || !v2.IsValid() {
-		if v1.IsValid() != v2.IsValid() {
-			Fatalf(t, "%s: Validity of both is not the same.", description)
-		}
-	}
-	if v1.Type() != v2.Type() {
-		Fatalf(t, "%s: Not the same type.", description)
+	if !want.IsValid() && !have.IsValid() {
+		return
+	} else if !want.IsValid() && have.IsValid() {
+		// This is rare, not sure how to document this better.
+		Fatalf(t, "%s: have invalid object.", description)
+	} else if want.IsValid() && !have.IsValid() {
+		// This is rare, not sure how to document this better.
+		Fatalf(t, "%s: wanted a valid object.", description)
+	} else if want.Type() != have.Type() {
+		Fatalf(
+			t, "%s: Not the same type, have: '%s', want: '%s'",
+			description, have.Type(), want.Type())
 	}
 
-	if v1.CanAddr() && v2.CanAddr() {
-		addr1 := v1.UnsafeAddr()
-		addr2 := v2.UnsafeAddr()
+	if want.CanAddr() && have.CanAddr() {
+		addr1 := want.UnsafeAddr()
+		addr2 := have.UnsafeAddr()
 		if addr1 > addr2 {
 			// Canonicalize order to reduce number of entries in visited.
 			addr1, addr2 = addr2, addr1
@@ -49,7 +74,7 @@ func deepValueEqual(
 		// ... or already seen
 		h := 17*addr1 + addr2
 		seen := visited[h]
-		typ := v1.Type()
+		typ := want.Type()
 		for p := seen; p != nil; p = p.next {
 			if p.a1 == addr1 && p.a2 == addr2 && p.typ == typ {
 				return
@@ -60,85 +85,98 @@ func deepValueEqual(
 		visited[h] = &visit{addr1, addr2, typ, seen}
 	}
 
-	switch v1.Kind() {
-	case reflect.Array:
-		if v1.Len() != v2.Len() {
-			Fatalf(t, "%s: lengths are not equal.", description)
+	// Checks to see if one value is nil, while the other is not.
+	checkNil := func() {
+		if want.IsNil() && !have.IsNil() {
+			Fatalf(
+				t, "%s: not equal.\nhave: %s\nwant: nil.",
+				description, have.Interface())
+		} else if !want.IsNil() && have.IsNil() {
+			Fatalf(
+				t, "%s: not equal.\nhave: nil\nwant: %s",
+				description, want.Interface())
 		}
-		for i := 0; i < v1.Len(); i++ {
+	}
+
+	// Checks to see that the lengths of both objects are equal.
+	checkLen := func() {
+		if want.Len() != have.Len() {
+			Fatalf(
+				t, "%s: (len(have): %d, len(want): %d)\nhave: %s\nwant: %s",
+				description, have.Len(), want.Len(),
+				have.Interface(), want.Interface())
+		}
+	}
+
+	switch want.Kind() {
+	case reflect.Array:
+		checkLen()
+		for i := 0; i < want.Len(); i++ {
 			deepValueEqual(
-				t, fmt.Sprintf("%s [%d]: ", i, description),
-				v1.Index(i), v2.Index(i), depth+1, visited)
+				t, fmt.Sprintf("%s[%d]", i, description),
+				want.Index(i), have.Index(i), visited)
 		}
 	case reflect.Slice:
-		if v1.IsNil() && !v2.IsNil() {
-			Fatalf(t, "%s: expect nil, got something else.", description)
-		} else if !v1.IsNil() && v2.IsNil() {
-			Fatalf(t, "%s: expect non nil, got nil.", description)
-		}
-		if v1.Len() != v2.Len() {
-			Fatalf(
-				t, "%s: expected length %d, got length %s", description,
-				v1.Len(), v2.Len())
-		}
-		for i := 0; i < v1.Len(); i++ {
+		checkNil()
+		checkLen()
+		for i := 0; i < want.Len(); i++ {
 			deepValueEqual(
 				t, fmt.Sprintf("%s[%d]", description, i),
-				v1.Index(i), v2.Index(i), depth+1, visited)
+				want.Index(i), have.Index(i), visited)
 		}
 	case reflect.Interface:
-		if v1.IsNil() && !v2.IsNil() {
-			Fatalf(t, "%s: expect nil, got something else.", description)
-		} else if !v1.IsNil() && v2.IsNil() {
-			Fatalf(t, "%s: expect non nil, got nil.", description)
-		}
+		checkNil()
 		deepValueEqual(
-			t, description, v1.Elem(), v2.Elem(), depth+1, visited)
+			t, description, want.Elem(), have.Elem(), visited)
 	case reflect.Ptr:
 		deepValueEqual(
-			t, description, v1.Elem(), v2.Elem(), depth+1, visited)
+			t, description, want.Elem(), have.Elem(), visited)
 	case reflect.Struct:
-		for i, n := 0, v1.NumField(); i < n; i++ {
-			field1 := v1.Type().Field(i)
-			field2 := v2.Type().Field(i)
-			if field1.Name != field2.Name {
-				Fatalf(
-					t, "%s Field names do not match: %s != %s",
-					description, field1.Name, field2.Name)
-			}
+		for i, n := 0, want.NumField(); i < n; i++ {
+			name := want.Type().Field(i).Name
 			// Make sure that we don't print a strange error if the
 			// first object given to us is a struct.
 			if description == "" {
 				deepValueEqual(
-					t, field1.Name, v1.Field(i), v2.Field(i), depth+1, visited)
+					t, name, want.Field(i), have.Field(i), visited)
 			} else {
 				deepValueEqual(
-					t, fmt.Sprintf("%s.%s ", description, field1.Name),
-					v1.Field(i), v2.Field(i), depth+1, visited)
+					t, fmt.Sprintf("%s.%s", description, name),
+					want.Field(i), have.Field(i), visited)
 			}
 		}
 	case reflect.Map:
-		if v1.IsNil() && !v2.IsNil() {
-			Fatalf(t, "%s: expect nil, got something else.", description)
-		} else if !v1.IsNil() && v2.IsNil() {
-			Fatalf(t, "%s: expect non nil, got nil.", description)
-		}
-		for _, k := range v1.MapKeys() {
+		checkNil()
+		checkLen()
+		for _, k := range want.MapKeys() {
 			deepValueEqual(
 				t, fmt.Sprintf("%s[%s] ", description, k),
-				v1.MapIndex(k), v2.MapIndex(k), depth+1, visited)
+				want.MapIndex(k), have.MapIndex(k), visited)
 		}
 	case reflect.Func:
-		if v1.IsNil() && !v2.IsNil() {
-			Fatalf(t, "%s: expect nil, got something else.", description)
-		} else if !v1.IsNil() && v2.IsNil() {
-			Fatalf(t, "%s: expect non nil, got nil.", description)
-		}
 		// Can't do better than this:
+		checkNil()
+	case reflect.String:
+		s1 := want.Interface().(string)
+		s2 := have.Interface().(string)
+		if len(s1) != len(s2) {
+			Fatalf(t,
+				"%s: len(have) %d != len(want) %d.\nhave: %s\nwant: %s\n",
+				description, len(s2), len(s1), s2, s1)
+		}
+		for i := range s1 {
+			if s1[i] != s2[i] {
+				Fatalf(t,
+					"%s: difference at index %d.\nhave: %s\nwant: %s\n",
+					description, i, s2, s1)
+			}
+		}
 	default:
 		// Normal equality suffices
-		if !reflect.DeepEqual(v1.Interface(), v2.Interface()) {
-			Fatalf(t, "%s: not equal.", description)
+		if !reflect.DeepEqual(want.Interface(), have.Interface()) {
+			Fatalf(
+				t, "%s: not equal.\nhave: %s\nwant: %s",
+				description, have, want)
 		}
 	}
 }
