@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"reflect"
 	"runtime"
 	"strings"
 	"testing"
@@ -223,4 +224,22 @@ func TestExpectSuccess(t *testing.T, err error) {
 	if err != nil {
 		Fatalf(t, "Unexpected error: %s", err)
 	}
+}
+
+// -----------------------------------------------------------------------
+// Equality tests.
+// -----------------------------------------------------------------------
+
+func TestEqual(t *testing.T, a1 interface{}, a2 interface{}) {
+	if a1 == nil && a2 != nil {
+		Fatalf(t, "Expected nil, got non nil.")
+	} else if a1 != nil && a2 == nil {
+		Fatalf(t, "Expected non nil, got nil.")
+	}
+	v1 := reflect.ValueOf(a1)
+	v2 := reflect.ValueOf(a2)
+	if v1.Type() != v2.Type() {
+		Fatalf(t, "Types are not the same.")
+	}
+	deepValueEqual(t, "", v1, v2, 0, make(map[uintptr]*visit))
 }
