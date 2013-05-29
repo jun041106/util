@@ -9,7 +9,6 @@ import (
 	"path"
 	"runtime"
 	"strings"
-	"testing"
 	"time"
 
 	"github.com/apcera/logging"
@@ -24,6 +23,8 @@ type Logger interface {
 	Failed() bool
 	Fatal(args ...interface{})
 	Fatalf(format string, args ...interface{})
+	Skip(args ...interface{})
+	Skipf(format string, args ...interface{})
 }
 
 // -----------------------------------------------------------------------
@@ -47,33 +48,27 @@ func AddTestFinalizer(f func()) {
 // Called at the start of a test to setup all the various state bits that
 // are needed. All tests in this module should start by calling this
 // function.
-func StartTest(t *testing.T) {
+func StartTest(l Logger) {
 	LogBuffer = unittest.SetupBuffer()
 }
 
 // Called as a defer to a test in order to clean up after a test run. All
 // tests in this module should call this function as a defer right after
 // calling StartTest()
-func FinishTest(t *testing.T) {
+func FinishTest(l Logger) {
 	for i := range Finalizers {
 		Finalizers[len(Finalizers)-1-i]()
 	}
 	Finalizers = nil
-	LogBuffer.FinishTest(t)
+	LogBuffer.FinishTest(l)
 }
 
 // Call this to require that your test is run as root. NOTICE: this does not
 // cause the test to FAIL. This seems like the most sane thing to do based on
 // the shortcomings of Go's test utilities.
-func TestRequiresRoot() {
+func TestRequiresRoot(l Logger) {
 	if os.Getuid() != 0 {
-		fmt.Println("\t------------------------------")
-		fmt.Println("\tTHIS TEST MUST BE RUN AS ROOT.")
-		fmt.Println("\t------------------------------")
-		// We can safely exit since this is how testing.T manages
-		// failures. Since we have not "failed" the test then it will
-		// be marked as passing.
-		runtime.Goexit()
+		l.Skipf("This test must be run as root. Skipping.")
 	}
 }
 
@@ -84,19 +79,19 @@ func TestRequiresRoot() {
 // Writes contents to a temporary file, sets up a Finalizer to remove
 // the file once the test is complete, and then returns the newly
 // created filename to the caller.
-func WriteTempFile(t *testing.T, contents string) string {
-	return WriteTempFileMode(t, contents, os.FileMode(0644))
+func WriteTempFile(l Logger, contents string) string {
+	return WriteTempFileMode(l, contents, os.FileMode(0644))
 }
 
 // Like WriteTempFile but sets the mode.
-func WriteTempFileMode(t *testing.T, contents string, mode os.FileMode) string {
+func WriteTempFileMode(l Logger, contents string, mode os.FileMode) string {
 	f, err := ioutil.TempFile("", "golangunittest")
 	if f == nil {
-		t.Fatalf("ioutil.TempFile() return nil.")
+		Fatalf(l, "ioutil.TempFile() return nil.")
 	} else if err != nil {
-		t.Fatalf("ioutil.TempFile() return an err: %s", err)
+		Fatalf(l, "ioutil.TempFile() return an err: %s", err)
 	} else if err := os.Chmod(f.Name(), mode); err != nil {
-		t.Fatalf("os.Chmod() returned an error: %s", err)
+		Fatalf(l, "os.Chmod() returned an error: %s", err)
 	}
 	defer f.Close()
 	Finalizers = append(Finalizers, func() {
@@ -105,27 +100,27 @@ func WriteTempFileMode(t *testing.T, contents string, mode os.FileMode) string {
 	contentsBytes := []byte(contents)
 	n, err := f.Write(contentsBytes)
 	if err != nil {
-		t.Fatalf("Error writing to %s: %s", f.Name(), err)
+		Fatalf(l, "Error writing to %s: %s", f.Name(), err)
 	} else if n != len(contentsBytes) {
-		t.Fatalf("Short write to %s", f.Name())
+		Fatalf(l, "Short write to %s", f.Name())
 	}
 	return f.Name()
 }
 
 // Makes a temporary directory
-func TempDir(t *testing.T) string {
-	return TempDirMode(t, os.FileMode(0755))
+func TempDir(l Logger) string {
+	return TempDirMode(l, os.FileMode(0755))
 }
 
 // Makes a temporary directory with the given mode.
-func TempDirMode(t *testing.T, mode os.FileMode) string {
-	f, err := ioutil.TempDir(RootTempDir(t), "golangunittest")
+func TempDirMode(l Logger, mode os.FileMode) string {
+	f, err := ioutil.TempDir(RootTempDir(l), "golangunittest")
 	if f == "" {
-		t.Fatalf("ioutil.TempFile() return an empty string.")
+		Fatalf(l, "ioutil.TempFile() return an empty string.")
 	} else if err != nil {
-		t.Fatalf("ioutil.TempFile() return an err: %s", err)
+		Fatalf(l, "ioutil.TempFile() return an err: %s", err)
 	} else if err := os.Chmod(f, mode); err != nil {
-		t.Fatalf("os.Chmod failure.")
+		Fatalf(l, "os.Chmod failure.")
 	}
 
 	Finalizers = append(Finalizers, func() {
@@ -136,17 +131,17 @@ func TempDirMode(t *testing.T, mode os.FileMode) string {
 
 // Allocate a temporary file and ensure that it gets cleaned up when the
 // test is completed.
-func TempFile(t *testing.T) string {
-	return TempFileMode(t, os.FileMode(0644))
+func TempFile(l Logger) string {
+	return TempFileMode(l, os.FileMode(0644))
 }
 
 // Writes a temp file with the given mode.
-func TempFileMode(t *testing.T, mode os.FileMode) string {
-	f, err := ioutil.TempFile(RootTempDir(t), "unittest")
+func TempFileMode(l Logger, mode os.FileMode) string {
+	f, err := ioutil.TempFile(RootTempDir(l), "unittest")
 	if err != nil {
-		Fatalf(t, "Error making temporary file: %s", err)
+		Fatalf(l, "Error making temporary file: %s", err)
 	} else if err := os.Chmod(f.Name(), mode); err != nil {
-		t.Fatalf("os.Chmod failure.")
+		Fatalf(l, "os.Chmod failure.")
 	}
 	defer f.Close()
 	name := f.Name()
@@ -164,7 +159,7 @@ func TempFileMode(t *testing.T, mode os.FileMode) string {
 // on failures rather than just a line number of the failing check. This
 // helps if you have a test that fails in a loop since it will show
 // the path to get there as well as the error directly.
-func Fatalf(t Logger, f string, args ...interface{}) {
+func Fatalf(l Logger, f string, args ...interface{}) {
 	lines := make([]string, 0, 100)
 	msg := fmt.Sprintf(f, args...)
 	lines = append(lines, msg)
@@ -190,11 +185,11 @@ func Fatalf(t Logger, f string, args ...interface{}) {
 	}
 
 	logging.Errorf("Test has failed: %s", msg)
-	t.Fatalf("%s", strings.Join(lines, "\n"))
+	l.Fatalf("%s", strings.Join(lines, "\n"))
 }
 
 func Fatal(t Logger, args ...interface{}) {
-	Fatalf(t, fmt.Sprint(args...))
+	Fatalf(t, "%s", fmt.Sprint(args...))
 }
 
 // -----------------------------------------------------------------------
@@ -205,9 +200,9 @@ func Fatal(t Logger, args ...interface{}) {
 // duration in between runs. If the function returns true this exits,
 // otherwise after timeout this will fail the test.
 func Timeout(
-	t *testing.T, timeout time.Duration, sleep time.Duration,
-	f func() bool) {
-	//
+	l Logger, timeout time.Duration, sleep time.Duration,
+	f func() bool,
+) {
 	end := time.Now().Add(timeout)
 	for time.Now().Before(end) {
 		if f() == true {
@@ -215,7 +210,7 @@ func Timeout(
 		}
 		time.Sleep(sleep)
 	}
-	Fatalf(t, "Timeout.")
+	Fatalf(l, "Timeout.")
 }
 
 // -----------------------------------------------------------------------
@@ -223,15 +218,15 @@ func Timeout(
 // -----------------------------------------------------------------------
 
 // Fatal's the test if err is nil.
-func TestExpectError(t *testing.T, err error) {
+func TestExpectError(l Logger, err error) {
 	if err == nil {
-		Fatalf(t, "Expected error not returned.")
+		Fatalf(l, "Expected error not returned.")
 	}
 }
 
 // Fatal's the test if err is not nil.
-func TestExpectSuccess(t *testing.T, err error) {
+func TestExpectSuccess(l Logger, err error) {
 	if err != nil {
-		Fatalf(t, "Unexpected error: %s", err)
+		Fatalf(l, "Unexpected error: %s", err)
 	}
 }

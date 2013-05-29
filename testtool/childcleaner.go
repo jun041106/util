@@ -8,7 +8,6 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
-	"testing"
 )
 
 const startupInterceptorToken = "sdf908s0dijflk23423"
@@ -54,7 +53,7 @@ var rootDirectoryStdin io.Writer
 
 // Creates a directory that will exist until the process running the tests
 // exits.
-func RootTempDir(t *testing.T) string {
+func RootTempDir(l Logger) string {
 	rootDirectoryOnce.Do(func() {
 		var reader *os.File
 		var err error
@@ -62,22 +61,22 @@ func RootTempDir(t *testing.T) string {
 		mode := os.FileMode(0777)
 		rootDirectory, err = ioutil.TempDir("", "rootunittest")
 		if rootDirectory == "" {
-			t.Fatalf("ioutil.TempFile() return an empty string.")
+			Fatalf(l, "ioutil.TempFile() return an empty string.")
 		} else if err != nil {
-			t.Fatalf("ioutil.TempFile() return an err: %s", err)
+			Fatalf(l, "ioutil.TempFile() return an err: %s", err)
 		} else if err := os.Chmod(rootDirectory, mode); err != nil {
-			t.Fatalf("os.Chmod error: %s", err)
+			Fatalf(l, "os.Chmod error: %s", err)
 		} else if reader, rootDirectoryStdin, err = os.Pipe(); err != nil {
-			t.Fatalf("io.Pipe() failed: %s", err)
+			Fatalf(l, "io.Pipe() failed: %s", err)
 		}
 		cmd := exec.Command(os.Args[0], startupInterceptorToken, rootDirectory)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		cmd.Stdin = reader
 		if err := cmd.Start(); err != nil {
-			t.Fatalf("cmd.Start() failed: %s", err)
+			Fatalf(l, "cmd.Start() failed: %s", err)
 		} else if err := reader.Close(); err != nil {
-			t.Fatalf("Close() error: %s", err)
+			Fatalf(l, "Close() error: %s", err)
 		}
 	})
 	return rootDirectory
