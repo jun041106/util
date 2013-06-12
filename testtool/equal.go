@@ -186,7 +186,7 @@ func deepValueEqual(
 			s1 := have.Interface().(bool)
 			s2 := want.Interface().(bool)
 			if s1 != s2 {
-				Fatalf(t, "%s: have %d, want %d", description, s1, s2)
+				Fatalf(t, "%s: have %t, want %t", description, s1, s2)
 			}
 		case int:
 			s1 := have.Interface().(int)
@@ -258,13 +258,13 @@ func deepValueEqual(
 			s1 := have.Interface().(float32)
 			s2 := want.Interface().(float32)
 			if s1 != s2 {
-				Fatalf(t, "%s: have %d, want %d", description, s1, s1)
+				Fatalf(t, "%s: have %f, want %f", description, s1, s1)
 			}
 		case float64:
 			s1 := have.Interface().(float64)
 			s2 := want.Interface().(float64)
 			if s1 != s2 {
-				Fatalf(t, "%s: have %d, want %d", description, s1, s1)
+				Fatalf(t, "%s: have %f, want %f", description, s1, s1)
 			}
 		default:
 			// Normal equality suffices
