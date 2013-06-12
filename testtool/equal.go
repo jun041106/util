@@ -116,6 +116,7 @@ func deepValueEqual(
 				t, fmt.Sprintf("%s[%d]", i, description),
 				want.Index(i), have.Index(i), visited)
 		}
+
 	case reflect.Slice:
 		checkNil()
 		checkLen()
@@ -124,13 +125,16 @@ func deepValueEqual(
 				t, fmt.Sprintf("%s[%d]", description, i),
 				want.Index(i), have.Index(i), visited)
 		}
+
 	case reflect.Interface:
 		checkNil()
 		deepValueEqual(
 			t, description, want.Elem(), have.Elem(), visited)
+
 	case reflect.Ptr:
 		deepValueEqual(
 			t, description, want.Elem(), have.Elem(), visited)
+
 	case reflect.Struct:
 		for i, n := 0, want.NumField(); i < n; i++ {
 			name := want.Type().Field(i).Name
@@ -145,6 +149,7 @@ func deepValueEqual(
 					want.Field(i), have.Field(i), visited)
 			}
 		}
+
 	case reflect.Map:
 		checkNil()
 		checkLen()
@@ -153,9 +158,11 @@ func deepValueEqual(
 				t, fmt.Sprintf("%s[%s] ", description, k),
 				want.MapIndex(k), have.MapIndex(k), visited)
 		}
+
 	case reflect.Func:
 		// Can't do better than this:
 		checkNil()
+
 	case reflect.String:
 		s1 := have.Interface().(string)
 		s2 := want.Interface().(string)
@@ -171,96 +178,101 @@ func deepValueEqual(
 					description, i, s1, s2)
 			}
 		}
-	case reflect.Bool:
-		s1 := have.Interface().(bool)
-		s2 := want.Interface().(bool)
-		if s1 != s2 {
-			Fatalf(t, "%s: have %d, want %d", description, s1, s2)
-		}
-	case reflect.Int:
-		s1 := have.Interface().(int)
-		s2 := want.Interface().(int)
-		if s1 != s2 {
-			Fatalf(t, "%s: have %d, want %d", description, s1, s2)
-		}
-	case reflect.Int8:
-		s1 := have.Interface().(int8)
-		s2 := want.Interface().(int8)
-		if s1 != s2 {
-			Fatalf(t, "%s: have %d, want %d", description, s1, s1)
-		}
-	case reflect.Int16:
-		s1 := have.Interface().(int16)
-		s2 := want.Interface().(int16)
-		if s1 != s2 {
-			Fatalf(t, "%s: have %d, want %d", description, s1, s1)
-		}
-	case reflect.Int32:
-		s1 := have.Interface().(int32)
-		s2 := want.Interface().(int32)
-		if s1 != s2 {
-			Fatalf(t, "%s: have %d, want %d", description, s1, s1)
-		}
-	case reflect.Int64:
-		s1 := have.Interface().(int64)
-		s2 := want.Interface().(int64)
-		if s1 != s2 {
-			Fatalf(t, "%s: have %d, want %d", description, s1, s1)
-		}
-	case reflect.Uint:
-		s1 := have.Interface().(uint)
-		s2 := want.Interface().(uint)
-		if s1 != s2 {
-			Fatalf(t, "%s: have %d, want %d", description, s1, s1)
-		}
-	case reflect.Uint8:
-		s1 := have.Interface().(uint8)
-		s2 := want.Interface().(uint8)
-		if s1 != s2 {
-			Fatalf(t, "%s: have %d, want %d", description, s1, s1)
-		}
-	case reflect.Uint16:
-		s1 := have.Interface().(uint16)
-		s2 := want.Interface().(uint16)
-		if s1 != s2 {
-			Fatalf(t, "%s: have %d, want %d", description, s1, s1)
-		}
-	case reflect.Uint32:
-		s1 := have.Interface().(uint32)
-		s2 := want.Interface().(uint32)
-		if s1 != s2 {
-			Fatalf(t, "%s: have %d, want %d", description, s1, s1)
-		}
-	case reflect.Uint64:
-		s1 := have.Interface().(uint64)
-		s2 := want.Interface().(uint64)
-		if s1 != s2 {
-			Fatalf(t, "%s: have %d, want %d", description, s1, s1)
-		}
-	case reflect.Uintptr:
-		s1 := have.Interface().(uintptr)
-		s2 := want.Interface().(uintptr)
-		if s1 != s2 {
-			Fatalf(t, "%s: have %d, want %d", description, s1, s1)
-		}
-	case reflect.Float32:
-		s1 := have.Interface().(float32)
-		s2 := want.Interface().(float32)
-		if s1 != s2 {
-			Fatalf(t, "%s: have %d, want %d", description, s1, s1)
-		}
-	case reflect.Float64:
-		s1 := have.Interface().(float64)
-		s2 := want.Interface().(float64)
-		if s1 != s2 {
-			Fatalf(t, "%s: have %d, want %d", description, s1, s1)
-		}
+
 	default:
-		// Normal equality suffices
-		if !reflect.DeepEqual(want.Interface(), have.Interface()) {
-			Fatalf(
-				t, "%s: not equal.\nhave: %s\nwant: %s",
-				description, have, want)
+		// Specific low level types:
+		switch want.Interface().(type) {
+		case bool:
+			s1 := have.Interface().(bool)
+			s2 := want.Interface().(bool)
+			if s1 != s2 {
+				Fatalf(t, "%s: have %d, want %d", description, s1, s2)
+			}
+		case int:
+			s1 := have.Interface().(int)
+			s2 := want.Interface().(int)
+			if s1 != s2 {
+				Fatalf(t, "%s: have %d, want %d", description, s1, s2)
+			}
+		case int8:
+			s1 := have.Interface().(int8)
+			s2 := want.Interface().(int8)
+			if s1 != s2 {
+				Fatalf(t, "%s: have %d, want %d", description, s1, s1)
+			}
+		case int16:
+			s1 := have.Interface().(int16)
+			s2 := want.Interface().(int16)
+			if s1 != s2 {
+				Fatalf(t, "%s: have %d, want %d", description, s1, s1)
+			}
+		case int32:
+			s1 := have.Interface().(int32)
+			s2 := want.Interface().(int32)
+			if s1 != s2 {
+				Fatalf(t, "%s: have %d, want %d", description, s1, s1)
+			}
+		case int64:
+			s1 := have.Interface().(int64)
+			s2 := want.Interface().(int64)
+			if s1 != s2 {
+				Fatalf(t, "%s: have %d, want %d", description, s1, s1)
+			}
+		case uint:
+			s1 := have.Interface().(uint)
+			s2 := want.Interface().(uint)
+			if s1 != s2 {
+				Fatalf(t, "%s: have %d, want %d", description, s1, s1)
+			}
+		case uint8:
+			s1 := have.Interface().(uint8)
+			s2 := want.Interface().(uint8)
+			if s1 != s2 {
+				Fatalf(t, "%s: have %d, want %d", description, s1, s1)
+			}
+		case uint16:
+			s1 := have.Interface().(uint16)
+			s2 := want.Interface().(uint16)
+			if s1 != s2 {
+				Fatalf(t, "%s: have %d, want %d", description, s1, s1)
+			}
+		case uint32:
+			s1 := have.Interface().(uint32)
+			s2 := want.Interface().(uint32)
+			if s1 != s2 {
+				Fatalf(t, "%s: have %d, want %d", description, s1, s1)
+			}
+		case uint64:
+			s1 := have.Interface().(uint64)
+			s2 := want.Interface().(uint64)
+			if s1 != s2 {
+				Fatalf(t, "%s: have %d, want %d", description, s1, s1)
+			}
+		case uintptr:
+			s1 := have.Interface().(uintptr)
+			s2 := want.Interface().(uintptr)
+			if s1 != s2 {
+				Fatalf(t, "%s: have %d, want %d", description, s1, s1)
+			}
+		case float32:
+			s1 := have.Interface().(float32)
+			s2 := want.Interface().(float32)
+			if s1 != s2 {
+				Fatalf(t, "%s: have %d, want %d", description, s1, s1)
+			}
+		case float64:
+			s1 := have.Interface().(float64)
+			s2 := want.Interface().(float64)
+			if s1 != s2 {
+				Fatalf(t, "%s: have %d, want %d", description, s1, s1)
+			}
+		default:
+			// Normal equality suffices
+			if !reflect.DeepEqual(want.Interface(), have.Interface()) {
+				Fatalf(
+					t, "%s: not equal.\nhave: %s\nwant: %s",
+					description, have, want)
+			}
 		}
 	}
 }
