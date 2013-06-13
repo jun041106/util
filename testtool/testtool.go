@@ -210,7 +210,7 @@ func Timeout(
 		}
 		time.Sleep(sleep)
 	}
-	Fatalf(l, "Timeout.")
+	Fatalf(l, "testtool: Timeout after %v", timeout)
 }
 
 // -----------------------------------------------------------------------
