@@ -16,7 +16,7 @@ import (
 )
 
 // Common interface that can be used to allow testing.B and testing.T objects
-// to by passed to the same function.
+// to be passed to the same function.
 type Logger interface {
 	Error(args ...interface{})
 	Errorf(format string, args ...interface{})
@@ -185,6 +185,7 @@ func Fatalf(l Logger, f string, args ...interface{}) {
 	}
 
 	logging.Errorf("Test has failed: %s", msg)
+	logging.Error("=== END OF TEST OUTPUT ===")
 	l.Fatalf("%s", strings.Join(lines, "\n"))
 }
 
