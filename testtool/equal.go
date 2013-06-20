@@ -198,73 +198,73 @@ func deepValueEqual(
 			s1 := have.Interface().(int8)
 			s2 := want.Interface().(int8)
 			if s1 != s2 {
-				Fatalf(t, "%s: have %d, want %d", description, s1, s1)
+				Fatalf(t, "%s: have %d, want %d", description, s1, s2)
 			}
 		case int16:
 			s1 := have.Interface().(int16)
 			s2 := want.Interface().(int16)
 			if s1 != s2 {
-				Fatalf(t, "%s: have %d, want %d", description, s1, s1)
+				Fatalf(t, "%s: have %d, want %d", description, s1, s2)
 			}
 		case int32:
 			s1 := have.Interface().(int32)
 			s2 := want.Interface().(int32)
 			if s1 != s2 {
-				Fatalf(t, "%s: have %d, want %d", description, s1, s1)
+				Fatalf(t, "%s: have %d, want %d", description, s1, s2)
 			}
 		case int64:
 			s1 := have.Interface().(int64)
 			s2 := want.Interface().(int64)
 			if s1 != s2 {
-				Fatalf(t, "%s: have %d, want %d", description, s1, s1)
+				Fatalf(t, "%s: have %d, want %d", description, s1, s2)
 			}
 		case uint:
 			s1 := have.Interface().(uint)
 			s2 := want.Interface().(uint)
 			if s1 != s2 {
-				Fatalf(t, "%s: have %d, want %d", description, s1, s1)
+				Fatalf(t, "%s: have %d, want %d", description, s1, s2)
 			}
 		case uint8:
 			s1 := have.Interface().(uint8)
 			s2 := want.Interface().(uint8)
 			if s1 != s2 {
-				Fatalf(t, "%s: have %d, want %d", description, s1, s1)
+				Fatalf(t, "%s: have %d, want %d", description, s1, s2)
 			}
 		case uint16:
 			s1 := have.Interface().(uint16)
 			s2 := want.Interface().(uint16)
 			if s1 != s2 {
-				Fatalf(t, "%s: have %d, want %d", description, s1, s1)
+				Fatalf(t, "%s: have %d, want %d", description, s1, s2)
 			}
 		case uint32:
 			s1 := have.Interface().(uint32)
 			s2 := want.Interface().(uint32)
 			if s1 != s2 {
-				Fatalf(t, "%s: have %d, want %d", description, s1, s1)
+				Fatalf(t, "%s: have %d, want %d", description, s1, s2)
 			}
 		case uint64:
 			s1 := have.Interface().(uint64)
 			s2 := want.Interface().(uint64)
 			if s1 != s2 {
-				Fatalf(t, "%s: have %d, want %d", description, s1, s1)
+				Fatalf(t, "%s: have %d, want %d", description, s1, s2)
 			}
 		case uintptr:
 			s1 := have.Interface().(uintptr)
 			s2 := want.Interface().(uintptr)
 			if s1 != s2 {
-				Fatalf(t, "%s: have %d, want %d", description, s1, s1)
+				Fatalf(t, "%s: have %d, want %d", description, s1, s2)
 			}
 		case float32:
 			s1 := have.Interface().(float32)
 			s2 := want.Interface().(float32)
 			if s1 != s2 {
-				Fatalf(t, "%s: have %f, want %f", description, s1, s1)
+				Fatalf(t, "%s: have %f, want %f", description, s1, s2)
 			}
 		case float64:
 			s1 := have.Interface().(float64)
 			s2 := want.Interface().(float64)
 			if s1 != s2 {
-				Fatalf(t, "%s: have %f, want %f", description, s1, s1)
+				Fatalf(t, "%s: have %f, want %f", description, s1, s2)
 			}
 		default:
 			// Normal equality suffices
