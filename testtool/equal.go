@@ -89,11 +89,11 @@ func deepValueEqual(
 	checkNil := func() {
 		if want.IsNil() && !have.IsNil() {
 			Fatalf(
-				t, "%s: not equal.\nhave: %s\nwant: nil.",
+				t, "%s: not equal.\nhave: %#v\nwant: nil.",
 				description, have.Interface())
 		} else if !want.IsNil() && have.IsNil() {
 			Fatalf(
-				t, "%s: not equal.\nhave: nil\nwant: %s",
+				t, "%s: not equal.\nhave: nil\nwant: %#v",
 				description, want.Interface())
 		}
 	}
@@ -102,7 +102,7 @@ func deepValueEqual(
 	checkLen := func() {
 		if want.Len() != have.Len() {
 			Fatalf(
-				t, "%s: (len(have): %d, len(want): %d)\nhave: %s\nwant: %s",
+				t, "%s: (len(have): %d, len(want): %d)\nhave: %#v\nwant: %#v",
 				description, have.Len(), want.Len(),
 				have.Interface(), want.Interface())
 		}
@@ -168,13 +168,13 @@ func deepValueEqual(
 		s2 := want.Interface().(string)
 		if len(s1) != len(s2) {
 			Fatalf(t,
-				"%s: len(have) %d != len(want) %d.\nhave: %s\nwant: %s\n",
+				"%s: len(have) %d != len(want) %d.\nhave: %#v\nwant: %#v\n",
 				description, len(s1), len(s2), s1, s2)
 		}
 		for i := range s1 {
 			if s1[i] != s2[i] {
 				Fatalf(t,
-					"%s: difference at index %d.\nhave: %s\nwant: %s\n",
+					"%s: difference at index %d.\nhave: %#v\nwant: %#v\n",
 					description, i, s1, s2)
 			}
 		}
@@ -270,7 +270,7 @@ func deepValueEqual(
 			// Normal equality suffices
 			if !reflect.DeepEqual(want.Interface(), have.Interface()) {
 				Fatalf(
-					t, "%s: not equal.\nhave: %s\nwant: %s",
+					t, "%s: not equal.\nhave: %#v\nwant: %#v",
 					description, have, want)
 			}
 		}
