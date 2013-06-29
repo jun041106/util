@@ -609,7 +609,7 @@ func (cfg *Config) parseOneCmd() (bool, error) {
 	if cfg.options.DisableHelpParams == false {
 		if name == "h" || name == "help" {
 			if eqval {
-				return false, fmt.Errorf("parameter %s must have no value")
+				return false, fmt.Errorf("parameter %s must have no value", name)
 			}
 			cfg.args = cfg.args[1:]
 			cfg.helpRequested = true
@@ -950,7 +950,6 @@ func removeCommas(s string) string {
 			return sign + rs + ns
 		}
 	}
-	return src // not used, for compiler who want s a return
 }
 
 //===========================================================================
