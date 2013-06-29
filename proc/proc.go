@@ -155,7 +155,7 @@ func InterfaceStats() (map[string]InterfaceStat, error) {
 		return
 	}
 
-	// Now actually attempt to parse the config 
+	// Now actually attempt to parse the config
 	if err := ParseSimpleProcFile(DeviceStatsFile, lf, el); err != nil {
 		return nil, err
 	}

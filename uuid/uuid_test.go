@@ -3,19 +3,19 @@
 package uuid_test
 
 import (
+	"fmt"
 	"github.com/apcera/util/uuid"
 	"testing"
-	"fmt"
 )
 
 // Documents a simple use case for a generating and comparing UUIDs.
 func Example() {
-  u1 := uuid.Variant1()
-  u2 := uuid.Variant4()
-  fmt.Println("Text representation of a uuid: ", u1.String())
-  if u1.Equal(u2) {
-    fmt.Println("UUIDs shouldn't ever be equal so this is not reached.")
-  }
+	u1 := uuid.Variant1()
+	u2 := uuid.Variant4()
+	fmt.Println("Text representation of a uuid: ", u1.String())
+	if u1.Equal(u2) {
+		fmt.Println("UUIDs shouldn't ever be equal so this is not reached.")
+	}
 }
 
 // Verifies that Variant1() never generates duplicate UUIDs. This is not so much
@@ -26,7 +26,7 @@ func TestVariant1(t *testing.T) {
 
 	for i := 0; i < 10000; i++ {
 		u := uuid.Variant1().String()
-		if _, exists := previous[u] ; exists == true {
+		if _, exists := previous[u]; exists == true {
 			t.Fatal("Duplicate UUIDs generated from Variant1(): ", u)
 		}
 		previous[u] = true
@@ -67,7 +67,7 @@ func TestVariant4(t *testing.T) {
 
 	for i := 0; i < 10000; i++ {
 		u := uuid.Variant4().String()
-		if _, exists := previous[u] ; exists == true {
+		if _, exists := previous[u]; exists == true {
 			t.Fatal("Duplicate UUIDs generated from Variant4(): ", u)
 		}
 		previous[u] = true
@@ -105,7 +105,7 @@ func TestFromString(t *testing.T) {
 	s_valid := "01234567-890a-1bcd-af01-234567890abc"
 	if _, err := uuid.FromString(s_valid); err != nil {
 		t.Fatal("Failed to parse a valid UUID: " + s_valid + " error: " +
-		        err.Error())
+			err.Error())
 	}
 
 	s_invalid_len := "123456789abcdef"
@@ -203,10 +203,10 @@ func BenchmarkFromString(b *testing.B) {
 // performance of the default approach (fmt.Sprintf). This is included in the
 // test files in order to ensure that it doesn't get used in production code.
 func stringSlowSprintf(u uuid.UUID) (r string) {
-	fmt.Sprintf(r, "%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-" +
-	            "%02x%02x%02x%02x%02x%02x",
-	            u[0], u[1], u[2], u[3], u[4], u[5], u[6], u[7],
-	            u[8], u[9], u[10], u[11], u[12], u[13], u[14], u[15])
+	fmt.Sprintf(r, "%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-"+
+		"%02x%02x%02x%02x%02x%02x",
+		u[0], u[1], u[2], u[3], u[4], u[5], u[6], u[7],
+		u[8], u[9], u[10], u[11], u[12], u[13], u[14], u[15])
 	return r
 }
 

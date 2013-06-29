@@ -6,12 +6,12 @@ package main
 
 import (
 	"fmt"
-	"os"
 	target "github.com/apcera/util/str"
+	"os"
 )
 
 func main() {
-	for _, label := range []string {
+	for _, label := range []string{
 		"stdin", "stdout", "stderr",
 	} {
 		var fh *os.File

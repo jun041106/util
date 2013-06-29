@@ -128,9 +128,9 @@ func Variant1() (u UUID) {
 	u[3] = byte(ts & 0xff)
 	u[4] = byte((ts >> (5 * 8)) & 0xff)
 	u[5] = byte((ts >> (4 * 8)) & 0xff)
-	u[6] = byte((ts >> (7 * 8)) & 0x0f + 0x10)
+	u[6] = byte((ts>>(7*8))&0x0f + 0x10)
 	u[7] = byte((ts >> (6 * 8)) & 0xff)
-	u[8] = byte((clockCorrect >> 1) & 0x1f) | 0x80
+	u[8] = byte((clockCorrect>>1)&0x1f) | 0x80
 	u[9] = byte(clockCorrect & 0xff)
 	u[10] = byte(nodeName[0])
 	u[11] = byte(nodeName[1])
@@ -145,25 +145,25 @@ func Variant1() (u UUID) {
 // RFC4122 defined DNS name space UUID for Variant 3 and 5 UUIDs.
 func NameSpaceDNS() UUID {
 	return UUID{107, 167, 184, 16, 157, 173, 17, 209,
-	            128, 180, 0, 192, 79, 212, 48, 200}
+		128, 180, 0, 192, 79, 212, 48, 200}
 }
 
 // RFC4122 defined URL name space UUID for Variant 3 and 5 UUIDs.
 func NameSpaceURL() UUID {
 	return UUID{107, 167, 184, 17, 157, 173, 17, 209,
-	            128, 180, 0, 192, 79, 212, 48, 200}
+		128, 180, 0, 192, 79, 212, 48, 200}
 }
 
 // RFC4122 defined OID name space UUID for Variant 3 and 5 UUIDs.
 func NameSpaceOID() UUID {
 	return UUID{107, 167, 184, 18, 157, 173, 17, 209,
-	            128, 180, 0, 192, 79, 212, 48, 200}
+		128, 180, 0, 192, 79, 212, 48, 200}
 }
 
 // RFC4122 defined X500 name space UUID for Variant 3 and 5 UUIDs.
 func NameSpaceX500() UUID {
 	return UUID{107, 167, 184, 18, 157, 173, 17, 209,
-	            128, 180, 0, 192, 79, 212, 48, 200}
+		128, 180, 0, 192, 79, 212, 48, 200}
 }
 
 // Generate a "Variant 3" style UUID. These UUIDs are not time based, instead
@@ -230,49 +230,49 @@ func (u UUID) Equal(o UUID) bool {
 
 // Used for internal string generation.
 var hexBytes = [...]byte{
-		'0', '1', '2', '3', '4', '5', '6', '7',
-		'8', '9', 'a', 'b', 'c', 'd', 'e', 'f',
-	}
+	'0', '1', '2', '3', '4', '5', '6', '7',
+	'8', '9', 'a', 'b', 'c', 'd', 'e', 'f',
+}
 
 // Returns a string representation of the given UUID data.
 func (u UUID) String() string {
 	output := make([]byte, UUIDStringLen)
 
-	output[0] = hexBytes[(u[0] & 0xf0) >> 4]
+	output[0] = hexBytes[(u[0]&0xf0)>>4]
 	output[1] = hexBytes[(u[0] & 0x0f)]
-	output[2] = hexBytes[(u[1] & 0xf0) >> 4]
+	output[2] = hexBytes[(u[1]&0xf0)>>4]
 	output[3] = hexBytes[(u[1] & 0x0f)]
-	output[4] = hexBytes[(u[2] & 0xf0) >> 4]
+	output[4] = hexBytes[(u[2]&0xf0)>>4]
 	output[5] = hexBytes[(u[2] & 0x0f)]
-	output[6] = hexBytes[(u[3] & 0xf0) >> 4]
+	output[6] = hexBytes[(u[3]&0xf0)>>4]
 	output[7] = hexBytes[(u[3] & 0x0f)]
 	output[8] = '-'
-	output[9] = hexBytes[(u[4] & 0xf0) >> 4]
+	output[9] = hexBytes[(u[4]&0xf0)>>4]
 	output[10] = hexBytes[(u[4] & 0x0f)]
-	output[11] = hexBytes[(u[5] & 0xf0) >> 4]
+	output[11] = hexBytes[(u[5]&0xf0)>>4]
 	output[12] = hexBytes[(u[5] & 0x0f)]
 	output[13] = '-'
-	output[14] = hexBytes[(u[6] & 0xf0) >> 4]
+	output[14] = hexBytes[(u[6]&0xf0)>>4]
 	output[15] = hexBytes[(u[6] & 0x0f)]
-	output[16] = hexBytes[(u[7] & 0xf0) >> 4]
+	output[16] = hexBytes[(u[7]&0xf0)>>4]
 	output[17] = hexBytes[(u[7] & 0x0f)]
 	output[18] = '-'
-	output[19] = hexBytes[(u[8] & 0xf0) >> 4]
+	output[19] = hexBytes[(u[8]&0xf0)>>4]
 	output[20] = hexBytes[(u[8] & 0x0f)]
-	output[21] = hexBytes[(u[9] & 0xf0) >> 4]
+	output[21] = hexBytes[(u[9]&0xf0)>>4]
 	output[22] = hexBytes[(u[9] & 0x0f)]
 	output[23] = '-'
-	output[24] = hexBytes[(u[10] & 0xf0) >> 4]
+	output[24] = hexBytes[(u[10]&0xf0)>>4]
 	output[25] = hexBytes[(u[10] & 0x0f)]
-	output[26] = hexBytes[(u[11] & 0xf0) >> 4]
+	output[26] = hexBytes[(u[11]&0xf0)>>4]
 	output[27] = hexBytes[(u[11] & 0x0f)]
-	output[28] = hexBytes[(u[12] & 0xf0) >> 4]
+	output[28] = hexBytes[(u[12]&0xf0)>>4]
 	output[29] = hexBytes[(u[12] & 0x0f)]
-	output[30] = hexBytes[(u[13] & 0xf0) >> 4]
+	output[30] = hexBytes[(u[13]&0xf0)>>4]
 	output[31] = hexBytes[(u[13] & 0x0f)]
-	output[32] = hexBytes[(u[14] & 0xf0) >> 4]
+	output[32] = hexBytes[(u[14]&0xf0)>>4]
 	output[33] = hexBytes[(u[14] & 0x0f)]
-	output[34] = hexBytes[(u[15] & 0xf0) >> 4]
+	output[34] = hexBytes[(u[15]&0xf0)>>4]
 	output[35] = hexBytes[(u[15] & 0x0f)]
 
 	return string(output)
@@ -351,7 +351,7 @@ func FromString(s string) (u UUID, e error) {
 		return nil, &BadUUIDStringError{"Invalid fifth component: " + s}
 	}
 
-	if u[8] & 0xc0 != 0x80 {
+	if u[8]&0xc0 != 0x80 {
 		return nil, &BadUUIDStringError{"Reserved bits used: " + s}
 	}
 
@@ -360,7 +360,7 @@ func FromString(s string) (u UUID, e error) {
 
 // Error thrown when a UUID can not be parsed from a string.
 type NotAUUIDError struct {
-	message string
+	message      string
 	WantedLength int
 }
 
@@ -376,7 +376,7 @@ func FromBytes(raw []byte) (u UUID, e error) {
 				"Length of memory object should be %d, is %d",
 				UUIDByteLen, len(raw)), len(raw)}
 	}
-	if u[8] & 0xc0 != 0x80 {
+	if u[8]&0xc0 != 0x80 {
 		return nil, &BadUUIDStringError{"Reserved bits used"}
 	}
 	return UUID(raw), nil

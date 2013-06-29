@@ -60,8 +60,8 @@
 
 		string
 		bool
-		int, int8, int16, int32, int64	    
-		uint, uint8, uint16, uint32, uint64	    
+		int, int8, int16, int32, int64
+		uint, uint8, uint16, uint32, uint64
 		float32, float64
 		time.Duration
 
@@ -73,15 +73,15 @@
 
 	Fields of the following types can be read only from the configuration file:
 
-		named struct field	
-		map[string]interface{}	
+		named struct field
+		map[string]interface{}
 		slice of any legal type above
 
 	Parameters on the command line can be specified same way as documented
 	in the Go "flag" package:
 
 		-name
-		-name=value			
+		-name=value
 		-name value		// only non-bool parameters
 
 */
@@ -176,13 +176,13 @@ type ConfigOptions struct {
 	// Specifies reaction to program errors in the config structure.
 	// Program errors are, for example, if two fields specify the same
 	// name of the command line parameter, or if the default field value
-	// is invalid, and similar.  
+	// is invalid, and similar.
 	DataError ErrorHandling
 
-	// Specifies reaction to errors in the configuration file.  
+	// Specifies reaction to errors in the configuration file.
 	ConfigFileError ErrorHandling
 
-	// Specifies reaction to errors in the command line parameters.  
+	// Specifies reaction to errors in the command line parameters.
 	CmdLineError ErrorHandling
 
 	// If true then all fields in the configuration structure may be
@@ -204,12 +204,12 @@ type ConfigOptions struct {
 	// params. If this is set to true it superceeds AllowCmdLineTrailingExtra.
 	AllowCmdLineAnyExtra bool
 
-	// If true then double dash is allowed on the command line. All 
+	// If true then double dash is allowed on the command line. All
 	// parameters after the double dash are placed in remaining params.
 	AllowCmdLineDoubleDash bool
 
 	// If true then parameters '-h' and '-help' are not automatically
-	// processed as a help request.  
+	// processed as a help request.
 	DisableHelpParams bool
 
 	// Help printed into the console when help is requested via
@@ -242,7 +242,7 @@ type Config struct {
 	parseCmdLine    bool   // need to parse cmd line
 	parseConfigFile bool   // parse config file if specified
 	canHaveExtra    bool   // if any Extra option=true
-	configFile      string // value from cmd line					
+	configFile      string // value from cmd line
 	ncfgfile        int    // track configfile tags
 	readFile        string // what we actually read, if any
 
@@ -257,7 +257,7 @@ type Config struct {
 // Returns source of the value set into the configuration field.
 // Parameter must be the name of the field in the conifuration struct,
 // not the name(s) used in the command line. If specified name is not
-// a valid field in the configuration struct this function returns NotSet. 
+// a valid field in the configuration struct this function returns NotSet.
 func (cfg *Config) GetValueSource(fieldName string) ValueSource {
 	fi := cfg.fields[fieldName]
 	if fi != nil {
@@ -634,7 +634,7 @@ func (cfg *Config) parseOneCmd() (bool, error) {
 	if fi.vtype == vt_slice && fi.sevtype != vt_invalid {
 		sliceParam = true // OK, allow multiple
 	} else if fi.primitive {
-		// OK as a cmd line param						
+		// OK as a cmd line param
 	} else {
 		return false, fmt.Errorf("'%s' is not a valid parameter", src)
 	}
