@@ -5,6 +5,7 @@ package testtool
 import (
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -20,7 +21,24 @@ func TestEqual(t *testing.T, have, want interface{}) {
 	}
 	haveValue := reflect.ValueOf(have)
 	wantValue := reflect.ValueOf(want)
-	deepValueEqual(t, "", haveValue, wantValue, make(map[uintptr]*visit))
+	r := deepValueEqual("", haveValue, wantValue, make(map[uintptr]*visit))
+	if len(r) != 0 {
+		Fatalf(t, strings.Join(r, "\n"))
+	}
+}
+
+func TestNotEqual(t *testing.T, have, want interface{}) {
+	if have == nil || want == nil {
+		Fatalf(t, "Equality not expected, have=nil")
+	} else if have != nil || want == nil {
+		return
+	}
+	haveValue := reflect.ValueOf(have)
+	wantValue := reflect.ValueOf(want)
+	r := deepValueEqual("", haveValue, wantValue, make(map[uintptr]*visit))
+	if len(r) == 0 {
+		Fatalf(t, "Equality not expected: have=%#v", have)
+	}
 }
 
 // ---------
@@ -41,21 +59,24 @@ type visit struct {
 // comparisons that have already been seen, which allows short circuiting on
 // recursive types.
 func deepValueEqual(
-	t *testing.T, description string, have, want reflect.Value,
-	visited map[uintptr]*visit,
-) {
+	description string, have, want reflect.Value, visited map[uintptr]*visit,
+) (diffs []string) {
 	if !want.IsValid() && !have.IsValid() {
-		return
+		return nil
 	} else if !want.IsValid() && have.IsValid() {
 		// This is rare, not sure how to document this better.
-		Fatalf(t, "%s: have invalid object.", description)
+		return []string{
+			fmt.Sprintf("%s: have invalid object.", description),
+		}
 	} else if want.IsValid() && !have.IsValid() {
 		// This is rare, not sure how to document this better.
-		Fatalf(t, "%s: wanted a valid object.", description)
+		return []string{
+			fmt.Sprintf("%s: wanted a valid object.", description),
+		}
 	} else if want.Type() != have.Type() {
-		Fatalf(
-			t, "%s: Not the same type, have: '%s', want: '%s'",
-			description, have.Type(), want.Type())
+		return []string{fmt.Sprintf(
+			"%s: Not the same type, have: '%s', want: '%s'",
+			description, have.Type(), want.Type())}
 	}
 
 	if want.CanAddr() && have.CanAddr() {
@@ -68,7 +89,7 @@ func deepValueEqual(
 
 		// Short circuit if references are identical ...
 		if addr1 == addr2 {
-			return
+			return []string{}
 		}
 
 		// ... or already seen
@@ -77,7 +98,7 @@ func deepValueEqual(
 		typ := want.Type()
 		for p := seen; p != nil; p = p.next {
 			if p.a1 == addr1 && p.a2 == addr2 && p.typ == typ {
-				return
+				return []string{}
 			}
 		}
 
@@ -86,54 +107,65 @@ func deepValueEqual(
 	}
 
 	// Checks to see if one value is nil, while the other is not.
-	checkNil := func() {
+	checkNil := func() bool {
 		if want.IsNil() && !have.IsNil() {
-			Fatalf(
-				t, "%s: not equal.\nhave: %#v\nwant: nil.",
-				description, have.Interface())
+			diffs = append(diffs, fmt.Sprintf(
+				"%s: not equal.\nhave: %#v\nwant: nil.",
+				description, have.Interface()))
+			return true
 		} else if !want.IsNil() && have.IsNil() {
-			Fatalf(
-				t, "%s: not equal.\nhave: nil\nwant: %#v",
-				description, want.Interface())
+			diffs = append(diffs, fmt.Sprintf(
+				"%s: not equal.\nhave: nil\nwant: %#v",
+				description, want.Interface()))
+			return true
 		}
+		return false
 	}
 
 	// Checks to see that the lengths of both objects are equal.
-	checkLen := func() {
+	checkLen := func() bool {
 		if want.Len() != have.Len() {
-			Fatalf(
-				t, "%s: (len(have): %d, len(want): %d)\nhave: %#v\nwant: %#v",
+			diffs = append(diffs, fmt.Sprintf(
+				"%s: (len(have): %d, len(want): %d)\nhave: %#v\nwant: %#v",
 				description, have.Len(), want.Len(),
-				have.Interface(), want.Interface())
+				have.Interface(), want.Interface()))
+			return true
 		}
+		return false
 	}
 
 	switch want.Kind() {
 	case reflect.Array:
-		checkLen()
-		for i := 0; i < want.Len(); i++ {
-			deepValueEqual(
-				t, fmt.Sprintf("%s[%d]", i, description),
-				want.Index(i), have.Index(i), visited)
+		if !checkLen() {
+			for i := 0; i < want.Len(); i++ {
+				newdiffs := deepValueEqual(
+					fmt.Sprintf("%s[%d]", i, description),
+					want.Index(i), have.Index(i), visited)
+				diffs = append(diffs, newdiffs...)
+			}
 		}
 
 	case reflect.Slice:
-		checkNil()
-		checkLen()
-		for i := 0; i < want.Len(); i++ {
-			deepValueEqual(
-				t, fmt.Sprintf("%s[%d]", description, i),
-				want.Index(i), have.Index(i), visited)
+		if !checkNil() && !checkLen() {
+			for i := 0; i < want.Len(); i++ {
+				newdiffs := deepValueEqual(
+					fmt.Sprintf("%s[%d]", description, i),
+					want.Index(i), have.Index(i), visited)
+				diffs = append(diffs, newdiffs...)
+			}
 		}
 
 	case reflect.Interface:
-		checkNil()
-		deepValueEqual(
-			t, description, want.Elem(), have.Elem(), visited)
+		if !checkNil() {
+			newdiffs := deepValueEqual(
+				description, want.Elem(), have.Elem(), visited)
+			diffs = append(diffs, newdiffs...)
+		}
 
 	case reflect.Ptr:
-		deepValueEqual(
-			t, description, want.Elem(), have.Elem(), visited)
+		newdiffs := deepValueEqual(
+			description, want.Elem(), have.Elem(), visited)
+		diffs = append(diffs, newdiffs...)
 
 	case reflect.Struct:
 		for i, n := 0, want.NumField(); i < n; i++ {
@@ -141,22 +173,25 @@ func deepValueEqual(
 			// Make sure that we don't print a strange error if the
 			// first object given to us is a struct.
 			if description == "" {
-				deepValueEqual(
-					t, name, want.Field(i), have.Field(i), visited)
+				newdiffs := deepValueEqual(
+					name, want.Field(i), have.Field(i), visited)
+				diffs = append(diffs, newdiffs...)
 			} else {
-				deepValueEqual(
-					t, fmt.Sprintf("%s.%s", description, name),
+				newdiffs := deepValueEqual(
+					fmt.Sprintf("%s.%s", description, name),
 					want.Field(i), have.Field(i), visited)
+				diffs = append(diffs, newdiffs...)
 			}
 		}
 
 	case reflect.Map:
-		checkNil()
-		checkLen()
-		for _, k := range want.MapKeys() {
-			deepValueEqual(
-				t, fmt.Sprintf("%s[%s] ", description, k),
-				want.MapIndex(k), have.MapIndex(k), visited)
+		if !checkNil() || !checkLen() {
+			for _, k := range want.MapKeys() {
+				newdiffs := deepValueEqual(
+					fmt.Sprintf("%s[%s] ", description, k),
+					want.MapIndex(k), have.MapIndex(k), visited)
+				diffs = append(diffs, newdiffs...)
+			}
 		}
 
 	case reflect.Func:
@@ -167,15 +202,15 @@ func deepValueEqual(
 		s1 := have.Interface().(string)
 		s2 := want.Interface().(string)
 		if len(s1) != len(s2) {
-			Fatalf(t,
+			return []string{fmt.Sprintf(
 				"%s: len(have) %d != len(want) %d.\nhave: %#v\nwant: %#v\n",
-				description, len(s1), len(s2), s1, s2)
+				description, len(s1), len(s2), s1, s2)}
 		}
 		for i := range s1 {
 			if s1[i] != s2[i] {
-				Fatalf(t,
+				return []string{fmt.Sprintf(
 					"%s: difference at index %d.\nhave: %#v\nwant: %#v\n",
-					description, i, s1, s2)
+					description, i, s1, s2)}
 			}
 		}
 
@@ -186,93 +221,110 @@ func deepValueEqual(
 			s1 := have.Interface().(bool)
 			s2 := want.Interface().(bool)
 			if s1 != s2 {
-				Fatalf(t, "%s: have %t, want %t", description, s1, s2)
+				return []string{fmt.Sprintf(
+					"%s: have %t, want %t", description, s1, s2)}
 			}
 		case int:
 			s1 := have.Interface().(int)
 			s2 := want.Interface().(int)
 			if s1 != s2 {
-				Fatalf(t, "%s: have %d, want %d", description, s1, s2)
+				return []string{fmt.Sprintf(
+					"%s: have %d, want %d", description, s1, s2)}
 			}
 		case int8:
 			s1 := have.Interface().(int8)
 			s2 := want.Interface().(int8)
 			if s1 != s2 {
-				Fatalf(t, "%s: have %d, want %d", description, s1, s2)
+				return []string{fmt.Sprintf(
+					"%s: have %d, want %d", description, s1, s2)}
 			}
 		case int16:
 			s1 := have.Interface().(int16)
 			s2 := want.Interface().(int16)
 			if s1 != s2 {
-				Fatalf(t, "%s: have %d, want %d", description, s1, s2)
+				return []string{fmt.Sprintf(
+					"%s: have %d, want %d", description, s1, s2)}
 			}
 		case int32:
 			s1 := have.Interface().(int32)
 			s2 := want.Interface().(int32)
 			if s1 != s2 {
-				Fatalf(t, "%s: have %d, want %d", description, s1, s2)
+				return []string{fmt.Sprintf(
+					"%s: have %d, want %d", description, s1, s2)}
 			}
 		case int64:
 			s1 := have.Interface().(int64)
 			s2 := want.Interface().(int64)
 			if s1 != s2 {
-				Fatalf(t, "%s: have %d, want %d", description, s1, s2)
+				return []string{fmt.Sprintf(
+					"%s: have %d, want %d", description, s1, s2)}
 			}
 		case uint:
 			s1 := have.Interface().(uint)
 			s2 := want.Interface().(uint)
 			if s1 != s2 {
-				Fatalf(t, "%s: have %d, want %d", description, s1, s2)
+				return []string{fmt.Sprintf(
+					"%s: have %d, want %d", description, s1, s2)}
 			}
 		case uint8:
 			s1 := have.Interface().(uint8)
 			s2 := want.Interface().(uint8)
 			if s1 != s2 {
-				Fatalf(t, "%s: have %d, want %d", description, s1, s2)
+				return []string{fmt.Sprintf(
+					"%s: have %d, want %d", description, s1, s2)}
 			}
 		case uint16:
 			s1 := have.Interface().(uint16)
 			s2 := want.Interface().(uint16)
 			if s1 != s2 {
-				Fatalf(t, "%s: have %d, want %d", description, s1, s2)
+				return []string{fmt.Sprintf(
+					"%s: have %d, want %d", description, s1, s2)}
 			}
 		case uint32:
 			s1 := have.Interface().(uint32)
 			s2 := want.Interface().(uint32)
 			if s1 != s2 {
-				Fatalf(t, "%s: have %d, want %d", description, s1, s2)
+				return []string{fmt.Sprintf(
+					"%s: have %d, want %d", description, s1, s2)}
 			}
 		case uint64:
 			s1 := have.Interface().(uint64)
 			s2 := want.Interface().(uint64)
 			if s1 != s2 {
-				Fatalf(t, "%s: have %d, want %d", description, s1, s2)
+				return []string{fmt.Sprintf(
+					"%s: have %d, want %d", description, s1, s2)}
 			}
 		case uintptr:
 			s1 := have.Interface().(uintptr)
 			s2 := want.Interface().(uintptr)
 			if s1 != s2 {
-				Fatalf(t, "%s: have %d, want %d", description, s1, s2)
+				return []string{fmt.Sprintf(
+					"%s: have %d, want %d", description, s1, s2)}
 			}
 		case float32:
 			s1 := have.Interface().(float32)
 			s2 := want.Interface().(float32)
 			if s1 != s2 {
-				Fatalf(t, "%s: have %f, want %f", description, s1, s2)
+				return []string{fmt.Sprintf(
+					"%s: have %f, want %f", description, s1, s2)}
 			}
 		case float64:
 			s1 := have.Interface().(float64)
 			s2 := want.Interface().(float64)
 			if s1 != s2 {
-				Fatalf(t, "%s: have %f, want %f", description, s1, s2)
+				return []string{fmt.Sprintf(
+					"%s: have %f, want %f", description, s1, s2)}
 			}
 		default:
 			// Normal equality suffices
 			if !reflect.DeepEqual(want.Interface(), have.Interface()) {
-				Fatalf(
-					t, "%s: not equal.\nhave: %#v\nwant: %#v",
-					description, have, want)
+				return []string{fmt.Sprintf(
+					"%s: not equal.\nhave: %#v\nwant: %#v",
+					description, have, want)}
 			}
 		}
 	}
+
+	// This shouldn't ever be reached.
+	return diffs
 }
