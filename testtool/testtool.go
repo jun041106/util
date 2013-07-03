@@ -231,3 +231,9 @@ func TestExpectSuccess(l Logger, err error) {
 		Fatalf(l, "Unexpected error: %s", err)
 	}
 }
+
+func TestExpectNonZeroLength(l Logger, size int) {
+	if size == 0 {
+		Fatalf(l, "Zero length found")
+	}
+}
