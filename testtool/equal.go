@@ -28,7 +28,7 @@ func TestEqual(t *testing.T, have, want interface{}) {
 }
 
 func TestNotEqual(t *testing.T, have, want interface{}) {
-	if have == nil || want == nil {
+	if have == nil && want == nil {
 		Fatalf(t, "Equality not expected, have=nil")
 	} else if have != nil || want == nil {
 		return
