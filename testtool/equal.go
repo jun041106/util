@@ -6,17 +6,42 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
-	"testing"
 )
 
 // -----------------------------------------------------------------------
 // Equality tests.
 // -----------------------------------------------------------------------
 
-func TestEqual(t *testing.T, have, want interface{}) {
-	if have == nil && want != nil {
+// Returns true if the value is nil. Interfaces can actually NOT be nil since
+// they have a type attached to them, even if the interface value is nil so
+// we check both cases in this function.
+func isNil(i interface{}) bool {
+	if i == nil {
+		return true
+	}
+	// If the value is a Kind which can store nil then we actually
+	// check it, otherwise the IsNil() call can panic.
+	v := reflect.ValueOf(i)
+	switch v.Kind() {
+	case reflect.Func:
+	case reflect.Interface:
+	case reflect.Map:
+	case reflect.Ptr:
+	case reflect.Slice:
+	default:
+		return false
+	}
+	return v.IsNil()
+}
+
+func TestEqual(t Logger, have, want interface{}) {
+	haveNil := isNil(have)
+	wantNil := isNil(want)
+	if haveNil && wantNil {
+		return
+	} else if haveNil && !wantNil {
 		Fatalf(t, "Expected non nil, got nil.")
-	} else if have != nil && want == nil {
+	} else if !haveNil && wantNil {
 		Fatalf(t, "Expected nil, got non nil.")
 	}
 	haveValue := reflect.ValueOf(have)
@@ -27,10 +52,12 @@ func TestEqual(t *testing.T, have, want interface{}) {
 	}
 }
 
-func TestNotEqual(t *testing.T, have, want interface{}) {
-	if have == nil && want == nil {
+func TestNotEqual(t Logger, have, want interface{}) {
+	haveNil := isNil(have)
+	wantNil := isNil(want)
+	if haveNil && wantNil {
 		Fatalf(t, "Equality not expected, have=nil")
-	} else if have != nil || want == nil {
+	} else if haveNil || wantNil {
 		return
 	}
 	haveValue := reflect.ValueOf(have)
