@@ -66,8 +66,54 @@ func FinishTest(l Logger) {
 // Call this to require that your test is run as root. NOTICE: this does not
 // cause the test to FAIL. This seems like the most sane thing to do based on
 // the shortcomings of Go's test utilities.
+//
+// As an added feature this function will append all skipped test names into
+// the file name specified in the environment variable:
+//   $SKIPPED_ROOT_TESTS_FILE
 func TestRequiresRoot(l Logger) {
+	getTestName := func() string {
+		// Maximum function depth. This shouldn't be called when the stack is
+		// 1024 calls deep (its typically called at the top of the Test).
+		pc := make([]uintptr, 1024)
+		callers := runtime.Callers(2, pc)
+		testname := ""
+		for i := 0; i < callers; i++ {
+			if f := runtime.FuncForPC(pc[i]); f != nil {
+				// Function names have the following formats:
+				//   runtime.goexit
+				//   testing.tRunner
+				//   github.com/util/testtool.TestRequiresRoot
+				// To find the real function name we split on . and take the
+				// last element.
+				names := strings.Split(f.Name(), ".")
+				if strings.HasPrefix(names[len(names)-1], "Test") {
+					testname = names[len(names)-1]
+				}
+			}
+		}
+		if testname == "" {
+			Fatalf(l, "Can't figure out the test name.")
+		}
+		return testname
+	}
+
 	if os.Getuid() != 0 {
+		// We support the ability to set an environment variables where the
+		// names of all skipped tests will be logged. This is used to ensure
+		// that they can be run with sudo later.
+		fn := os.Getenv("SKIPPED_ROOT_TESTS_FILE")
+		if fn != "" {
+			// Get the test name. We do this using the runtime package. The
+			// first function named Test* we assume is the outer test function
+			// which is in turn the test name.
+			flags := os.O_WRONLY | os.O_APPEND | os.O_CREATE
+			f, err := os.OpenFile(fn, flags, os.FileMode(0644))
+			TestExpectSuccess(l, err)
+			defer f.Close()
+			_, err = f.WriteString(getTestName() + "\n")
+			TestExpectSuccess(l, err)
+		}
+
 		l.Skipf("This test must be run as root. Skipping.")
 	}
 }
