@@ -42,20 +42,20 @@ type Backtracer interface {
 // For help in debugging the tests give a -debug on the command line when
 // executing the tests and it will be set to true. The value is set only to
 // allow callers to make use of in their tests. There are no other side effects.
-var Debug bool = false
+var TestDebug bool = false
 
 // If a -log or log is provided with an path to a directory then that path is
 // available in this variable. This is a helper for tests that wish to log. An
 // empty string indicates the path was not set. The value is set only to allow
 // callers to make use of in their tests. There are no other side effects.
-var LogFile string = ""
+var TestLogFile string = ""
 
 func init() {
 	if f := flag.Lookup("debug"); f == nil {
-		flag.BoolVar(&Debug, "debug", false, "turns on debugging for the tests")
+		flag.BoolVar(&TestDebug, "debug", false, "turns on debugging for the tests")
 	}
 	if f := flag.Lookup("log"); f == nil {
-		flag.StringVar(&LogFile, "log", "", "specifies the log file for the test")
+		flag.StringVar(&TestLogFile, "log", "", "specifies the log file for the test")
 	}
 }
 
