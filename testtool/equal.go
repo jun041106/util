@@ -34,29 +34,37 @@ func isNil(i interface{}) bool {
 	return v.IsNil()
 }
 
-func TestEqual(t Logger, have, want interface{}) {
+func TestEqual(t Logger, have, want interface{}, msg ...string) {
 	haveNil := isNil(have)
 	wantNil := isNil(want)
+	reason := ""
+	if len(msg) > 0 {
+		reason = "reason: " + strings.Join(msg, "") + "\n"
+	}
 	if haveNil && wantNil {
 		return
 	} else if haveNil && !wantNil {
-		Fatalf(t, "Expected non nil, got nil.")
+		Fatalf(t, "%sExpected non nil, got nil.", reason)
 	} else if !haveNil && wantNil {
-		Fatalf(t, "Expected nil, got non nil.")
+		Fatalf(t, "%sExpected nil, got non nil.", reason)
 	}
 	haveValue := reflect.ValueOf(have)
 	wantValue := reflect.ValueOf(want)
 	r := deepValueEqual("", haveValue, wantValue, make(map[uintptr]*visit))
 	if len(r) != 0 {
-		Fatalf(t, strings.Join(r, "\n"))
+		Fatalf(t, "%s%s", reason, strings.Join(r, "\n"))
 	}
 }
 
-func TestNotEqual(t Logger, have, want interface{}) {
+func TestNotEqual(t Logger, have, want interface{}, msg ...string) {
 	haveNil := isNil(have)
 	wantNil := isNil(want)
+	reason := ""
+	if len(msg) > 0 {
+		reason = "reason: " + strings.Join(msg, "") + "\n"
+	}
 	if haveNil && wantNil {
-		Fatalf(t, "Equality not expected, have=nil")
+		Fatalf(t, "%sEquality not expected, have=nil", reason)
 	} else if haveNil || wantNil {
 		return
 	}
@@ -64,7 +72,7 @@ func TestNotEqual(t Logger, have, want interface{}) {
 	wantValue := reflect.ValueOf(want)
 	r := deepValueEqual("", haveValue, wantValue, make(map[uintptr]*visit))
 	if len(r) == 0 {
-		Fatalf(t, "Equality not expected: have=%#v", have)
+		Fatalf(t, "%sEquality not expected: have=%#v", reason, have)
 	}
 }
 
@@ -166,7 +174,7 @@ func deepValueEqual(
 		if !checkLen() {
 			for i := 0; i < want.Len(); i++ {
 				newdiffs := deepValueEqual(
-					fmt.Sprintf("%s[%d]", i, description),
+					fmt.Sprintf("%s[%d]", description, i),
 					want.Index(i), have.Index(i), visited)
 				diffs = append(diffs, newdiffs...)
 			}

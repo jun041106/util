@@ -3,6 +3,7 @@
 package testtool
 
 import (
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -27,9 +28,36 @@ type Logger interface {
 	Skipf(format string, args ...interface{})
 }
 
+// If an error implements the Bactrace() function then that backtrace will be
+// displayed using the TestExpectSuccess() functions. For an example see
+// BackError in the apcera/cfg package.
+type Backtracer interface {
+	Backtrace() []string
+}
+
 // -----------------------------------------------------------------------
 // Initialization, cleanup, and shutdown functions.
 // -----------------------------------------------------------------------
+
+// For help in debugging the tests give a -debug on the command line when
+// executing the tests and it will be set to true. The value is set only to
+// allow callers to make use of in their tests. There are no other side effects.
+var Debug bool = false
+
+// If a -log or log is provided with an path to a directory then that path is
+// available in this variable. This is a helper for tests that wish to log. An
+// empty string indicates the path was not set. The value is set only to allow
+// callers to make use of in their tests. There are no other side effects.
+var LogFile string = ""
+
+func init() {
+	if f := flag.Lookup("debug"); f == nil {
+		flag.BoolVar(&Debug, "debug", false, "turns on debugging for the tests")
+	}
+	if f := flag.Lookup("log"); f == nil {
+		flag.StringVar(&LogFile, "log", "", "specifies the log file for the test")
+	}
+}
 
 // Stores output from the logging system so it can be written only if
 // the test actually fails.
@@ -271,10 +299,19 @@ func TestExpectError(l Logger, err error) {
 	}
 }
 
-// Fatal's the test if err is not nil.
+// Fatal's the test if err is not nil and fails the test and output the reason
+// for the failure as the err argument the same as Fatalf. If err implements the
+// BackTracer interface a backtrace will also be displayed.
 func TestExpectSuccess(l Logger, err error) {
 	if err != nil {
-		Fatalf(l, "Unexpected error: %s", err)
+		lines := make([]string, 0, 50)
+		lines = append(lines, fmt.Sprintf("Unexpected error: %s", err))
+		if be, ok := err.(Backtracer); ok {
+			for _, line := range be.Backtrace() {
+				lines = append(lines, fmt.Sprintf(" * %s", line))
+			}
+		}
+		Fatalf(l, "%s", strings.Join(lines, "\n"))
 	}
 }
 
@@ -282,4 +319,15 @@ func TestExpectNonZeroLength(l Logger, size int) {
 	if size == 0 {
 		Fatalf(l, "Zero length found")
 	}
+}
+
+// Will verify that a panic is called with the expected msg.
+func TestExpectPanic(l Logger, f func(), msg string) {
+	defer func(msg string) {
+		if m := recover(); m != nil {
+			TestEqual(l, msg, m)
+		}
+	}(msg)
+	f()
+	Fatalf(l, "Expected a panic with message '%s'\n", msg)
 }
