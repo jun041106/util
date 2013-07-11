@@ -6,6 +6,8 @@ import (
 	"testing"
 )
 
+type MyString string
+
 func TestTestEquals(t *testing.T) {
 	m := &MockLogger{}
 
@@ -14,6 +16,8 @@ func TestTestEquals(t *testing.T) {
 	strSlice2 := []string{"A", "B", "C"}
 	strMap1 := map[string]int{"A": 1, "B": 2, "C": 3}
 	strMap2 := map[string]int{"C": 3, "B": 2, "A": 1}
+	myStr1 := MyString("one")
+	myStr2 := MyString("one")
 
 	// Non failure conditions.
 	m.RunTest(t, false, func() { TestEqual(m, nil, nil) })
@@ -34,6 +38,7 @@ func TestTestEquals(t *testing.T) {
 	m.RunTest(t, false, func() { TestEqual(m, nilPtr, nil) })
 	m.RunTest(t, false, func() { TestEqual(m, strSlice1, strSlice2) })
 	m.RunTest(t, false, func() { TestEqual(m, strMap1, strMap2) })
+	m.RunTest(t, false, func() { TestEqual(m, myStr1, myStr2) })
 
 	// Expected failure conditions.
 	m.RunTest(t, true, func() { TestEqual(m, &MockLogger{}, nil) })
@@ -109,4 +114,3 @@ func TestTestNotEquals(t *testing.T) {
 	m.RunTest(t, false, func() { TestNotEqual(m, strSlice1, strSlice2) })
 	m.RunTest(t, false, func() { TestNotEqual(m, strMap1, strMap2) })
 }
-

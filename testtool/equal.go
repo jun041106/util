@@ -234,8 +234,15 @@ func deepValueEqual(
 		checkNil()
 
 	case reflect.String:
-		s1 := have.Interface().(string)
-		s2 := want.Interface().(string)
+		// We know the underlying type is a string so calling String()
+		// will return the underlyning value. Tring to call Interface()
+		// and assert to a string will panic.
+
+		// FIXME Brady, I though you would find this interesting
+		//s1 := have.Interface().(string)
+		//s2 := want.Interface().(string)
+		s1 := have.String()
+		s2 := want.String()
 		if len(s1) != len(s2) {
 			return []string{fmt.Sprintf(
 				"%s: len(have) %d != len(want) %d.\nhave: %#v\nwant: %#v\n",
