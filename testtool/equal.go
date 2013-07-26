@@ -17,7 +17,8 @@ import (
 func describe(prefix string, i interface{}) string {
 	out := fmt.Sprintf("%s%#v", prefix, i)
 	if len(out) > 80-16 && !TestDebug {
-		out = "%s: Value suppressed. Use --debug to see it."
+		out = fmt.Sprintf(
+			"%s: Value suppressed. Use --debug to see it.", prefix)
 	}
 	return out
 }
