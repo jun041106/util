@@ -12,6 +12,16 @@ import (
 // Equality tests.
 // -----------------------------------------------------------------------
 
+// This describes the given object and if the output is too long then it
+// suppresses it unless --debug was used.
+func describe(prefix string, i interface{}) string {
+	out := fmt.Sprintf("%s%#v", prefix, i)
+	if len(out) > 80-16 && !TestDebug {
+		out = "%s: Value suppressed. Use --debug to see it."
+	}
+	return out
+}
+
 // Returns true if the value is nil. Interfaces can actually NOT be nil since
 // they have a type attached to them, even if the interface value is nil so
 // we check both cases in this function.
@@ -39,7 +49,7 @@ func TestEqual(t Logger, have, want interface{}, msg ...string) {
 	wantNil := isNil(want)
 	reason := ""
 	if len(msg) > 0 {
-		reason = "reason: " + strings.Join(msg, "") + "\n"
+		reason = ": " + strings.Join(msg, "")
 	}
 	if haveNil && wantNil {
 		return
@@ -52,7 +62,7 @@ func TestEqual(t Logger, have, want interface{}, msg ...string) {
 	wantValue := reflect.ValueOf(want)
 	r := deepValueEqual("", haveValue, wantValue, make(map[uintptr]*visit))
 	if len(r) != 0 {
-		Fatalf(t, "%s%s", reason, strings.Join(r, "\n"))
+		Fatalf(t, "Not Equal%s\n%s", reason, strings.Join(r, "\n"))
 	}
 }
 
@@ -61,7 +71,7 @@ func TestNotEqual(t Logger, have, want interface{}, msg ...string) {
 	wantNil := isNil(want)
 	reason := ""
 	if len(msg) > 0 {
-		reason = "reason: " + strings.Join(msg, "") + "\n"
+		reason = ": " + strings.Join(msg, "")
 	}
 	if haveNil && wantNil {
 		Fatalf(t, "%sEquality not expected, have=nil", reason)
@@ -72,7 +82,8 @@ func TestNotEqual(t Logger, have, want interface{}, msg ...string) {
 	wantValue := reflect.ValueOf(want)
 	r := deepValueEqual("", haveValue, wantValue, make(map[uintptr]*visit))
 	if len(r) == 0 {
-		Fatalf(t, "%sEquality not expected: have=%#v", reason, have)
+		Fatalf(t,
+			"Equality not expected%s\n%s", reason, describe("have: ", have))
 	}
 }
 
@@ -147,11 +158,13 @@ func deepValueEqual(
 			diffs = append(diffs, fmt.Sprintf(
 				"%s: not equal.\nhave: %#v\nwant: nil.",
 				description, have.Interface()))
+			diffs = append(diffs, describe("have: ", have.Interface()))
 			return true
 		} else if !want.IsNil() && have.IsNil() {
 			diffs = append(diffs, fmt.Sprintf(
 				"%s: not equal.\nhave: nil\nwant: %#v",
 				description, want.Interface()))
+			diffs = append(diffs, describe("want: ", have.Interface()))
 			return true
 		}
 		return false
@@ -161,9 +174,10 @@ func deepValueEqual(
 	checkLen := func() bool {
 		if want.Len() != have.Len() {
 			diffs = append(diffs, fmt.Sprintf(
-				"%s: (len(have): %d, len(want): %d)\nhave: %#v\nwant: %#v",
-				description, have.Len(), want.Len(),
-				have.Interface(), want.Interface()))
+				"%s: (len(have): %d, len(want): %d)",
+				description, have.Len(), want.Len()))
+			diffs = append(diffs, describe("have: ", have.Interface()))
+			diffs = append(diffs, describe("want: ", want.Interface()))
 			return true
 		}
 		return false
@@ -220,12 +234,30 @@ func deepValueEqual(
 		}
 
 	case reflect.Map:
-		if !checkNil() || !checkLen() {
+		if !checkNil() {
+			// Check that the keys are present in both maps.
 			for _, k := range want.MapKeys() {
+				if !have.MapIndex(k).IsValid() {
+					// Add the error.
+					diffs = append(diffs, fmt.Sprintf(
+						"%sexpected key [%q] is missing.", description, k))
+					diffs = append(diffs,
+						describe("want: ", want.MapIndex(k).Interface()))
+					continue
+				}
 				newdiffs := deepValueEqual(
 					fmt.Sprintf("%s[%s] ", description, k),
 					want.MapIndex(k), have.MapIndex(k), visited)
 				diffs = append(diffs, newdiffs...)
+			}
+			for _, k := range have.MapKeys() {
+				if !want.MapIndex(k).IsValid() {
+					// Add the error.
+					diffs = append(diffs, fmt.Sprintf(
+						"%sunexpected key [%q].", description, k))
+					diffs = append(diffs,
+						describe("have: ", have.MapIndex(k).Interface()))
+				}
 			}
 		}
 
@@ -235,20 +267,28 @@ func deepValueEqual(
 
 	case reflect.String:
 		// We know the underlying type is a string so calling String()
-		// will return the underlying value. Tring to call Interface()
+		// will return the underlying value. Trying to call Interface()
 		// and assert to a string will panic.
 		s1 := have.String()
 		s2 := want.String()
 		if len(s1) != len(s2) {
-			return []string{fmt.Sprintf(
-				"%s: len(have) %d != len(want) %d.\nhave: %#v\nwant: %#v\n",
-				description, len(s1), len(s2), s1, s2)}
+			return []string{
+				fmt.Sprintf(
+					"%s: len(have) %d != len(want) %d.",
+					description, len(s1), len(s2)),
+				describe("have: ", s1),
+				describe("want: ", s2),
+			}
 		}
 		for i := range s1 {
 			if s1[i] != s2[i] {
-				return []string{fmt.Sprintf(
-					"%s: difference at index %d.\nhave: %#v\nwant: %#v\n",
-					description, i, s1, s2)}
+				return []string{
+					fmt.Sprintf(
+						"%s: difference at index %d.",
+						description, i),
+					describe("have: ", s1),
+					describe("want: ", s2),
+				}
 			}
 		}
 
@@ -356,9 +396,11 @@ func deepValueEqual(
 		default:
 			// Normal equality suffices
 			if !reflect.DeepEqual(want.Interface(), have.Interface()) {
-				return []string{fmt.Sprintf(
-					"%s: not equal.\nhave: %#v\nwant: %#v",
-					description, have, want)}
+				return []string{
+					fmt.Sprintf("%s: not equal.", description),
+					describe("have: ", have),
+					describe("want: ", want),
+				}
 			}
 		}
 	}

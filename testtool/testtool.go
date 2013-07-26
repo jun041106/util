@@ -39,10 +39,15 @@ type Backtracer interface {
 // Initialization, cleanup, and shutdown functions.
 // -----------------------------------------------------------------------
 
+// If this flag is set to true then output will be displayed live as it
+// happens rather than being buffered and only displayed when tests fail.
+var streamTestOutput bool
+
 // For help in debugging the tests give a -debug on the command line when
-// executing the tests and it will be set to true. The value is set only to
-// allow callers to make use of in their tests. There are no other side effects.
-var TestDebug bool = false
+// executing the tests and it will be set to true. This value is used
+// internally to signal that longer output strings should be allowed but is
+// exposed to allow callers to use as well.
+var TestDebug bool
 
 // If a -log or log is provided with an path to a directory then that path is
 // available in this variable. This is a helper for tests that wish to log. An
@@ -52,10 +57,25 @@ var TestLogFile string = ""
 
 func init() {
 	if f := flag.Lookup("debug"); f == nil {
-		flag.BoolVar(&TestDebug, "debug", false, "turns on debugging for the tests")
+		flag.BoolVar(
+			&TestDebug,
+			"debug",
+			false,
+			"Enable longer failure description.")
 	}
 	if f := flag.Lookup("log"); f == nil {
-		flag.StringVar(&TestLogFile, "log", "", "specifies the log file for the test")
+		flag.StringVar(
+			&TestLogFile,
+			"log",
+			"",
+			"Specifies the log file for the test")
+	}
+	if f := flag.Lookup("live-output"); f == nil {
+		flag.BoolVar(
+			&streamTestOutput,
+			"live-output",
+			false,
+			"Enable output to be streamed live rather than buffering.")
 	}
 }
 
@@ -77,7 +97,11 @@ func AddTestFinalizer(f func()) {
 // are needed. All tests in this module should start by calling this
 // function.
 func StartTest(l Logger) {
-	LogBuffer = unittest.SetupBuffer()
+	if !streamTestOutput {
+		LogBuffer = unittest.SetupBuffer()
+	} else {
+		logging.ConfigReplaceOutput("^default$", "@TDIWEF", "stdout://")
+	}
 }
 
 // Called as a defer to a test in order to clean up after a test run. All
