@@ -156,15 +156,13 @@ func deepValueEqual(
 	// Checks to see if one value is nil, while the other is not.
 	checkNil := func() bool {
 		if want.IsNil() && !have.IsNil() {
-			diffs = append(diffs, fmt.Sprintf(
-				"%s: not equal.\nhave: %#v\nwant: nil.",
-				description, have.Interface()))
+			diffs = append(diffs, fmt.Sprintf("%s: not equal.", description))
 			diffs = append(diffs, describe("have: ", have.Interface()))
+			diffs = append(diffs, "want: nil")
 			return true
 		} else if !want.IsNil() && have.IsNil() {
-			diffs = append(diffs, fmt.Sprintf(
-				"%s: not equal.\nhave: nil\nwant: %#v",
-				description, want.Interface()))
+			diffs = append(diffs, fmt.Sprintf("%s: not equal.", description))
+			diffs = append(diffs, "have: nil")
 			diffs = append(diffs, describe("want: ", have.Interface()))
 			return true
 		}
@@ -241,13 +239,14 @@ func deepValueEqual(
 				if !have.MapIndex(k).IsValid() {
 					// Add the error.
 					diffs = append(diffs, fmt.Sprintf(
-						"%sexpected key [%q] is missing.", description, k))
+						"%sExpected key [%q] is missing.", description, k))
+					diffs = append(diffs, "have: not present")
 					diffs = append(diffs,
 						describe("want: ", want.MapIndex(k).Interface()))
 					continue
 				}
 				newdiffs := deepValueEqual(
-					fmt.Sprintf("%s[%s] ", description, k),
+					fmt.Sprintf("%s[%q] ", description, k),
 					want.MapIndex(k), have.MapIndex(k), visited)
 				diffs = append(diffs, newdiffs...)
 			}
@@ -255,9 +254,10 @@ func deepValueEqual(
 				if !want.MapIndex(k).IsValid() {
 					// Add the error.
 					diffs = append(diffs, fmt.Sprintf(
-						"%sunexpected key [%q].", description, k))
+						"%sUnexpected key [%q].", description, k))
 					diffs = append(diffs,
 						describe("have: ", have.MapIndex(k).Interface()))
+					diffs = append(diffs, "want: not present")
 				}
 			}
 		}
