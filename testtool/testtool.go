@@ -81,7 +81,7 @@ func init() {
 
 // Stores output from the logging system so it can be written only if
 // the test actually fails.
-var LogBuffer unittest.LogBuffer = unittest.SetupBuffer()
+var LogBuffer *unittest.LogBuffer = unittest.SetupBuffer()
 
 // This is a list of functions that will be run on test completion. Having
 // this allows us to clean up temporary directories or files after the
@@ -100,7 +100,7 @@ func StartTest(l Logger) {
 	if !streamTestOutput {
 		LogBuffer = unittest.SetupBuffer()
 	} else {
-		logging.ConfigReplaceOutput("^default$", "@TDIWEF", "stdout://")
+		logging.AddOutput("^default$", true, "stdout://", logging.ALL)
 	}
 }
 
