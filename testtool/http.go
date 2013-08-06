@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
+	"time"
 )
 
 // Test an HTTP GET to the given URL. If expectedReturnCode is a value other
@@ -92,4 +93,42 @@ func TestHttpPut(
 			url, resp.StatusCode, expectedReturnCode, string(all))
 	}
 	return string(all), resp.StatusCode
+}
+
+// Test an HTTP GET to the given URL for the amount of time specified in
+// duration. This will retry with multiple requests until one is successful or
+// it has taken longer than the duration. If expectedReturnCode is a value other
+// than -1, the test will fail if the response status code doesn't match the
+// exptected code. Method returns the string value of the response body and the
+// status code.
+func TestHttpGetTimeout(t Logger, url string, expectedReturnCode int, duration time.Duration) (string, int) {
+	startTime := time.Now()
+	deadline := startTime.Add(duration)
+
+	for ; ; time.Sleep(200 * time.Millisecond) {
+		// break out if we're past the deadline
+		if time.Now().After(deadline) {
+			Fatalf(t, "Unable to receive a valid response from %q within %s", url, duration)
+		}
+
+		// issue the request
+		resp, err := http.Get(url)
+		if err != nil || resp.Body == nil {
+			continue
+		}
+
+		// read the response
+		all, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			continue
+		}
+		resp.Body.Close()
+
+		// check if a status code was given and check it if it wasn't -1
+		if (expectedReturnCode == -1 && resp.StatusCode < 400) || (expectedReturnCode == resp.StatusCode) {
+			return string(all), resp.StatusCode
+		} else {
+			continue
+		}
+	}
 }
