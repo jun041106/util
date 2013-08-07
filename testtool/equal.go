@@ -45,6 +45,12 @@ func isNil(i interface{}) bool {
 	return v.IsNil()
 }
 
+func TestExpectNonNil(t Logger, i interface{}) {
+	if haveNil := isNil(i); haveNil {
+		Fatalf(t, "Expected non-nil value, got nil")
+	}
+}
+
 func TestEqual(t Logger, have, want interface{}, msg ...string) {
 	haveNil := isNil(have)
 	wantNil := isNil(want)
