@@ -45,9 +45,9 @@ func isNil(i interface{}) bool {
 	return v.IsNil()
 }
 
-func TestExpectNonNil(t Logger, i interface{}) {
+func TestExpectNonNil(t Logger, i interface{}, msg ...string) {
 	if haveNil := isNil(i); haveNil {
-		Fatalf(t, "Expected non-nil value, got nil")
+		Fatalf(t, "Expected non-nil value, got nil. %s", msg)
 	}
 }
 
@@ -194,7 +194,7 @@ func deepValueEqual(
 			for i := 0; i < want.Len(); i++ {
 				newdiffs := deepValueEqual(
 					fmt.Sprintf("%s[%d]", description, i),
-					want.Index(i), have.Index(i), visited)
+					have.Index(i), want.Index(i), visited)
 				diffs = append(diffs, newdiffs...)
 			}
 		}
@@ -204,21 +204,19 @@ func deepValueEqual(
 			for i := 0; i < want.Len(); i++ {
 				newdiffs := deepValueEqual(
 					fmt.Sprintf("%s[%d]", description, i),
-					want.Index(i), have.Index(i), visited)
+					have.Index(i), want.Index(i), visited)
 				diffs = append(diffs, newdiffs...)
 			}
 		}
 
 	case reflect.Interface:
 		if !checkNil() {
-			newdiffs := deepValueEqual(
-				description, want.Elem(), have.Elem(), visited)
+			newdiffs := deepValueEqual(description, have.Elem(), want.Elem(), visited)
 			diffs = append(diffs, newdiffs...)
 		}
 
 	case reflect.Ptr:
-		newdiffs := deepValueEqual(
-			description, want.Elem(), have.Elem(), visited)
+		newdiffs := deepValueEqual(description, have.Elem(), want.Elem(), visited)
 		diffs = append(diffs, newdiffs...)
 
 	case reflect.Struct:
@@ -228,12 +226,12 @@ func deepValueEqual(
 			// first object given to us is a struct.
 			if description == "" {
 				newdiffs := deepValueEqual(
-					name, want.Field(i), have.Field(i), visited)
+					name, have.Field(i), want.Field(i), visited)
 				diffs = append(diffs, newdiffs...)
 			} else {
 				newdiffs := deepValueEqual(
 					fmt.Sprintf("%s.%s", description, name),
-					want.Field(i), have.Field(i), visited)
+					have.Field(i), want.Field(i), visited)
 				diffs = append(diffs, newdiffs...)
 			}
 		}
@@ -253,16 +251,14 @@ func deepValueEqual(
 				}
 				newdiffs := deepValueEqual(
 					fmt.Sprintf("%s[%q] ", description, k),
-					want.MapIndex(k), have.MapIndex(k), visited)
+					have.MapIndex(k), want.MapIndex(k), visited)
 				diffs = append(diffs, newdiffs...)
 			}
 			for _, k := range have.MapKeys() {
 				if !want.MapIndex(k).IsValid() {
 					// Add the error.
-					diffs = append(diffs, fmt.Sprintf(
-						"%sUnexpected key [%q].", description, k))
-					diffs = append(diffs,
-						describe("have: ", have.MapIndex(k).Interface()))
+					diffs = append(diffs, fmt.Sprintf("%sUnexpected key [%q].", description, k))
+					diffs = append(diffs, describe("have: ", have.MapIndex(k).Interface()))
 					diffs = append(diffs, "want: not present")
 				}
 			}
@@ -306,99 +302,85 @@ func deepValueEqual(
 			s1 := have.Interface().(bool)
 			s2 := want.Interface().(bool)
 			if s1 != s2 {
-				return []string{fmt.Sprintf(
-					"%s: have %t, want %t", description, s1, s2)}
+				return []string{fmt.Sprintf("%s: have %t, want %t", description, s1, s2)}
 			}
 		case int:
 			s1 := have.Interface().(int)
 			s2 := want.Interface().(int)
 			if s1 != s2 {
-				return []string{fmt.Sprintf(
-					"%s: have %d, want %d", description, s1, s2)}
+				return []string{fmt.Sprintf("%s: have %d, want %d", description, s1, s2)}
 			}
 		case int8:
 			s1 := have.Interface().(int8)
 			s2 := want.Interface().(int8)
 			if s1 != s2 {
-				return []string{fmt.Sprintf(
-					"%s: have %d, want %d", description, s1, s2)}
+				return []string{fmt.Sprintf("%s: have %d, want %d", description, s1, s2)}
 			}
 		case int16:
 			s1 := have.Interface().(int16)
 			s2 := want.Interface().(int16)
 			if s1 != s2 {
-				return []string{fmt.Sprintf(
-					"%s: have %d, want %d", description, s1, s2)}
+				return []string{fmt.Sprintf("%s: have %d, want %d", description, s1, s2)}
 			}
 		case int32:
 			s1 := have.Interface().(int32)
 			s2 := want.Interface().(int32)
 			if s1 != s2 {
-				return []string{fmt.Sprintf(
-					"%s: have %d, want %d", description, s1, s2)}
+				return []string{fmt.Sprintf("%s: have %d, want %d", description, s1, s2)}
 			}
 		case int64:
 			s1 := have.Interface().(int64)
 			s2 := want.Interface().(int64)
 			if s1 != s2 {
-				return []string{fmt.Sprintf(
-					"%s: have %d, want %d", description, s1, s2)}
+				return []string{fmt.Sprintf("%s: have %d, want %d", description, s1, s2)}
 			}
 		case uint:
 			s1 := have.Interface().(uint)
 			s2 := want.Interface().(uint)
 			if s1 != s2 {
-				return []string{fmt.Sprintf(
-					"%s: have %d, want %d", description, s1, s2)}
+				return []string{fmt.Sprintf("%s: have %d, want %d", description, s1, s2)}
 			}
 		case uint8:
 			s1 := have.Interface().(uint8)
 			s2 := want.Interface().(uint8)
 			if s1 != s2 {
-				return []string{fmt.Sprintf(
-					"%s: have %d, want %d", description, s1, s2)}
+				return []string{fmt.Sprintf("%s: have %d, want %d", description, s1, s2)}
 			}
 		case uint16:
 			s1 := have.Interface().(uint16)
 			s2 := want.Interface().(uint16)
 			if s1 != s2 {
-				return []string{fmt.Sprintf(
-					"%s: have %d, want %d", description, s1, s2)}
+				return []string{fmt.Sprintf("%s: have %d, want %d", description, s1, s2)}
 			}
 		case uint32:
 			s1 := have.Interface().(uint32)
 			s2 := want.Interface().(uint32)
 			if s1 != s2 {
-				return []string{fmt.Sprintf(
-					"%s: have %d, want %d", description, s1, s2)}
+				return []string{fmt.Sprintf("%s: have %d, want %d", description, s1, s2)}
 			}
 		case uint64:
 			s1 := have.Interface().(uint64)
 			s2 := want.Interface().(uint64)
 			if s1 != s2 {
-				return []string{fmt.Sprintf(
-					"%s: have %d, want %d", description, s1, s2)}
+				return []string{fmt.Sprintf("%s: have %d, want %d", description, s1, s2)}
 			}
 		case uintptr:
 			s1 := have.Interface().(uintptr)
 			s2 := want.Interface().(uintptr)
 			if s1 != s2 {
-				return []string{fmt.Sprintf(
-					"%s: have %d, want %d", description, s1, s2)}
+				return []string{fmt.Sprintf("%s: have %d, want %d", description, s1, s2)}
 			}
 		case float32:
 			s1 := have.Interface().(float32)
 			s2 := want.Interface().(float32)
 			if s1 != s2 {
-				return []string{fmt.Sprintf(
-					"%s: have %f, want %f", description, s1, s2)}
+				return []string{fmt.Sprintf("%s: have %f, want %f", description, s1, s2)}
 			}
 		case float64:
 			s1 := have.Interface().(float64)
 			s2 := want.Interface().(float64)
 			if s1 != s2 {
-				return []string{fmt.Sprintf(
-					"%s: have %f, want %f", description, s1, s2)}
+				return []string{fmt.Sprintf("%s: have %f, want %f", description, s1, s2)}
 			}
 		default:
 			// Normal equality suffices
