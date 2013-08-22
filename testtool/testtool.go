@@ -77,11 +77,13 @@ func init() {
 			false,
 			"Enable output to be streamed live rather than buffering.")
 	}
+
+//	LogBuffer = unittest.SetupBuffer()
 }
 
 // Stores output from the logging system so it can be written only if
 // the test actually fails.
-var LogBuffer *unittest.LogBuffer = unittest.SetupBuffer()
+var LogBuffer *unittest.LogBuffer
 
 // This is a list of functions that will be run on test completion. Having
 // this allows us to clean up temporary directories or files after the
@@ -102,6 +104,7 @@ func StartTest(l Logger) {
 	} else {
 		logging.AddOutput("^default$", true, "stdout://", logging.ALL)
 	}
+	logging.LockOutput()
 }
 
 // Called as a defer to a test in order to clean up after a test run. All
@@ -113,6 +116,7 @@ func FinishTest(l Logger) {
 	}
 	Finalizers = nil
 	LogBuffer.FinishTest(l)
+	logging.UnlockOutput()
 }
 
 // Call this to require that your test is run as root. NOTICE: this does not
