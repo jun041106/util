@@ -77,8 +77,6 @@ func init() {
 			false,
 			"Enable output to be streamed live rather than buffering.")
 	}
-
-//	LogBuffer = unittest.SetupBuffer()
 }
 
 // Stores output from the logging system so it can be written only if
@@ -115,7 +113,9 @@ func FinishTest(l Logger) {
 		Finalizers[len(Finalizers)-1-i]()
 	}
 	Finalizers = nil
-	LogBuffer.FinishTest(l)
+	if LogBuffer != nil {
+		LogBuffer.FinishTest(l)
+	}
 	logging.UnlockOutput()
 }
 
