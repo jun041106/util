@@ -51,6 +51,18 @@ func TestExpectNonNil(t Logger, i interface{}, msg ...string) {
 	}
 }
 
+func TestTrue(t Logger, ans bool) {
+	if !ans {
+		Fatalf(t, "Expected a true value.")
+	}
+}
+
+func TestFalse(t Logger, ans bool) {
+	if ans {
+		Fatalf(t, "Expected a false value.")
+	}
+}
+
 func TestEqual(t Logger, have, want interface{}, msg ...string) {
 	haveNil := isNil(have)
 	wantNil := isNil(want)

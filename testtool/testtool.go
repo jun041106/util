@@ -302,10 +302,7 @@ func Fatal(t Logger, args ...interface{}) {
 // runs the given function until 'timeout' has passed, sleeping 'sleep'
 // duration in between runs. If the function returns true this exits,
 // otherwise after timeout this will fail the test.
-func Timeout(
-	l Logger, timeout time.Duration, sleep time.Duration,
-	f func() bool,
-) {
+func Timeout(l Logger, timeout, sleep  time.Duration, f func() bool) {
 	end := time.Now().Add(timeout)
 	for time.Now().Before(end) {
 		if f() == true {
