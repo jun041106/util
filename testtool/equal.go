@@ -123,9 +123,7 @@ type visit struct {
 // Tests for deep equality using reflected types. The map argument tracks
 // comparisons that have already been seen, which allows short circuiting on
 // recursive types.
-func deepValueEqual(
-	description string, have, want reflect.Value, visited map[uintptr]*visit,
-) (diffs []string) {
+func deepValueEqual(description string, have, want reflect.Value, visited map[uintptr]*visit) (diffs []string) {
 	if !want.IsValid() && !have.IsValid() {
 		return nil
 	} else if !want.IsValid() && have.IsValid() {
@@ -233,7 +231,12 @@ func deepValueEqual(
 
 	case reflect.Struct:
 		for i, n := 0, want.NumField(); i < n; i++ {
-			name := want.Type().Field(i).Name
+			f := want.Type().Field(i)
+			if len(f.PkgPath) != 0 {
+				// skip unexported fields
+				continue
+			}
+			name := f.Name
 			// Make sure that we don't print a strange error if the
 			// first object given to us is a struct.
 			if description == "" {
