@@ -302,7 +302,7 @@ func Fatal(t Logger, args ...interface{}) {
 // runs the given function until 'timeout' has passed, sleeping 'sleep'
 // duration in between runs. If the function returns true this exits,
 // otherwise after timeout this will fail the test.
-func Timeout(l Logger, timeout, sleep  time.Duration, f func() bool) {
+func Timeout(l Logger, timeout, sleep time.Duration, f func() bool) {
 	end := time.Now().Add(timeout)
 	for time.Now().Before(end) {
 		if f() == true {
@@ -327,7 +327,11 @@ func TestExpectError(l Logger, err error) {
 // Fatal's the test if err is not nil and fails the test and output the reason
 // for the failure as the err argument the same as Fatalf. If err implements the
 // BackTracer interface a backtrace will also be displayed.
-func TestExpectSuccess(l Logger, err error) {
+func TestExpectSuccess(l Logger, err error, msg ...string) {
+	reason := ""
+	if len(msg) > 0 {
+		reason = ": " + strings.Join(msg, "")
+	}
 	if err != nil {
 		lines := make([]string, 0, 50)
 		lines = append(lines, fmt.Sprintf("Unexpected error: %s", err))
@@ -336,7 +340,7 @@ func TestExpectSuccess(l Logger, err error) {
 				lines = append(lines, fmt.Sprintf(" * %s", line))
 			}
 		}
-		Fatalf(l, "%s", strings.Join(lines, "\n"))
+		Fatalf(l, "%s%s", strings.Join(lines, "\n"), reason)
 	}
 }
 
