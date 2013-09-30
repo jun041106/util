@@ -28,7 +28,7 @@ type Logger interface {
 	Skipf(format string, args ...interface{})
 }
 
-// If an error implements the Bactrace() function then that backtrace will be
+// If an error implements the Backtrace() function then that backtrace will be
 // displayed using the TestExpectSuccess() functions. For an example see
 // BackError in the apcera/cfg package.
 type Backtracer interface {
