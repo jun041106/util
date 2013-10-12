@@ -1,4 +1,4 @@
-// Copyright 2012 Apcera, Inc. All rights reserved.
+// Copyright 2013 Apcera, Inc. All rights reserved.
 
 package hmac
 
