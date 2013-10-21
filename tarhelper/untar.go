@@ -128,7 +128,7 @@ func NewUntar(r io.Reader, targetDir string) *Untar {
 // settings in the Untar object.
 func (u *Untar) Extract() error {
 	// Since this component does not have a context to work within
-	// all of its logging is done as Debug so that they do not
+	// all of its logging is done as V(1).Info so that they do not
 	// end up spamming logs. Its assumed that the upstream
 	// caller will log these errors properly.
 	Log.V(1).Info("Extracting tar file.")
