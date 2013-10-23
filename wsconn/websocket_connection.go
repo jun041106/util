@@ -156,7 +156,6 @@ func (conn *WebsocketConnection) Write(b []byte) (n int, err error) {
 func (conn *WebsocketConnection) Close() error {
 	defer close(conn.closedChan)
 	defer close(conn.textChan)
-	conn.ws.WriteControl(websocket.OpClose, []byte{}, time.Now().Add(conn.writeTimeout))
 	return conn.ws.Close()
 }
 
