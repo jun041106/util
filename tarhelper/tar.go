@@ -3,7 +3,6 @@
 package tarhelper
 
 import (
-	"archive/tar"
 	"compress/gzip"
 	"fmt"
 	"io"
@@ -13,6 +12,9 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+
+	// FIXME: move back to archive/tar after updating to Go 1.2
+	"github.com/apcera/util/tarhelper/tar"
 )
 
 // Tar manages state for a TAR archive.

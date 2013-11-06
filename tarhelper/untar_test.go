@@ -3,7 +3,6 @@
 package tarhelper
 
 import (
-	"archive/tar"
 	"bytes"
 	"io/ioutil"
 	"os"
@@ -11,6 +10,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	// FIXME: move back to archive/tar after updating to Go 1.2
+	"github.com/apcera/util/tarhelper/tar"
 
 	. "github.com/apcera/util/testtool"
 )
