@@ -140,10 +140,11 @@ func (t *Tar) processEntry(fullName string, f os.FileInfo) error {
 	var err error
 
 	// set base header parameters
-	header := new(tar.Header)
+	header, err := tar.FileInfoHeader(f, "")
+	if err != nil {
+		return err
+	}
 	header.Name = "./" + fullName
-	header.Mode = int64(f.Mode().Perm())
-	header.ModTime = f.ModTime()
 
 	// handle VirtualPath
 	if t.VirtualPath != "" {
@@ -171,8 +172,6 @@ func (t *Tar) processEntry(fullName string, f os.FileInfo) error {
 
 		// update directory specific values, tarballs often append with a slash
 		header.Name = header.Name + "/"
-		header.Typeflag = tar.TypeDir
-		header.Mode |= c_ISDIR
 
 		// write the header
 		err = t.archive.WriteHeader(header)
@@ -190,10 +189,6 @@ func (t *Tar) processEntry(fullName string, f os.FileInfo) error {
 		if !t.IncludePermissions {
 			header.Mode = 0755
 		}
-
-		// symlink type flags
-		header.Typeflag = tar.TypeSymlink
-		header.Mode |= c_ISLNK
 
 		// read and process the link
 		link, err := cleanLinkName(t.target, fullName)
@@ -214,11 +209,6 @@ func (t *Tar) processEntry(fullName string, f os.FileInfo) error {
 		if !t.IncludePermissions {
 			header.Mode = 0644
 		}
-
-		// base file flags
-		header.Size = f.Size()
-		header.Typeflag = tar.TypeReg
-		header.Mode |= c_ISREG
 
 		// check to see if this is a hard link
 		if stat.Nlink > 1 {
@@ -267,19 +257,6 @@ func (t *Tar) processEntry(fullName string, f os.FileInfo) error {
 	case mode&os.ModeDevice == os.ModeDevice ||
 		mode&os.ModeCharDevice == os.ModeCharDevice:
 		//
-		// get the mode to OR by
-		devmode := int64(0)
-		switch {
-		case mode&os.ModeDevice == os.ModeDevice:
-			devmode = c_ISBLK
-		case mode&os.ModeCharDevice == os.ModeCharDevice:
-			devmode = c_ISCHR
-		}
-
-		// set other flags
-		header.Typeflag = tar.TypeBlock
-		header.Mode |= devmode
-
 		// stat to get devmode
 		fi, err := os.Stat(path.Join(t.target, fullName))
 		if sys, ok := fi.Sys().(*syscall.Stat_t); ok {

@@ -401,12 +401,12 @@ func (u *Untar) processEntry(header *tar.Header) error {
 	}
 
 	// apply it
-	switch {
-	case header.Typeflag == tar.TypeReg || header.Typeflag == tar.TypeRegA:
+	switch header.Typeflag {
+	case tar.TypeSymlink:
 		os.Lchown(name, uid, gid)
-	case header.Typeflag == tar.TypeLink:
-		// don't chown on hard links. doing this also removes setuid from mode
-		// and the hard link will already pick up the same owner
+	case tar.TypeLink:
+		// don't chown on hard links or symlinks. doing this also removes setuid
+		// from mode and the hard link will already pick up the same owner
 	default:
 		os.Chown(name, uid, gid)
 	}
