@@ -26,6 +26,8 @@ type Logger interface {
 	Fatalf(format string, args ...interface{})
 	Skip(args ...interface{})
 	Skipf(format string, args ...interface{})
+	Log(args ...interface{})
+	Logf(format string, args ...interface{})
 }
 
 // If an error implements the Backtrace() function then that backtrace will be
