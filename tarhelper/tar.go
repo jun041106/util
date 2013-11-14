@@ -41,6 +41,11 @@ type Tar struct {
 	// reserved for normal users.
 	IncludeOwners bool
 
+	// ExcludedPaths contains any paths that a user may want to exclude from the
+	// tar. Anything included in any paths set on this field will not be
+	// included in the tar.
+	ExcludedPaths []string
+
 	// If set, this will be a virtual path that is prepended to the
 	// file location.  This allows the target to be under a temp directory
 	// but have it packaged as though it was under another directory, such as
@@ -76,6 +81,7 @@ func NewTar(w io.Writer, targetDir string) *Tar {
 		hardLinks:          make(map[uint64]string),
 		IncludePermissions: true,
 		IncludeOwners:      false,
+		ExcludedPaths:      []string{},
 	}
 }
 
@@ -118,6 +124,16 @@ func (t *Tar) Archive() error {
 	return nil
 }
 
+// ExcludePath appends a path, file, or pattern relative to the toplevel path to
+// be archived that is then excluded from the final archive.
+func (t *Tar) ExcludePath(name string) {
+	// Strip leading slash, if present.
+	if strings.HasPrefix(name, string(filepath.Separator)) {
+		name = name[1:]
+	}
+	t.ExcludedPaths = append(t.ExcludedPaths, name)
+}
+
 func (t *Tar) processDirectory(dir string) error {
 	// get directory entries
 	files, err := ioutil.ReadDir(filepath.Join(t.target, dir))
@@ -137,6 +153,11 @@ func (t *Tar) processDirectory(dir string) error {
 
 func (t *Tar) processEntry(fullName string, f os.FileInfo) error {
 	var err error
+
+	// Exclude any files or paths specified by the user.
+	if t.shouldBeExcluded(fullName) {
+		return nil
+	}
 
 	// set base header parameters
 	header, err := tar.FileInfoHeader(f, "")
@@ -312,4 +333,18 @@ func cleanLinkName(targetDir, name string) (string, error) {
 	}
 
 	return link, nil
+}
+
+// Determines if supplied name is contained in the slice of files to exclude.
+func (t *Tar) shouldBeExcluded(name string) bool {
+	for _, exclude := range t.ExcludedPaths {
+		if match, _ := filepath.Match(exclude, name); match {
+			Log.Infof("Excluding path/file with name %s from tar", name)
+			return true
+		} else if match, _ := filepath.Match(exclude, filepath.Base(name)); match {
+			Log.Infof("Excluding path/file with name %s from tar", name)
+			return true
+		}
+	}
+	return false
 }
