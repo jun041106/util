@@ -8,7 +8,6 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 	"syscall"
@@ -41,6 +40,11 @@ type Tar struct {
 	// false, the Uid and Gid will be set as 500, which is the first Uid/Gid
 	// reserved for normal users.
 	IncludeOwners bool
+
+	// ExcludedPaths contains any paths that a user may want to exclude from the
+	// tar. Anything included in any paths set on this field will not be
+	// included in the tar.
+	ExcludedPaths []string
 
 	// If set, this will be a virtual path that is prepended to the
 	// file location.  This allows the target to be under a temp directory
@@ -77,6 +81,7 @@ func NewTar(w io.Writer, targetDir string) *Tar {
 		hardLinks:          make(map[uint64]string),
 		IncludePermissions: true,
 		IncludeOwners:      false,
+		ExcludedPaths:      []string{},
 	}
 }
 
@@ -119,15 +124,25 @@ func (t *Tar) Archive() error {
 	return nil
 }
 
+// ExcludePath appends a path, file, or pattern relative to the toplevel path to
+// be archived that is then excluded from the final archive.
+func (t *Tar) ExcludePath(name string) {
+	// Strip leading slash, if present.
+	if strings.HasPrefix(name, string(filepath.Separator)) {
+		name = name[1:]
+	}
+	t.ExcludedPaths = append(t.ExcludedPaths, name)
+}
+
 func (t *Tar) processDirectory(dir string) error {
 	// get directory entries
-	files, err := ioutil.ReadDir(path.Join(t.target, dir))
+	files, err := ioutil.ReadDir(filepath.Join(t.target, dir))
 	if err != nil {
 		return err
 	}
 
 	for _, f := range files {
-		fullName := path.Join(dir, f.Name())
+		fullName := filepath.Join(dir, f.Name())
 		if err := t.processEntry(fullName, f); err != nil {
 			return err
 		}
@@ -139,6 +154,11 @@ func (t *Tar) processDirectory(dir string) error {
 func (t *Tar) processEntry(fullName string, f os.FileInfo) error {
 	var err error
 
+	// Exclude any files or paths specified by the user.
+	if t.shouldBeExcluded(fullName) {
+		return nil
+	}
+
 	// set base header parameters
 	header, err := tar.FileInfoHeader(f, "")
 	if err != nil {
@@ -148,7 +168,7 @@ func (t *Tar) processEntry(fullName string, f os.FileInfo) error {
 
 	// handle VirtualPath
 	if t.VirtualPath != "" {
-		header.Name = path.Clean(path.Join(".", t.VirtualPath, header.Name))
+		header.Name = filepath.Clean(filepath.Join(".", t.VirtualPath, header.Name))
 	}
 
 	// copy uid/gid if Permissions enabled
@@ -233,7 +253,7 @@ func (t *Tar) processEntry(fullName string, f os.FileInfo) error {
 		// only write the file if tye type is still a regular file
 		if header.Typeflag == tar.TypeReg {
 			// open the file and copy
-			data, err := os.Open(path.Join(t.target, fullName))
+			data, err := os.Open(filepath.Join(t.target, fullName))
 			if err != nil {
 				return err
 			}
@@ -258,7 +278,7 @@ func (t *Tar) processEntry(fullName string, f os.FileInfo) error {
 		mode&os.ModeCharDevice == os.ModeCharDevice:
 		//
 		// stat to get devmode
-		fi, err := os.Stat(path.Join(t.target, fullName))
+		fi, err := os.Stat(filepath.Join(t.target, fullName))
 		if sys, ok := fi.Sys().(*syscall.Stat_t); ok {
 			header.Devmajor = majordev(int64(sys.Rdev))
 			header.Devminor = minordev(int64(sys.Rdev))
@@ -283,22 +303,22 @@ func cleanLinkName(targetDir, name string) (string, error) {
 	dir := filepath.Dir(name)
 
 	// read the link
-	link, err := os.Readlink(path.Join(targetDir, name))
+	link, err := os.Readlink(filepath.Join(targetDir, name))
 	if err != nil {
 		return "", err
 	}
 
 	// if the target isn't absolute, make it absolute
 	// even if it is absolute, we want to convert it to be relative
-	if !path.IsAbs(link) {
-		link, err = filepath.Abs(path.Join(targetDir, dir, link))
+	if !filepath.IsAbs(link) {
+		link, err = filepath.Abs(filepath.Join(targetDir, dir, link))
 		if err != nil {
 			return "", err
 		}
 	}
 
 	// do a quick clean pass
-	link = path.Clean(link)
+	link = filepath.Clean(link)
 
 	// if the link path contains the target path, then convert the link to be
 	// relative. this ensures it is properly preserved whereever it is later
@@ -306,11 +326,25 @@ func cleanLinkName(targetDir, name string) (string, error) {
 	// absolute path
 	if strings.Contains(link, targetDir) {
 		// remove the targetdir to ensure the link is relative
-		link, err = filepath.Rel(path.Join(targetDir, dir), link)
+		link, err = filepath.Rel(filepath.Join(targetDir, dir), link)
 		if err != nil {
 			return "", err
 		}
 	}
 
 	return link, nil
+}
+
+// Determines if supplied name is contained in the slice of files to exclude.
+func (t *Tar) shouldBeExcluded(name string) bool {
+	for _, exclude := range t.ExcludedPaths {
+		if match, _ := filepath.Match(exclude, name); match {
+			Log.Infof("Excluding path/file with name %s from tar", name)
+			return true
+		} else if match, _ := filepath.Match(exclude, filepath.Base(name)); match {
+			Log.Infof("Excluding path/file with name %s from tar", name)
+			return true
+		}
+	}
+	return false
 }

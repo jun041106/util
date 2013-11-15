@@ -56,3 +56,30 @@ func TestTarVirtualPath(t *testing.T) {
 	tw.VirtualPath = "foo"
 	TestExpectSuccess(t, tw.Archive())
 }
+
+func TestPathExclusion(t *testing.T) {
+	StartTest(t)
+	defer FinishTest(t)
+
+	w := bytes.NewBufferString("")
+	tw := NewTar(w, makeTestDir(t))
+	fooPath := "/foo/bar"
+	tmpPath := "/tmp"
+	pidPattern := "*.pid"
+	tw.ExcludePath(fooPath)
+	tw.ExcludePath(tmpPath)
+	tw.ExcludePath(pidPattern)
+	TestEqual(t, len(tw.ExcludedPaths), 3)
+
+	TestEqual(t, tw.shouldBeExcluded(fooPath), false)
+	TestEqual(t, tw.shouldBeExcluded(tmpPath), true)
+	TestEqual(t, tw.shouldBeExcluded(fooPath[1:]), true)
+	TestEqual(t, tw.shouldBeExcluded(tmpPath[1:]), true)
+	TestEqual(t, tw.shouldBeExcluded("/baz/bar"), false)
+	TestEqual(t, tw.shouldBeExcluded("foobar.pid"), true)
+	TestEqual(t, tw.shouldBeExcluded("/foo/bar/path/pid.pid"), true)
+
+	// This should return nil for these paths as they are excluded.
+	TestEqual(t, tw.processEntry(fooPath[1:], nil), nil)
+	TestEqual(t, tw.processEntry(tmpPath[1:], nil), nil)
+}
