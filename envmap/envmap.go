@@ -9,14 +9,22 @@ import (
 
 // Provides a simple storage layer for environment like variables.
 type EnvMap struct {
-	env    map[string]string
-	parent *EnvMap
+	env     map[string]string
+	parent  *EnvMap
+	flatten bool
 }
 
 func NewEnvMap() (r *EnvMap) {
 	r = new(EnvMap)
 	r.env = make(map[string]string, 0)
+	r.flatten = true
 	return r
+}
+
+// FlattenMap when set to false will not flatten the
+// results of an EnvMap.
+func (e *EnvMap) FlattenMap(flatMap bool) {
+	e.flatten = flatMap
 }
 
 func (e *EnvMap) Set(key, value string) {
@@ -93,7 +101,11 @@ func (e *EnvMap) Map() map[string]string {
 	for p := e; p != nil; p = p.parent {
 		for k := range p.env {
 			if _, ok := cache[k]; ok == false {
-				cache[k], _ = e.get(k, e, processQueue, cache)
+				if e.flatten {
+					cache[k], _ = e.get(k, e, processQueue, cache)
+				} else {
+					cache[k], _ = e.GetRaw(k)
+				}
 			}
 		}
 	}
@@ -112,7 +124,8 @@ func (e *EnvMap) Strings() []string {
 
 func (e *EnvMap) NewChild() *EnvMap {
 	return &EnvMap{
-		env:    make(map[string]string, 0),
-		parent: e,
+		env:     make(map[string]string, 0),
+		parent:  e,
+		flatten: true,
 	}
 }
