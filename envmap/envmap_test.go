@@ -8,29 +8,29 @@ import (
 	"strings"
 	"testing"
 
-	. "github.com/apcera/util/testtool"
+	tt "github.com/apcera/util/testtool"
 )
 
 func TestEnvMapSimple(t *testing.T) {
-	StartTest(t)
-	defer FinishTest(t)
+	tt.StartTest(t)
+	defer tt.FinishTest(t)
 
 	// Simple case.
 	e := NewEnvMap()
 	e.Set("A", "$A")
 	m := e.Map()
 	if len(m) != 1 {
-		Fatalf(t, "Invlid number of environment variables set.")
+		tt.Fatalf(t, "Invlid number of environment variables set.")
 	} else if v, ok := m["A"]; ok == false {
-		Fatalf(t, "$A was not defined.")
+		tt.Fatalf(t, "$A was not defined.")
 	} else if v != "" {
-		Fatalf(t, "$A has a bad vaule: %s", v)
+		tt.Fatalf(t, "$A has a bad value: %s", v)
 	}
 }
 
 func TestEnvMapRecursive(t *testing.T) {
-	StartTest(t)
-	defer FinishTest(t)
+	tt.StartTest(t)
+	defer tt.FinishTest(t)
 
 	// Simple case.
 	e := NewEnvMap()
@@ -38,21 +38,21 @@ func TestEnvMapRecursive(t *testing.T) {
 	e.Set("B", "$A")
 	m := e.Map()
 	if len(m) != 2 {
-		Fatalf(t, "Invlid number of environment variables set.")
+		tt.Fatalf(t, "Invalid number of environment variables set.")
 	} else if v, ok := m["A"]; ok == false {
-		Fatalf(t, "$A was not defined.")
+		tt.Fatalf(t, "$A was not defined.")
 	} else if v != "" {
-		Fatalf(t, "$A has a bad vaule: %s", v)
+		tt.Fatalf(t, "$A has a bad vaule: %s", v)
 	} else if v, ok := m["B"]; ok == false {
-		Fatalf(t, "$B was not defined.")
+		tt.Fatalf(t, "$B was not defined.")
 	} else if v != "" {
-		Fatalf(t, "$B has a bad vaule: %s", v)
+		tt.Fatalf(t, "$B has a bad vaule: %s", v)
 	}
 }
 
 func TestEnvMapDoubleAdd(t *testing.T) {
-	StartTest(t)
-	defer FinishTest(t)
+	tt.StartTest(t)
+	defer tt.FinishTest(t)
 
 	// Simple case.
 	e := NewEnvMap()
@@ -60,17 +60,17 @@ func TestEnvMapDoubleAdd(t *testing.T) {
 	e.Set("A", "2$A")
 	m := e.Map()
 	if len(m) != 1 {
-		Fatalf(t, "Invlid number of environment variables set.")
+		tt.Fatalf(t, "Invlid number of environment variables set.")
 	} else if v, ok := m["A"]; ok == false {
-		Fatalf(t, "$A was not defined.")
+		tt.Fatalf(t, "$A was not defined.")
 	} else if v != "21" {
-		Fatalf(t, "$A has a bad vaule: %s", v)
+		tt.Fatalf(t, "$A has a bad vaule: %s", v)
 	}
 }
 
 func TestEnvMap(t *testing.T) {
-	StartTest(t)
-	defer FinishTest(t)
+	tt.StartTest(t)
+	defer tt.FinishTest(t)
 
 	expected := []string{
 		"START_COMMAND=XYZ",
@@ -125,13 +125,13 @@ func TestEnvMap(t *testing.T) {
 		failed = true
 	}
 	if failed == true {
-		Fatalf(t, "results are not the same:\n%s", strings.Join(msg, "\n"))
+		tt.Fatalf(t, "results are not the same:\n%s", strings.Join(msg, "\n"))
 	}
 }
 
 func TestEnvMapGetRaw(t *testing.T) {
-	StartTest(t)
-	defer FinishTest(t)
+	tt.StartTest(t)
+	defer tt.FinishTest(t)
 
 	root := NewEnvMap()
 	root.Set("VARIABLE", "foo bar $STR")
@@ -139,16 +139,32 @@ func TestEnvMapGetRaw(t *testing.T) {
 	root.Set("VAR2", "xyz")
 
 	if v, _ := root.Get("VARIABLE"); v != "foo bar " {
-		Fatalf(t, "Get(VARIABLE) should have blanked out STR: %q", v)
+		tt.Fatalf(t, "Get(VARIABLE) should have blanked out STR: %q", v)
 	}
 	if v, _ := root.GetRaw("VARIABLE"); v != "foo bar $STR" {
-		Fatalf(t, "GetRaw(VARIABLE) should include raw $STR: %q", v)
+		tt.Fatalf(t, "GetRaw(VARIABLE) should include raw $STR: %q", v)
 	}
 
 	if v, _ := root.Get("VAR1"); v != "abc 123 xyz" {
-		Fatalf(t, "Get(VAR1) should have parsed mentioned variables: %q", v)
+		tt.Fatalf(t, "Get(VAR1) should have parsed mentioned variables: %q", v)
 	}
 	if v, _ := root.GetRaw("VAR1"); v != "abc 123 $VAR2" {
-		Fatalf(t, "GetRaw(VAR1) should be the raw string: %q", v)
+		tt.Fatalf(t, "GetRaw(VAR1) should be the raw string: %q", v)
 	}
+}
+func TestEnvMapGetUnflattened(t *testing.T) {
+	tt.StartTest(t)
+	defer tt.FinishTest(t)
+
+	root := NewEnvMap()
+	root.Set("VARIABLE", "foo bar $STR")
+	root.Set("VAR1", "abc 123 $VAR2")
+	root.Set("VAR2", "xyz")
+
+	root.FlattenMap(false)
+	envMap := root.Map()
+
+	tt.TestEqual(t, envMap["VAR1"], "abc 123 $VAR2")
+	tt.TestEqual(t, envMap["VAR2"], "xyz")
+	tt.TestEqual(t, envMap["VARIABLE"], "foo bar $STR")
 }
