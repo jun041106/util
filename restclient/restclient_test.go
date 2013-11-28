@@ -81,12 +81,12 @@ func TestBasicJsonRequest(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client, err := New("http://" + server.Listener.Addr().String())
+	client, err := New(server.URL)
 	tt.TestExpectSuccess(t, err)
 	req := client.NewJsonRequest("POST", "/foo", map[string]string{"bar": "baz"})
 
 	var res map[string]string
-	err = client.Do(req, &res)
+	err = client.Result(req, &res)
 	tt.TestExpectSuccess(t, err)
 
 	// Verify request as received by server
@@ -121,12 +121,12 @@ func TestJsonStructRequest(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client, err := New("http://" + server.Listener.Addr().String())
+	client, err := New(server.URL)
 	tt.TestExpectSuccess(t, err)
 	req := client.NewJsonRequest("POST", "/", person{Name: "John", Age: 56})
 
 	var responsePerson person
-	err = client.Do(req, &responsePerson)
+	err = client.Result(req, &responsePerson)
 	tt.TestExpectSuccess(t, err)
 
 	tt.TestEqual(t, receivedPerson.Name, "John")
@@ -155,14 +155,37 @@ func TestFormRequest(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client, err := New("http://" + server.Listener.Addr().String())
+	client, err := New(server.URL)
 	tt.TestExpectSuccess(t, err)
 	req := client.NewFormRequest("POST", "/", map[string]string{"name": "Tim"})
-	err = client.Do(req, nil)
+	err = client.Result(req, nil)
 	tt.TestExpectSuccess(t, err)
 
 	// Verify form data as received by server
 	tt.TestEqual(t, form.Get("name"), "Tim")
+}
+
+func TestErrorResult(t *testing.T) {
+	tt.StartTest(t)
+	defer tt.FinishTest(t)
+
+	// create a test server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		w.WriteHeader(500)
+		io.WriteString(w, "Didn't work")
+	}))
+	defer server.Close()
+
+	client, err := New(server.URL)
+	tt.TestExpectSuccess(t, err)
+	req := client.NewFormRequest("GET", "/", nil)
+	err = client.Result(req, nil)
+	tt.TestExpectError(t, err)
+
+	rerr, ok := err.(*RestError)
+	tt.TestEqual(t, ok, true, "Error should be of type *RestError")
+	tt.TestEqual(t, rerr.Error(), "REST error: "+rerr.err.Error())
 }
 
 func TestErrorResponse(t *testing.T) {
@@ -177,23 +200,21 @@ func TestErrorResponse(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client, err := New("http://" + server.Listener.Addr().String())
+	client, err := New(server.URL)
 	tt.TestExpectSuccess(t, err)
 	req := client.NewFormRequest("GET", "/", nil)
-	err = client.Do(req, nil)
+	resp, err := client.Do(req)
 	tt.TestExpectError(t, err)
 
 	rerr, ok := err.(*RestError)
 	tt.TestEqual(t, ok, true, "Error should be of type *RestError")
 	tt.TestEqual(t, rerr.Error(), "REST error: "+rerr.err.Error())
-	tt.TestNotEqual(t, rerr.Response, nil, "rerr should have Response set")
-	tt.TestEqual(t, rerr.StatusCode, 500)
-	tt.TestEqual(t, rerr.Status, "500 Internal Server Error")
 
-	// body, err := ioutil.ReadAll(rerr.Body)
-	// defer rerr.Body.Close()
-	// tt.TestExpectSuccess(t, err)
-	// tt.TestEqual(t, string(body), "Didn't work")
+	body, err := ioutil.ReadAll(resp.Body)
+	defer resp.Body.Close()
+	tt.TestExpectSuccess(t, err)
+	tt.TestEqual(t, string(body), "Didn't work")
+
 }
 
 func TestInvalidJsonResponse(t *testing.T) {
@@ -208,12 +229,12 @@ func TestInvalidJsonResponse(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client, err := New("http://" + server.Listener.Addr().String())
+	client, err := New(server.URL)
 	tt.TestExpectSuccess(t, err)
 	req := client.NewJsonRequest("GET", "/", nil)
 
 	var responsePerson person
-	err = client.Do(req, &responsePerson)
+	err = client.Result(req, &responsePerson)
 	tt.TestExpectError(t, err)
 	tt.TestNotEqual(t, err.(*json.UnmarshalTypeError), nil, "Should have been a json unmarshal error")
 }
@@ -230,12 +251,12 @@ func TestParseMimetype(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client, err := New("http://" + server.Listener.Addr().String())
+	client, err := New(server.URL)
 	tt.TestExpectSuccess(t, err)
 	req := client.NewJsonRequest("GET", "/", nil)
 
 	var responsePerson person
-	err = client.Do(req, &responsePerson)
+	err = client.Result(req, &responsePerson)
 	tt.TestExpectSuccess(t, err)
 	tt.TestEqual(t, responsePerson.Name, "Molly")
 	tt.TestEqual(t, responsePerson.Age, 45)
@@ -260,11 +281,11 @@ func TestEmptyPostRequest(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client, err := New("http://" + server.Listener.Addr().String())
+	client, err := New(server.URL)
 	tt.TestExpectSuccess(t, err)
 	req := client.NewJsonRequest("POST", "/", nil)
 
-	err = client.Do(req, nil)
+	err = client.Result(req, nil)
 	tt.TestExpectSuccess(t, err)
 	tt.TestEqual(t, body, "")
 }

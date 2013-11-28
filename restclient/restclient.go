@@ -13,9 +13,10 @@ import (
 	"path"
 )
 
-// Wrap HTTP verbs for stronger typing.
+// Method wraps HTTP verbs for stronger typing.
 type Method string
 
+// HTTP methods for REST
 const (
 	GET    = Method("GET")
 	POST   = Method("POST")
@@ -50,72 +51,65 @@ func (c *Client) BaseURL() *url.URL {
 	return c.base.ResolveReference(&url.URL{})
 }
 
-// Get issues a GET request to the specified endpoint and parses the response in
-// to v. It will return an error if it failed to send the request, or a
-// *RestError if the response wasn't a 2xx status code.
+// Get issues a GET request to the specified endpoint and parses the response
+// into v. It will return an error if it failed to send the request, a
+// *RestError if the response wasn't a 2xx status code, or an error from package
+// json's Decode.
 func (c *Client) Get(endpoint string, v interface{}) error {
-	return c.Do(c.NewJsonRequest(GET, endpoint, nil), v)
+	return c.Result(c.NewJsonRequest(GET, endpoint, nil), v)
 }
 
 // Post issues a POST request to the specified endpoint with the obj payload
-// encoded as JSON. It will parse the response and write it back to v. It will
-// return an error if it failed to send the request, or a *RestError if the
-// response wasn't a 2xx status code.
+// marshaled to JSON. It will return an error if it failed to send the request, a
+// *RestError if the response wasn't a 2xx status code, or an error from package
+// json's Decode.
 func (c *Client) Post(endpoint string, obj interface{}, v interface{}) error {
-	return c.Do(c.NewJsonRequest(POST, endpoint, obj), v)
+	return c.Result(c.NewJsonRequest(POST, endpoint, obj), v)
 }
 
 // Put issues a PUT request to the specified endpoint with the obj payload
-// encoded as JSON. It will parse the response and write it back to v. It will
-// return an error if it failed to send the request, or a *RestError if the
-// response wasn't a 2xx status code.
+// marshaled to JSON. It will return an error if it failed to send the request, a
+// *RestError if the response wasn't a 2xx status code, or an error from package
+// json's Decode.
 func (c *Client) Put(endpoint string, obj interface{}, v interface{}) error {
-	return c.Do(c.NewJsonRequest(PUT, endpoint, obj), v)
+	return c.Result(c.NewJsonRequest(PUT, endpoint, obj), v)
 }
 
 // Delete issues a DELETE request to the specified endpoint and parses the
-// response in to v. It will return an error if it failed to send the request,
-// or a *RestError if the response wasn't a 2xx status code.
+// response in to v. It will return an error if it failed to send the request, a
+// *RestError if the response wasn't a 2xx status code, or an error from package
+// json's Decode.
 func (c *Client) Delete(endpoint string, v interface{}) error {
-	return c.Do(c.NewJsonRequest(DELETE, endpoint, nil), v)
+	return c.Result(c.NewJsonRequest(DELETE, endpoint, nil), v)
 }
 
-// Do performs the HTTP request described by req and unmarshals any resulting
-// value into v unless v is nil. Returns a *RestError if an error occurs. The
-// caller should Close() the *RestError.Response if it is set.
-func (c *Client) Do(req *Request, v interface{}) error {
+// Result performs the request described by req and unmarshals a successful
+// HTTP response into v. If v is nil, the response is discarded.
+func (c *Client) Result(req *Request, v interface{}) error {
+	resp, err := c.Do(req)
+	if err != nil {
+		return err
+	}
+	return unmarshal(resp, v)
+}
+
+// Do performs the HTTP request described by req and returns the *http.Response.
+// Also returns a non-nil *RestError if an error occurs or the response is not
+// in the 2xx family.
+func (c *Client) Do(req *Request) (*http.Response, error) {
 	hreq, err := req.HTTPRequest()
 	if err != nil {
-		return &RestError{Req: hreq, err: fmt.Errorf("error preparing request: %s", err)}
+		return nil, &RestError{Req: hreq, err: fmt.Errorf("error preparing request: %s", err)}
 	}
 	// Internally, this uses c.Driver's CheckRedirect policy.
 	resp, err := c.Driver.Do(hreq)
 	if err != nil {
-		return &RestError{Req: hreq, err: fmt.Errorf("error sending request: %s", err)}
+		return resp, &RestError{Req: hreq, err: fmt.Errorf("error sending request: %s", err)}
 	}
-
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return &RestError{Req: hreq, Response: resp, err: fmt.Errorf("error in response: %s", resp.Status)}
+		return resp, &RestError{Req: hreq, err: fmt.Errorf("error in response: %s", resp.Status)}
 	}
-
-	// Don't Unmarshal if v is nil
-	if v == nil {
-		resp.Body.Close() // Not going to read resp.Body
-		return nil
-	}
-
-	ctype, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
-	switch {
-	case err != nil:
-		return &RestError{Req: hreq, Response: resp, err: err}
-	case ctype == "application/json":
-		defer resp.Body.Close()
-		return json.NewDecoder(resp.Body).Decode(v)
-	default:
-		return &RestError{Req: hreq, Response: resp, err: fmt.Errorf("unexpected response: %s %s", resp.Status, ctype)}
-	}
-
-	return nil
+	return resp, nil
 }
 
 // NewJsonRequest generates a new Request object and JSON encodes the provided
@@ -214,13 +208,30 @@ func resourceURL(base *url.URL, relPath string) *url.URL {
 	return base.ResolveReference(ref)
 }
 
+func unmarshal(resp *http.Response, v interface{}) error {
+	// Don't Unmarshal Body if v is nil
+	if v == nil {
+		resp.Body.Close() // Not going to read resp.Body
+		return nil
+	}
+
+	ctype, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+	switch {
+	case err != nil:
+		return err
+	case ctype == "application/json":
+		defer resp.Body.Close()
+		return json.NewDecoder(resp.Body).Decode(v)
+	default:
+		return fmt.Errorf("unexpected response: %s %s", resp.Status, ctype)
+	}
+}
+
 // RestError is returned from REST transmissions to allow for inspection of
 // failed request and response contents.
 type RestError struct {
-	// The Request that may have triggered the error.
+	// The Request that triggered the error.
 	Req *http.Request
-	// The Response that may have triggered the error, embedded for convenience
-	*http.Response
 	// err is the original error
 	err error
 }
