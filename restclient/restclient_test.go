@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 
 	tt "github.com/apcera/util/testtool"
@@ -44,7 +45,7 @@ func TestResourceURL(t *testing.T) {
 	}
 }
 
-func TestNewRequest(t *testing.T) {
+func TestHelper_newRequest(t *testing.T) {
 	tt.StartTest(t)
 	defer tt.FinishTest(t)
 
@@ -55,6 +56,40 @@ func TestNewRequest(t *testing.T) {
 	tt.TestEqual(t, req.Method, GET)
 	tt.TestEqual(t, req.URL.String(), "http://example.com/resources/foos")
 	tt.TestEqual(t, req.Headers, map[string]string{})
+}
+
+func TestNewRequest(t *testing.T) {
+	tt.StartTest(t)
+	defer tt.FinishTest(t)
+
+	// create a test server
+	method, path, body := "", "", ""
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		method = req.Method
+		path = req.URL.Path
+
+		defer req.Body.Close()
+		b, err := ioutil.ReadAll(req.Body)
+		if err != nil {
+			t.Errorf("Error reading request: %v", err)
+			w.WriteHeader(500)
+			return
+		}
+		body = string(b)
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	client, err := New(server.URL)
+	tt.TestExpectSuccess(t, err)
+	req := client.NewRequest("POST", "/blobs", "text/plain", strings.NewReader("I am a giant blob of bytes!"))
+	err = client.Result(req, nil)
+	tt.TestExpectSuccess(t, err)
+
+	// Verify request as received by server
+	tt.TestEqual(t, method, "POST")
+	tt.TestEqual(t, path, "/blobs")
+	tt.TestEqual(t, body, "I am a giant blob of bytes!")
 }
 
 func TestBasicJsonRequest(t *testing.T) {
