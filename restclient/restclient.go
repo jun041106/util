@@ -10,12 +10,13 @@ import (
 	"mime"
 	"net/http"
 	"net/url"
+	"path"
 )
 
-// Method is simply a convenience wrapper around HTTP verbs to allow them to be
-// strongly typed rather than loose strings.
+// Method wraps HTTP verbs for stronger typing.
 type Method string
 
+// HTTP methods for REST
 const (
 	GET    = Method("GET")
 	POST   = Method("POST")
@@ -23,48 +24,92 @@ const (
 	DELETE = Method("DELETE")
 )
 
-// Client represents a common base that requests are issued from.
+// Client represents a client bound to a given REST base URL.
 type Client struct {
-	Host string
+	// Driver is the *http.Client that performs requests.
+	Driver *http.Client
+	// base is the URL under which all REST-ful resources are available.
+	base *url.URL
 }
 
-// New creates a new *Client with the specified host as the base endpoint. Host
-// is expected to include the port string if a port is required, such as
-// "host:8080".
-func New(host string) *Client {
-	return &Client{
-		Host: host,
+// New returns a *Client with the specified base URL endpoint, expected to
+// include the port string and any path, if required. Returns an error if
+// baseurl cannot be parsed as an absolute URL.
+func New(baseurl string) (*Client, error) {
+	base, err := url.ParseRequestURI(baseurl)
+	if err != nil {
+		return nil, err
+	} else if !base.IsAbs() || base.Host == "" {
+		return nil, fmt.Errorf("URL is not absolute: %s", baseurl)
 	}
+	return &Client{Driver: http.DefaultClient, base: base}, nil
 }
 
-// Get issues a GET request to the specified endpoint and parses the response in
-// to v. It will return an error if it failed to send the request, or a
-// *HttpError if the response wasn't a 2xx status code.
+// BaseURL returns a *url.URL to a copy of Client's base so the caller may
+// modify it.
+func (c *Client) BaseURL() *url.URL {
+	return c.base.ResolveReference(&url.URL{})
+}
+
+// Get issues a GET request to the specified endpoint and parses the response
+// into v. It will return an error if it failed to send the request, a
+// *RestError if the response wasn't a 2xx status code, or an error from package
+// json's Decode.
 func (c *Client) Get(endpoint string, v interface{}) error {
-	return c.NewJsonRequest(GET, endpoint, nil).Result(&v)
+	return c.Result(c.NewJsonRequest(GET, endpoint, nil), v)
 }
 
 // Post issues a POST request to the specified endpoint with the obj payload
-// encoded as JSON. It will parse the response and write it back to v. It will
-// return an error if it failed to send the request, or a *HttpError if the
-// response wasn't a 2xx status code.
+// marshaled to JSON. It will return an error if it failed to send the request, a
+// *RestError if the response wasn't a 2xx status code, or an error from package
+// json's Decode.
 func (c *Client) Post(endpoint string, obj interface{}, v interface{}) error {
-	return c.NewJsonRequest(POST, endpoint, obj).Result(&v)
+	return c.Result(c.NewJsonRequest(POST, endpoint, obj), v)
 }
 
 // Put issues a PUT request to the specified endpoint with the obj payload
-// encoded as JSON. It will parse the response and write it back to v. It will
-// return an error if it failed to send the request, or a *HttpError if the
-// response wasn't a 2xx status code.
+// marshaled to JSON. It will return an error if it failed to send the request, a
+// *RestError if the response wasn't a 2xx status code, or an error from package
+// json's Decode.
 func (c *Client) Put(endpoint string, obj interface{}, v interface{}) error {
-	return c.NewJsonRequest(PUT, endpoint, obj).Result(&v)
+	return c.Result(c.NewJsonRequest(PUT, endpoint, obj), v)
 }
 
 // Delete issues a DELETE request to the specified endpoint and parses the
-// response in to v. It will return an error if it failed to send the request,
-// or a *HttpError if the response wasn't a 2xx status code.
+// response in to v. It will return an error if it failed to send the request, a
+// *RestError if the response wasn't a 2xx status code, or an error from package
+// json's Decode.
 func (c *Client) Delete(endpoint string, v interface{}) error {
-	return c.NewJsonRequest(DELETE, endpoint, nil).Result(&v)
+	return c.Result(c.NewJsonRequest(DELETE, endpoint, nil), v)
+}
+
+// Result performs the request described by req and unmarshals a successful
+// HTTP response into v. If v is nil, the response is discarded.
+func (c *Client) Result(req *Request, v interface{}) error {
+	resp, err := c.Do(req)
+	if err != nil {
+		return err
+	}
+	return unmarshal(resp, v)
+}
+
+// Do performs the HTTP request described by req and returns the *http.Response.
+// Also returns a non-nil *RestError if an error occurs or the response is not
+// in the 2xx family.
+func (c *Client) Do(req *Request) (*http.Response, error) {
+	hreq, err := req.HTTPRequest()
+	if err != nil {
+		return nil, &RestError{Req: hreq, err: fmt.Errorf("error preparing request: %s", err)}
+	}
+	// Internally, this uses c.Driver's CheckRedirect policy.
+	resp, err := c.Driver.Do(hreq)
+	if err != nil {
+		return resp, &RestError{Req: hreq, err: fmt.Errorf("error sending request: %s", err)}
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return resp, &RestError{Req: hreq, err: fmt.Errorf("error in response: %s", resp.Status)}
+	}
+	return resp, nil
 }
 
 // NewJsonRequest generates a new Request object and JSON encodes the provided
@@ -74,15 +119,15 @@ func (c *Client) NewJsonRequest(method Method, endpoint string, obj interface{})
 
 	// set how to generate the body if obj isn't null
 	if obj != nil {
-		req.processRequest = func(httpReq *http.Request) error {
-			buffer := bytes.NewBuffer([]byte{})
-			encoder := json.NewEncoder(buffer)
+		req.prepare = func(httpReq *http.Request) error {
+			var buffer bytes.Buffer
+			encoder := json.NewEncoder(&buffer)
 			if err := encoder.Encode(obj); err != nil {
 				return err
 			}
 
 			// set to the request
-			httpReq.Body = ioutil.NopCloser(buffer)
+			httpReq.Body = ioutil.NopCloser(&buffer)
 			httpReq.ContentLength = int64(buffer.Len())
 			httpReq.Header.Set("Content-Type", "application/json")
 			return nil
@@ -93,12 +138,12 @@ func (c *Client) NewJsonRequest(method Method, endpoint string, obj interface{})
 }
 
 // NewFormRequest generates a new Request object with a form encoded body based
-// on the params that are passed in.
+// on the params map.
 func (c *Client) NewFormRequest(method Method, endpoint string, params map[string]string) *Request {
 	req := c.newRequest(method, endpoint)
 
 	// set how to generate the body
-	req.processRequest = func(httpReq *http.Request) error {
+	req.prepare = func(httpReq *http.Request) error {
 		form := url.Values{}
 		for k, v := range params {
 			form.Set(k, v)
@@ -115,52 +160,41 @@ func (c *Client) NewFormRequest(method Method, endpoint string, params map[strin
 	return req
 }
 
+// newRequest returns a *Request ready to be used by one of Client's exported
+// methods like NewFormRequest.
 func (c *Client) newRequest(method Method, endpoint string) *Request {
 	return &Request{
-		client:  c,
 		Method:  method,
-		Path:    endpoint,
+		URL:     resourceURL(c.BaseURL(), endpoint),
 		Headers: make(map[string]string),
 	}
 }
 
-func (c *Client) httpClient() *http.Client {
-	return http.DefaultClient
-}
-
-// Request represents an individual request issued against the Client it was
-// created from.
+// Request encapsulates functionality making it easier to build REST requests.
 type Request struct {
-	client  *Client
 	Method  Method
-	Path    string
+	URL     *url.URL
 	Headers map[string]string
 
-	processRequest func(*http.Request) error
+	prepare func(*http.Request) error
 }
 
-func (r *Request) buildRequest() (*http.Request, error) {
-	// build the url
-	u := url.URL{
-		Scheme: "http",
-		Host:   r.client.Host,
-		Path:   r.Path,
-	}
-
-	// build the request
-	req, err := http.NewRequest(string(r.Method), u.String(), nil)
+// HTTPRequest returns an *http.Request populated with data from r. It may be
+// executed by any http.Client.
+func (r *Request) HTTPRequest() (*http.Request, error) {
+	req, err := http.NewRequest(string(r.Method), r.URL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
 
-	// apply headers
+	// merge headers
 	for k, v := range r.Headers {
 		req.Header.Set(k, v)
 	}
 
 	// generate the body
-	if r.processRequest != nil {
-		if err := r.processRequest(req); err != nil {
+	if r.prepare != nil {
+		if err := r.prepare(req); err != nil {
 			return nil, err
 		}
 	}
@@ -168,77 +202,40 @@ func (r *Request) buildRequest() (*http.Request, error) {
 	return req, nil
 }
 
-// Response returns the raw *http.Response object and error from the request.
-func (r *Request) Response() (*http.Response, error) {
-	// get the request
-	req, err := r.buildRequest()
-	if err != nil {
-		return nil, err
-	}
-
-	// get the response
-	return r.client.httpClient().Do(req)
+// resourceURL returns a *url.URL with the path resolved for a resource under base.
+func resourceURL(base *url.URL, relPath string) *url.URL {
+	ref := &url.URL{Path: path.Join(base.Path, relPath)}
+	return base.ResolveReference(ref)
 }
 
-// Result triggers the request to be issued and parses the response into v
-// based on the Content-Type of the response. It will return an error if the
-// request fails or if a non-2xx status code is returned in the response.
-func (r *Request) Result(v interface{}) error {
-	// get the response
-	resp, err := r.Response()
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	// check if it was an error and parse it
-	// FIXME for now treat >=300 as error, handle redirects later
-	if resp.StatusCode >= 300 {
-		return parseError(resp)
-	}
-
-	// If we had a nil target and no error, then just return.
+func unmarshal(resp *http.Response, v interface{}) error {
+	// Don't Unmarshal Body if v is nil
 	if v == nil {
+		resp.Body.Close() // Not going to read resp.Body
 		return nil
 	}
 
-	// parse the content type string
-	contentType, _, _ := mime.ParseMediaType(resp.Header.Get("Content-Type"))
-
-	// see what the response is and parse it
-	switch contentType {
-	case "application/json":
-		return parseJson(resp, v)
-	default:
-		return parseError(resp)
-	}
-}
-
-func parseJson(resp *http.Response, v interface{}) error {
-	decoder := json.NewDecoder(resp.Body)
-	return decoder.Decode(v)
-}
-
-func parseError(resp *http.Response) error {
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
+	ctype, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+	switch {
+	case err != nil:
 		return err
-	}
-
-	return &HttpError{
-		Body:       body,
-		StatusCode: resp.StatusCode,
-		Status:     resp.Status,
+	case ctype == "application/json":
+		defer resp.Body.Close()
+		return json.NewDecoder(resp.Body).Decode(v)
+	default:
+		return fmt.Errorf("unexpected response: %s %s", resp.Status, ctype)
 	}
 }
 
-// HttpError is the type used when a request returns a non-2xx response.
-type HttpError struct {
-	Body       []byte
-	StatusCode int
-	Status     string
+// RestError is returned from REST transmissions to allow for inspection of
+// failed request and response contents.
+type RestError struct {
+	// The Request that triggered the error.
+	Req *http.Request
+	// err is the original error
+	err error
 }
 
-func (he *HttpError) Error() string {
-	return fmt.Sprintf("[%d] %s, Body: %s", he.StatusCode, he.Status, string(he.Body))
+func (r *RestError) Error() string {
+	return fmt.Sprintf("REST error: %s", r.err)
 }
