@@ -16,6 +16,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"mime"
 	"net/http"
@@ -122,28 +123,47 @@ func (c *Client) Do(req *Request) (*http.Response, error) {
 	return resp, nil
 }
 
-// NewJsonRequest generates a new Request object and JSON encodes the provided
-// obj. The JSON object will be set as the body and included in the request.
-func (c *Client) NewJsonRequest(method Method, endpoint string, obj interface{}) *Request {
-	req := c.newRequest(method, endpoint)
-
-	// set how to generate the body if obj isn't null
-	if obj != nil {
-		req.prepare = func(httpReq *http.Request) error {
-			var buffer bytes.Buffer
-			encoder := json.NewEncoder(&buffer)
-			if err := encoder.Encode(obj); err != nil {
-				return err
-			}
-
-			// set to the request
-			httpReq.Body = ioutil.NopCloser(&buffer)
-			httpReq.ContentLength = int64(buffer.Len())
-			httpReq.Header.Set("Content-Type", "application/json")
-			return nil
-		}
+// NewRequest generates a new Request object that will send bytes read from body
+// to the endpoint.
+func (c *Client) NewRequest(method Method, endpoint string, ctype string, body io.Reader) (req *Request) {
+	req = c.newRequest(method, endpoint)
+	if body == nil {
+		return
 	}
 
+	req.prepare = func(hr *http.Request) error {
+		rc, ok := body.(io.ReadCloser)
+		if !ok {
+			rc = ioutil.NopCloser(body)
+		}
+		hr.Body = rc
+		hr.Header.Set("Content-Type", ctype)
+		return nil
+	}
+	return
+}
+
+// NewJsonRequest generates a new Request object and JSON encodes the provided
+// obj. The JSON object will be set as the body and included in the request.
+func (c *Client) NewJsonRequest(method Method, endpoint string, obj interface{}) (req *Request) {
+	req = c.newRequest(method, endpoint)
+	if obj == nil {
+		return
+	}
+
+	req.prepare = func(httpReq *http.Request) error {
+		var buffer bytes.Buffer
+		encoder := json.NewEncoder(&buffer)
+		if err := encoder.Encode(obj); err != nil {
+			return err
+		}
+
+		// set to the request
+		httpReq.Body = ioutil.NopCloser(&buffer)
+		httpReq.ContentLength = int64(buffer.Len())
+		httpReq.Header.Set("Content-Type", "application/json")
+		return nil
+	}
 	return req
 }
 
