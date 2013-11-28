@@ -1,5 +1,15 @@
 // Copyright 2013 Apcera Inc. All rights reserved.
 
+// Package restclient wraps a REST-ful web service to expose objects from the
+// service in Go programs. Construct a client using
+// restclient.New("http://service.com/api/endpoint"). Use the client's HTTP-verb
+// methods to receive the result of REST operations in a Go type. For example,
+// to get a collection of Items, invoke client.Get("items", m) where m is of
+// type []Item.
+//
+// The package also exposes lower level interfaces to receive the raw
+// http.Response from the client and to construct requests to a client's service
+// that may be sent later, or by an alternate client or transport.
 package restclient
 
 import (
