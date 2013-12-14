@@ -115,10 +115,10 @@ func (c *Client) Do(req *Request) (*http.Response, error) {
 	// Internally, this uses c.Driver's CheckRedirect policy.
 	resp, err := c.Driver.Do(hreq)
 	if err != nil {
-		return resp, &RestError{Req: hreq, err: fmt.Errorf("error sending request: %s", err)}
+		return resp, &RestError{Req: hreq, Resp: resp, err: fmt.Errorf("error sending request: %s", err)}
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return resp, &RestError{Req: hreq, err: fmt.Errorf("error in response: %s", resp.Status)}
+		return resp, &RestError{Req: hreq, Resp: resp, err: fmt.Errorf("error in response: %s", resp.Status)}
 	}
 	return resp, nil
 }
@@ -262,10 +262,21 @@ func unmarshal(resp *http.Response, v interface{}) error {
 type RestError struct {
 	// The Request that triggered the error.
 	Req *http.Request
+	// The Resposne that the request returned.
+	Resp *http.Response
 	// err is the original error
 	err error
 }
 
 func (r *RestError) Error() string {
 	return fmt.Sprintf("REST error: %s", r.err)
+}
+
+func (r *RestError) Body() string {
+	if r.Resp == nil {
+		return ""
+	}
+	defer r.Resp.Body.Close()
+	b, _ := ioutil.ReadAll(r.Resp.Body)
+	return string(b)
 }
