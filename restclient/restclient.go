@@ -63,45 +63,45 @@ func (c *Client) BaseURL() *url.URL {
 }
 
 // Get issues a GET request to the specified endpoint and parses the response
-// into v. It will return an error if it failed to send the request, a
+// into resp. It will return an error if it failed to send the request, a
 // *RestError if the response wasn't a 2xx status code, or an error from package
 // json's Decode.
-func (c *Client) Get(endpoint string, v interface{}) error {
-	return c.Result(c.NewJsonRequest(GET, endpoint, nil), v)
+func (c *Client) Get(endpoint string, resp interface{}) error {
+	return c.Result(c.NewJsonRequest(GET, endpoint, nil), resp)
 }
 
-// Post issues a POST request to the specified endpoint with the obj payload
-// marshaled to JSON. It will return an error if it failed to send the request, a
-// *RestError if the response wasn't a 2xx status code, or an error from package
-// json's Decode.
-func (c *Client) Post(endpoint string, obj interface{}, v interface{}) error {
-	return c.Result(c.NewJsonRequest(POST, endpoint, obj), v)
+// Post issues a POST request to the specified endpoint with the req payload
+// marshaled to JSON and parses the response into resp. It will return an error
+// if it failed to send the request, a *RestError if the response wasn't a 2xx
+// status code, or an error from package json's Decode.
+func (c *Client) Post(endpoint string, req interface{}, resp interface{}) error {
+	return c.Result(c.NewJsonRequest(POST, endpoint, req), resp)
 }
 
-// Put issues a PUT request to the specified endpoint with the obj payload
-// marshaled to JSON. It will return an error if it failed to send the request, a
-// *RestError if the response wasn't a 2xx status code, or an error from package
-// json's Decode.
-func (c *Client) Put(endpoint string, obj interface{}, v interface{}) error {
-	return c.Result(c.NewJsonRequest(PUT, endpoint, obj), v)
+// Put issues a PUT request to the specified endpoint with the req payload
+// marshaled to JSON and parses the response into resp. It will return an error
+// if it failed to send the request, a *RestError if the response wasn't a 2xx
+// status code, or an error from package json's Decode.
+func (c *Client) Put(endpoint string, req interface{}, resp interface{}) error {
+	return c.Result(c.NewJsonRequest(PUT, endpoint, req), resp)
 }
 
 // Delete issues a DELETE request to the specified endpoint and parses the
-// response in to v. It will return an error if it failed to send the request, a
+// response in to resp. It will return an error if it failed to send the request, a
 // *RestError if the response wasn't a 2xx status code, or an error from package
 // json's Decode.
-func (c *Client) Delete(endpoint string, v interface{}) error {
-	return c.Result(c.NewJsonRequest(DELETE, endpoint, nil), v)
+func (c *Client) Delete(endpoint string, resp interface{}) error {
+	return c.Result(c.NewJsonRequest(DELETE, endpoint, nil), resp)
 }
 
 // Result performs the request described by req and unmarshals a successful
-// HTTP response into v. If v is nil, the response is discarded.
-func (c *Client) Result(req *Request, v interface{}) error {
-	resp, err := c.Do(req)
+// HTTP response into resp. If resp is nil, the response is discarded.
+func (c *Client) Result(req *Request, resp interface{}) error {
+	result, err := c.Do(req)
 	if err != nil {
 		return err
 	}
-	return unmarshal(resp, v)
+	return unmarshal(result, resp)
 }
 
 // Do performs the HTTP request described by req and returns the *http.Response.
