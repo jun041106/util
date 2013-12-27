@@ -5,6 +5,7 @@ package testtool
 import (
 	"fmt"
 	"reflect"
+	"regexp"
 	"strings"
 )
 
@@ -60,6 +61,12 @@ func TestTrue(t Logger, ans bool) {
 func TestFalse(t Logger, ans bool) {
 	if ans {
 		Fatalf(t, "Expected a false value.")
+	}
+}
+
+func TestMatch(t Logger, have string, r *regexp.Regexp) {
+	if !r.MatchString(have) {
+		Fatalf(t, "Expected %s to match regexp %v.", have, r)
 	}
 }
 
