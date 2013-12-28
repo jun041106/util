@@ -98,3 +98,9 @@ func (m *MockLogger) Skipf(format string, args ...interface{}) {
 	}
 	runtime.Goexit()
 }
+
+func (m *MockLogger) Log(args ...interface{}) {
+}
+
+func (m *MockLogger) Logf(format string, args ...interface{}) {
+}

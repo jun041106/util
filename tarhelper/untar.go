@@ -182,9 +182,8 @@ func (u *Untar) Extract() error {
 		}
 		u.archive = tar.NewReader(source)
 	default:
-		Log.Errorf(
-			"Unknown compression type (%s)", u.Compression)
-		return fmt.Errorf("Unknown compression type (%s)", u.Compression)
+		Log.Errorf("Unknown compression type (%v)", u.Compression)
+		return fmt.Errorf("Unknown compression type (%v)", u.Compression)
 	}
 
 	for {

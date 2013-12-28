@@ -105,9 +105,9 @@ func (t *Tar) Archive() error {
 	case BZIP2:
 		return fmt.Errorf("bzip2 compression is not supported")
 	case DETECT:
-		return fmt.Errorf("not a valid compression type: %s", DETECT)
+		return fmt.Errorf("not a valid compression type: %v", DETECT)
 	default:
-		return fmt.Errorf("unknown compression type: %s", t.Compression)
+		return fmt.Errorf("unknown compression type: %v", t.Compression)
 	}
 
 	// ensure we write the current directory
