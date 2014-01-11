@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"reflect"
 	"runtime"
 	"strings"
 	"time"
@@ -326,6 +327,22 @@ func TestExpectError(l Logger, err error) {
 	}
 }
 
+// isRealError detects if a nil of a type stored as a concrete type,
+// rather than an error interface, was passed in.
+func isRealError(err error) bool {
+	if err == nil {
+		return false
+	}
+	v := reflect.ValueOf(err)
+	if !v.CanInterface() {
+		return true
+	}
+	if v.IsNil() {
+		return false
+	}
+	return true
+}
+
 // Fatal's the test if err is not nil and fails the test and output the reason
 // for the failure as the err argument the same as Fatalf. If err implements the
 // BackTracer interface a backtrace will also be displayed.
@@ -334,7 +351,7 @@ func TestExpectSuccess(l Logger, err error, msg ...string) {
 	if len(msg) > 0 {
 		reason = ": " + strings.Join(msg, "")
 	}
-	if err != nil {
+	if err != nil && isRealError(err) {
 		lines := make([]string, 0, 50)
 		lines = append(lines, fmt.Sprintf("Unexpected error: %s", err))
 		if be, ok := err.(Backtracer); ok {
