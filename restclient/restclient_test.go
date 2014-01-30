@@ -1,4 +1,4 @@
-// Copyright 2012-2013 Apcera Inc. All rights reserved.
+// Copyright 2012-2014 Apcera Inc. All rights reserved.
 
 package restclient
 
@@ -55,7 +55,7 @@ func TestHelper_newRequest(t *testing.T) {
 
 	tt.TestEqual(t, req.Method, GET)
 	tt.TestEqual(t, req.URL.String(), "http://example.com/resources/foos")
-	tt.TestEqual(t, req.Headers, map[string]string{})
+	tt.TestEqual(t, req.Headers, http.Header(map[string][]string{}))
 }
 
 func TestNewRequest(t *testing.T) {
@@ -90,6 +90,30 @@ func TestNewRequest(t *testing.T) {
 	tt.TestEqual(t, method, "POST")
 	tt.TestEqual(t, path, "/blobs")
 	tt.TestEqual(t, body, "I am a giant blob of bytes!")
+}
+
+func TestNewRequestHeaders(t *testing.T) {
+	tt.StartTest(t)
+	defer tt.FinishTest(t)
+
+	// create a test server
+	headerValue := ""
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		defer req.Body.Close()
+		headerValue = req.Header.Get("Sample")
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	client, err := New(server.URL)
+	tt.TestExpectSuccess(t, err)
+	client.Headers.Set("Sample", "applesauce")
+	req := client.NewRequest("POST", "/blobs", "text/plain", strings.NewReader("I am a giant blob of bytes!"))
+	err = client.Result(req, nil)
+	tt.TestExpectSuccess(t, err)
+
+	// Verify request to the server had the correct header value
+	tt.TestEqual(t, headerValue, "applesauce")
 }
 
 func TestBasicJsonRequest(t *testing.T) {

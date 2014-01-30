@@ -1,4 +1,4 @@
-// Copyright 2013 Apcera Inc. All rights reserved.
+// Copyright 2013-2014 Apcera Inc. All rights reserved.
 
 // Package restclient wraps a REST-ful web service to expose objects from the
 // service in Go programs. Construct a client using
@@ -41,6 +41,8 @@ type Client struct {
 	Driver *http.Client
 	// base is the URL under which all REST-ful resources are available.
 	base *url.URL
+	// Headers represents common headers that are added to each request.
+	Headers http.Header
 }
 
 // New returns a *Client with the specified base URL endpoint, expected to
@@ -53,7 +55,15 @@ func New(baseurl string) (*Client, error) {
 	} else if !base.IsAbs() || base.Host == "" {
 		return nil, fmt.Errorf("URL is not absolute: %s", baseurl)
 	}
-	return &Client{Driver: http.DefaultClient, base: base}, nil
+
+	// create the client
+	client := &Client{
+		Driver:  http.DefaultClient,
+		base:    base,
+		Headers: http.Header(make(map[string][]string)),
+	}
+
+	return client, nil
 }
 
 // BaseURL returns a *url.URL to a copy of Client's base so the caller may
@@ -193,18 +203,28 @@ func (c *Client) NewFormRequest(method Method, endpoint string, params map[strin
 // newRequest returns a *Request ready to be used by one of Client's exported
 // methods like NewFormRequest.
 func (c *Client) newRequest(method Method, endpoint string) *Request {
-	return &Request{
+	req := &Request{
 		Method:  method,
 		URL:     resourceURL(c.BaseURL(), endpoint),
-		Headers: make(map[string]string),
+		Headers: http.Header(make(map[string][]string)),
 	}
+
+	// Copy over the headers. Don't set them directly to ensure changing
+	// them on the request doesn't change them on the client.
+	for k, vv := range c.Headers {
+		for _, v := range vv {
+			req.Headers.Add(k, v)
+		}
+	}
+
+	return req
 }
 
 // Request encapsulates functionality making it easier to build REST requests.
 type Request struct {
 	Method  Method
 	URL     *url.URL
-	Headers map[string]string
+	Headers http.Header
 
 	prepare func(*http.Request) error
 }
@@ -218,9 +238,7 @@ func (r *Request) HTTPRequest() (*http.Request, error) {
 	}
 
 	// merge headers
-	for k, v := range r.Headers {
-		req.Header.Set(k, v)
-	}
+	req.Header = r.Headers
 
 	// generate the body
 	if r.prepare != nil {
