@@ -220,7 +220,7 @@ func TestErrorResult(t *testing.T) {
 
 	rerr, ok := err.(*RestError)
 	tt.TestEqual(t, ok, true, "Error should be of type *RestError")
-	tt.TestEqual(t, rerr.Error(), "REST error: "+rerr.err.Error())
+	tt.TestEqual(t, rerr.Error(), "REST error - error in response: 500 Internal Server Error - Body: Didn't work")
 }
 
 func TestErrorResponse(t *testing.T) {
@@ -243,7 +243,7 @@ func TestErrorResponse(t *testing.T) {
 
 	rerr, ok := err.(*RestError)
 	tt.TestEqual(t, ok, true, "Error should be of type *RestError")
-	tt.TestEqual(t, rerr.Error(), "REST error: "+rerr.err.Error())
+	tt.TestEqual(t, rerr.Error(), "REST error - error in response: 500 Internal Server Error - Body: Didn't work")
 
 	body, err := ioutil.ReadAll(resp.Body)
 	defer resp.Body.Close()
