@@ -74,8 +74,7 @@ func (c *Client) BaseURL() *url.URL {
 
 // Set the access Token
 func (c *Client) SetAccessToken(token string) {
-	c.Headers.Add(http.CanonicalHeaderKey("Authorization"), "Bearer "+token)
-	return
+	c.Headers.Set(http.CanonicalHeaderKey("Authorization"), "Bearer "+token)
 }
 
 // Get issues a GET request to the specified endpoint and parses the response
