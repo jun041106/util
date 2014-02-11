@@ -72,6 +72,11 @@ func (c *Client) BaseURL() *url.URL {
 	return c.base.ResolveReference(&url.URL{})
 }
 
+// Set the access Token
+func (c *Client) SetAccessToken(token string) {
+	c.Headers.Set(http.CanonicalHeaderKey("Authorization"), "Bearer "+token)
+}
+
 // Get issues a GET request to the specified endpoint and parses the response
 // into resp. It will return an error if it failed to send the request, a
 // *RestError if the response wasn't a 2xx status code, or an error from package
