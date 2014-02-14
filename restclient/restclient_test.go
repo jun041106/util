@@ -4,6 +4,7 @@ package restclient
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -245,6 +246,13 @@ func TestErrorResult(t *testing.T) {
 	rerr, ok := err.(*RestError)
 	tt.TestEqual(t, ok, true, "Error should be of type *RestError")
 	tt.TestEqual(t, rerr.Error(), "REST error - error in response: 500 Internal Server Error - Body: Didn't work")
+
+	rerr2 := new(RestError)
+	rerr2.Resp = &http.Response{
+		StatusCode: 404,
+	}
+	rerr2.err = fmt.Errorf("foo bar baz wibble")
+	tt.TestEqual(t, rerr2.Error(), "REST error - foo bar baz wibble")
 }
 
 func TestErrorResponse(t *testing.T) {

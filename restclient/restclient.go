@@ -292,15 +292,20 @@ type RestError struct {
 }
 
 func (r *RestError) Error() string {
-	b, err := ioutil.ReadAll(r.Resp.Body)
-	if err != nil {
-		return fmt.Sprintf("REST error: %s", r.err)
-	}
-	// Rewind.
-	buf := bytes.NewBuffer(b)
-	r.Resp.Body = ioutil.NopCloser(buf)
+	msg := fmt.Sprintf("REST error - %s", r.err)
+	if r.Resp.Body != nil {
+		b, err := ioutil.ReadAll(r.Resp.Body)
+		if err != nil {
+			return msg
+		}
+		// Rewind.
+		buf := bytes.NewBuffer(b)
+		r.Resp.Body = ioutil.NopCloser(buf)
 
-	return fmt.Sprintf("REST error - %s - Body: %s", r.err, string(b))
+		msg = msg + " - Body: " + string(b)
+	}
+
+	return msg
 }
 
 func (r *RestError) Body() string {
