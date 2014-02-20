@@ -248,6 +248,10 @@ func TestErrorResult(t *testing.T) {
 	tt.TestEqual(t, rerr.Error(), "REST error - error in response: 500 Internal Server Error - Body: Didn't work")
 
 	rerr2 := new(RestError)
+	rerr2.err = fmt.Errorf("foo bar baz wibble")
+	tt.TestEqual(t, rerr2.Error(), "REST error - foo bar baz wibble")
+
+	rerr2 = new(RestError)
 	rerr2.Resp = &http.Response{
 		StatusCode: 404,
 	}
