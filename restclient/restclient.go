@@ -293,7 +293,7 @@ type RestError struct {
 
 func (r *RestError) Error() string {
 	msg := fmt.Sprintf("REST error - %s", r.err)
-	if r.Resp.Body != nil {
+	if r.Resp != nil && r.Resp.Body != nil {
 		b, err := ioutil.ReadAll(r.Resp.Body)
 		if err != nil {
 			return msg
