@@ -292,7 +292,7 @@ type RestError struct {
 }
 
 func (r *RestError) Error() string {
-	msg := fmt.Sprintf("REST error - %s", r.err)
+	msg := r.err.Error()
 	if r.Resp != nil && r.Resp.Body != nil {
 		b, err := ioutil.ReadAll(r.Resp.Body)
 		if err != nil {
@@ -302,7 +302,7 @@ func (r *RestError) Error() string {
 		buf := bytes.NewBuffer(b)
 		r.Resp.Body = ioutil.NopCloser(buf)
 
-		msg = msg + " - Body: " + string(b)
+		msg = msg + " - " + string(b)
 	}
 
 	return msg
