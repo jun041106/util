@@ -25,9 +25,9 @@ func Merge(dst, src map[string]interface{}) {
 
 			// if both types are a map, then recursively merge them
 			if dstKind == reflect.Map && srcKind == reflect.Map {
-				dstMap := dstValue.(map[string]interface{})
-				srcMap := srcValue.(map[string]interface{})
-				if dstMap != nil && srcMap != nil {
+				dstMap, dstOk := dstValue.(map[string]interface{})
+				srcMap, srcOk := srcValue.(map[string]interface{})
+				if dstOk && srcOk {
 					// Ensure they're actually the right type, then recursively merge then
 					// continue to the next item. If they are both not
 					// map[string]interface{}, then it will fall through to the default of

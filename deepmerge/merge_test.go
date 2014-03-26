@@ -100,5 +100,26 @@ func TestDeepMergeRecursiveMap(t *testing.T) {
 	}
 	Merge(dst, src)
 	tt.TestEqual(t, dst, expected)
+}
 
+func TestDeepMergeIncompatible(t *testing.T) {
+	dst := map[string]interface{}{
+		"wrongkey": map[string]interface{}{
+			"3": "three",
+		},
+	}
+	src := map[string]interface{}{
+		"wrongkey": map[int]interface{}{
+			1: "one",
+			2: "two",
+		},
+	}
+	expected := map[string]interface{}{
+		"wrongkey": map[int]interface{}{
+			1: "one",
+			2: "two",
+		},
+	}
+	Merge(dst, src)
+	tt.TestEqual(t, dst, expected)
 }
