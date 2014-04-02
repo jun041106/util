@@ -3,6 +3,7 @@
 package tarhelper
 
 import (
+	"archive/tar"
 	"bufio"
 	"compress/bzip2"
 	"compress/gzip"
@@ -14,9 +15,6 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
-
-	// FIXME: move back to archive/tar after updating to Go 1.2
-	"github.com/apcera/util/tarhelper/tar"
 )
 
 // The type of compression that this archive will be us
