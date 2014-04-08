@@ -74,6 +74,16 @@ func TestIPRangeParseBasicStringIPv4(t *testing.T) {
 	_, err = ParseIPRange("192.168.1.1-255/32")
 	tt.TestExpectError(t, err)
 	tt.TestEqual(t, err.Error(), "the provided IP ranges are not within the provided network mask")
+
+	// 192.168.1.100-1-2
+	_, err = ParseIPRange("192.168.1.100-1-2")
+	tt.TestExpectError(t, err)
+	tt.TestEqual(t, err.Error(), "unexpected number of IPs specified in the provided string")
+
+	// 192.168.1.100-150/24/24
+	_, err = ParseIPRange("192.168.1.100-150/24/24")
+	tt.TestExpectError(t, err)
+	tt.TestEqual(t, err.Error(), "expected only one '/' within the provided string")
 }
 
 func TestIPRangeOverlap(t *testing.T) {
