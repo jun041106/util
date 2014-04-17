@@ -39,7 +39,9 @@ func NewAllocator(ipr *IPRange) *IPRangeAllocator {
 	endBig := big.NewInt(0)
 	endBig.SetBytes(a.ipRange.End)
 	sizeBig := endBig.Sub(endBig, a.startBig)
-	a.size = sizeBig.Int64()
+
+	// 1 is added to the size because the end IP is inclusive
+	a.size = sizeBig.Int64() + 1
 	a.remaining = a.size
 
 	return a
