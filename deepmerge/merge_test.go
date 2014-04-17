@@ -23,7 +23,7 @@ func TestDeepMergeBasic(t *testing.T) {
 		"three": 3,
 		"four":  4,
 	}
-	Merge(dst, src)
+	tt.TestExpectSuccess(t, Merge(dst, src))
 	tt.TestEqual(t, dst, expected)
 }
 
@@ -41,7 +41,7 @@ func TestDeepMergeOverwriteSlice(t *testing.T) {
 		"groceries": []interface{}{"bread", "cereal", "juice"},
 		"people":    []string{"John", "Tom", "Joe"},
 	}
-	Merge(dst, src)
+	tt.TestExpectSuccess(t, Merge(dst, src))
 	tt.TestEqual(t, dst, expected)
 }
 
@@ -98,7 +98,7 @@ func TestDeepMergeRecursiveMap(t *testing.T) {
 			},
 		},
 	}
-	Merge(dst, src)
+	tt.TestExpectSuccess(t, Merge(dst, src))
 	tt.TestEqual(t, dst, expected)
 }
 
@@ -120,6 +120,20 @@ func TestDeepMergeIncompatible(t *testing.T) {
 			2: "two",
 		},
 	}
-	Merge(dst, src)
+	tt.TestExpectSuccess(t, Merge(dst, src))
 	tt.TestEqual(t, dst, expected)
+}
+
+func TestDeepMergeHandlesNilDestination(t *testing.T) {
+	var dst map[string]interface{}
+	src := map[string]interface{}{
+		"two":  "2",
+		"four": 4,
+	}
+	err := Merge(dst, src)
+	tt.TestExpectError(t, err)
+	tt.TestEqual(t, err, NilDestinationError)
+	dst = make(map[string]interface{})
+	tt.TestExpectSuccess(t, Merge(dst, src))
+	tt.TestEqual(t, dst, src)
 }
