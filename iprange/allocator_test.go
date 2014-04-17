@@ -11,7 +11,7 @@ import (
 )
 
 func TestNewAllocator(t *testing.T) {
-	ipr, err := ParseIPRange("192.168.1.10-20")
+	ipr, err := ParseIPRange("192.168.1.10-19")
 	tt.TestExpectSuccess(t, err)
 
 	alloc := NewAllocator(ipr)
@@ -19,8 +19,27 @@ func TestNewAllocator(t *testing.T) {
 	tt.TestEqual(t, alloc.remaining, int64(10))
 }
 
+func TestAllocateSingleIPRange(t *testing.T) {
+	ipr, err := ParseIPRange("192.168.1.10")
+	tt.TestExpectSuccess(t, err)
+	alloc := NewAllocator(ipr)
+	tt.TestEqual(t, alloc.size, int64(1))
+	tt.TestEqual(t, alloc.Remaining(), int64(1))
+
+	// get the first one
+	ip := alloc.Allocate()
+	tt.TestEqual(t, ip.String(), "192.168.1.10")
+	tt.TestEqual(t, ipr.Contains(ip), true)
+	tt.TestEqual(t, alloc.Remaining(), int64(0))
+
+	// no more left
+	ip = alloc.Allocate()
+	tt.TestEqual(t, ip, nil)
+	tt.TestEqual(t, alloc.Remaining(), int64(0))
+}
+
 func TestAllocate(t *testing.T) {
-	ipr, err := ParseIPRange("192.168.1.10-20")
+	ipr, err := ParseIPRange("192.168.1.10-19")
 	tt.TestExpectSuccess(t, err)
 	alloc := NewAllocator(ipr)
 
@@ -48,7 +67,7 @@ func TestAllocate(t *testing.T) {
 }
 
 func TestReserve(t *testing.T) {
-	ipr, err := ParseIPRange("192.168.1.10-20")
+	ipr, err := ParseIPRange("192.168.1.10-19")
 	tt.TestExpectSuccess(t, err)
 	alloc := NewAllocator(ipr)
 
@@ -71,7 +90,7 @@ func TestReserve(t *testing.T) {
 }
 
 func TestRelease(t *testing.T) {
-	ipr, err := ParseIPRange("192.168.1.10-20")
+	ipr, err := ParseIPRange("192.168.1.10-19")
 	tt.TestExpectSuccess(t, err)
 	alloc := NewAllocator(ipr)
 
