@@ -3,8 +3,11 @@
 package deepmerge
 
 import (
+	"errors"
 	"reflect"
 )
+
+var NilDestinationError = errors.New("cannot use a nil map as a destination")
 
 // Merge performs a deep merge of two maps, where it will copy the values in the
 // src map into the dst map. Any values in the src map will overwrite the values
@@ -13,7 +16,12 @@ import (
 // values from JSON, so it operates only on map[string]interface{} and not maps
 // of other types. All other types are simply overwritten in the dst, including
 // slices.
-func Merge(dst, src map[string]interface{}) {
+func Merge(dst, src map[string]interface{}) error {
+	// check to see if the destination is nil
+	if dst == nil {
+		return NilDestinationError
+	}
+
 	// loop over the source to handle propagating it to the destination
 	for key, srcValue := range src {
 		dstValue, exists := dst[key]
@@ -46,4 +54,5 @@ func Merge(dst, src map[string]interface{}) {
 			dst[key] = srcValue
 		}
 	}
+	return nil
 }
