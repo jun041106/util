@@ -5,6 +5,7 @@ package tarhelper
 import (
 	"archive/tar"
 	"bufio"
+	"bytes"
 	"compress/bzip2"
 	"compress/gzip"
 	"fmt"
@@ -15,6 +16,8 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+
+	xz "github.com/apcera/cntm-deps/go-liblzma"
 )
 
 // The type of compression that this archive will be us
@@ -24,6 +27,7 @@ const (
 	NONE   = Compression(0)
 	BZIP2  = Compression(1)
 	GZIP   = Compression(2)
+	XZ     = Compression(3)
 	DETECT = Compression(999)
 )
 
@@ -172,6 +176,10 @@ func (u *Untar) Extract() error {
 			// bzip2
 			u.Compression = BZIP2
 
+		case bytes.Equal(data[0:6], []byte{0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00}):
+			// xz
+			u.Compression = XZ
+
 		default:
 			// assume none
 			u.Compression = NONE
@@ -195,6 +203,12 @@ func (u *Untar) Extract() error {
 			// TODO: offload this into Process since it forces a header read.
 			Log.V(1).Infof("Error creating gzip reader: %s", err)
 			return nil
+		}
+		u.archive = tar.NewReader(source)
+	case XZ:
+		source, err := xz.NewReader(u.source)
+		if err != nil {
+			Log.V(1).Infof("Error creating xz reader: %s", err)
 		}
 		u.archive = tar.NewReader(source)
 	default:
