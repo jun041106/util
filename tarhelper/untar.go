@@ -475,6 +475,25 @@ func (u *Untar) convertToDestination(dir string) (string, error) {
 	}
 	lstat, err := os.Lstat(dir)
 	if err != nil {
+		// If the error is that the path doesn't exist, we will go ahead and create
+		// it. Normally, tar files have a directory entry before it mentions files
+		// in that directory. This isn't always true. Case in point, Darwin's "tar"
+		// vs its "gnutar", "tar" doesn't if you just do "tar -czf foo.tar foo"
+		// where foo is a directory with files in it. It will reference the files in
+		// "foo" and never "foo" itself.
+		//
+		// NOTE: by the time this is executed, the location of the directory has
+		// already been validated as safe.
+		if os.IsNotExist(err) {
+			if err := os.MkdirAll(dir, os.FileMode(0755)); err != nil {
+				return "", err
+			}
+			// we don't error check on chown incase the process is unprivledged
+			os.Chown(dir, u.MappedUserID, u.MappedGroupID)
+			lstat, err = os.Lstat(dir)
+		}
+	}
+	if err != nil {
 		return "", err
 	}
 

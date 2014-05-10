@@ -165,6 +165,62 @@ func TestUntarExtractFollowingSymlinks(t *testing.T) {
 	fileContents("./realetc/zz", "zz")
 }
 
+func TestUntarCreatesDeeperPathsIfNotMentioned(t *testing.T) {
+	StartTest(t)
+	defer FinishTest(t)
+
+	// create a buffer and tar.Writer
+	buffer := bytes.NewBufferString("")
+	archive := tar.NewWriter(buffer)
+
+	writeFile := func(name, contents string) {
+		b := []byte(contents)
+		header := new(tar.Header)
+		header.Name = name
+		header.Typeflag = tar.TypeReg
+		header.Mode = 0644
+		header.Mode |= c_ISREG
+		header.ModTime = time.Now()
+		header.Size = int64(len(b))
+
+		TestExpectSuccess(t, archive.WriteHeader(header))
+		_, err := archive.Write(b)
+		TestExpectSuccess(t, err)
+		TestExpectSuccess(t, archive.Flush())
+	}
+
+	// generate the mock tar... this will write to a file in a directory that
+	// isn't already created within the tar
+	writeFile("./a_directory/file", "foo")
+	archive.Close()
+
+	// create temp folder to extract to
+	tempDir := TempDir(t)
+	extractionPath := path.Join(tempDir, "pkg")
+	err := os.MkdirAll(extractionPath, 0755)
+	TestExpectSuccess(t, err)
+
+	// extract
+	r := bytes.NewReader(buffer.Bytes())
+	u := NewUntar(r, extractionPath)
+	u.AbsoluteRoot = tempDir
+	TestExpectSuccess(t, u.Extract())
+
+	fileExists := func(name string) {
+		_, err := os.Stat(path.Join(tempDir, name))
+		TestExpectSuccess(t, err)
+	}
+
+	fileContents := func(name, contents string) {
+		b, err := ioutil.ReadFile(path.Join(tempDir, name))
+		TestExpectSuccess(t, err)
+		TestEqual(t, string(b), contents)
+	}
+
+	fileExists("./pkg/a_directory/file")
+	fileContents("./pkg/a_directory/file", "foo")
+}
+
 func TestUntarExtractOverwriting(t *testing.T) {
 	StartTest(t)
 	defer FinishTest(t)
