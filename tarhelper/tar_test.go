@@ -3,7 +3,9 @@
 package tarhelper
 
 import (
+	"archive/tar"
 	"bytes"
+	"io"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -82,4 +84,41 @@ func TestPathExclusion(t *testing.T) {
 	// This should return nil for these paths as they are excluded.
 	TestEqual(t, tw.processEntry(fooPath[1:], nil), nil)
 	TestEqual(t, tw.processEntry(tmpPath[1:], nil), nil)
+}
+
+func TestTarIDMapping(t *testing.T) {
+	StartTest(t)
+	defer FinishTest(t)
+
+	// set up our mapping funcs
+	uidFuncCalled := false
+	gidFuncCalled := false
+	uidMappingFunc := func(uid int) (int, error) {
+		uidFuncCalled = true
+		return 0, nil
+	}
+	gidMappingFunc := func(gid int) (int, error) {
+		gidFuncCalled = true
+		return 0, nil
+	}
+
+	// set up our untar and use the test tar helper
+	w := bytes.NewBufferString("")
+	tw := NewTar(w, makeTestDir(t))
+	tw.IncludeOwners = true
+	tw.OwnerMappingFunc = uidMappingFunc
+	tw.GroupMappingFunc = gidMappingFunc
+	TestExpectSuccess(t, tw.Archive())
+
+	// untar it and verify all of the uid/gids are 0
+	archive := tar.NewReader(w)
+	for {
+		header, err := archive.Next()
+		if err == io.EOF {
+			break
+		}
+		TestExpectSuccess(t, err)
+		TestEqual(t, header.Uid, 0)
+		TestEqual(t, header.Gid, 0)
+	}
 }

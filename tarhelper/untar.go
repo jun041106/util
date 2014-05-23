@@ -1,4 +1,4 @@
-// Copyright 2012-2013 Apcera Inc. All rights reserved.
+// Copyright 2012-2014 Apcera Inc. All rights reserved.
 
 package tarhelper
 
@@ -86,6 +86,22 @@ type Untar struct {
 	// IncludedPermissionMask is combined with the uploaded file mask as a way to
 	// ensure a base level of permissions for all objects.
 	IncludedPermissionMask os.FileMode
+
+	// OwnerMappingFunc is used to give the caller the ability to control the
+	// mapping of UIDs in the tar into what they should be on the host. It is only
+	// used when PreserveOwners is true. The function is passed in the UID of the
+	// file being extracted and is expected to return a UID to use for the actual
+	// file. It can also return an error if it is unable to choose a UID or the
+	// UID is not allowed.
+	OwnerMappingFunc func(int) (int, error)
+
+	// GroupMappingFunc is used to give the caller the ability to control the
+	// mapping of GIDs in the tar into what they should be on the host. It is only
+	// used when PreserveOwners is true. The function is passed in the GID of the
+	// file being extracted and is expected to return a GID to use for the actual
+	// file. It can also return an error if it is unable to choose a GID or the
+	// GID is not allowed.
+	GroupMappingFunc func(int) (int, error)
 }
 
 // NewUntar returns an Untar to use to extract the contents of r into targetDir.
@@ -98,6 +114,8 @@ func NewUntar(r io.Reader, targetDir string) *Untar {
 		PreserveOwners:      false,
 		AbsoluteRoot:        "/",
 		resolvedLinks:       make([]resolvedLink, 0),
+		OwnerMappingFunc:    defaultMappingFunc,
+		GroupMappingFunc:    defaultMappingFunc,
 	}
 
 	// loop up the current user for mapping of files
@@ -390,11 +408,13 @@ func (u *Untar) processEntry(header *tar.Header) error {
 	// process the uid/gid ownership
 	uid := u.MappedUserID
 	gid := u.MappedGroupID
-	if header.Uid < 500 && u.PreserveOwners {
-		uid = header.Uid
-	}
-	if header.Gid < 500 && u.PreserveOwners {
-		gid = header.Gid
+	if u.PreserveOwners {
+		if uid, err = u.OwnerMappingFunc(header.Uid); err != nil {
+			return fmt.Errorf("failed to map UID for file: %v", err)
+		}
+		if gid, err = u.GroupMappingFunc(header.Gid); err != nil {
+			return fmt.Errorf("failed to map GID for file: %v", err)
+		}
 	}
 
 	// apply it
