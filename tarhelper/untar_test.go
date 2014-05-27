@@ -7,8 +7,11 @@ import (
 	"bytes"
 	"io/ioutil"
 	"os"
+	"os/user"
 	"path"
+	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -343,6 +346,89 @@ func TestUntarExtractOverwriting(t *testing.T) {
 	fileSymlinks("./usr/bin/sh", "zsh")
 	fileContents("./etc", "etc")
 	fileContents("./var/lib", "lll")
+}
+
+func TestUntarIDMappings(t *testing.T) {
+	StartTest(t)
+	defer FinishTest(t)
+
+	// create a buffer and tar.Writer
+	buffer := bytes.NewBufferString("")
+	archive := tar.NewWriter(buffer)
+
+	writeDirectoryWithOwners := func(name string, uid, gid int) {
+		header := new(tar.Header)
+		header.Name = name + "/"
+		header.Typeflag = tar.TypeDir
+		header.Mode = 0755
+		header.Mode |= c_ISDIR
+		header.ModTime = time.Now()
+		header.Uid = uid
+		header.Gid = gid
+		TestExpectSuccess(t, archive.WriteHeader(header))
+	}
+
+	writeFileWithOwners := func(name, contents string, uid, gid int) {
+		b := []byte(contents)
+		header := new(tar.Header)
+		header.Name = name
+		header.Typeflag = tar.TypeReg
+		header.Mode = 0644
+		header.Mode |= c_ISREG
+		header.ModTime = time.Now()
+		header.Size = int64(len(b))
+		header.Uid = uid
+		header.Gid = gid
+
+		TestExpectSuccess(t, archive.WriteHeader(header))
+		_, err := archive.Write(b)
+		TestExpectSuccess(t, err)
+		TestExpectSuccess(t, archive.Flush())
+	}
+
+	writeDirectoryWithOwners(".", 0, 0)
+	writeFileWithOwners("./foo", "foo", 0, 0)
+	archive.Close()
+
+	// setup our mapping func
+	usr, err := user.Current()
+	TestExpectSuccess(t, err)
+	myUid, err := strconv.Atoi(usr.Uid)
+	TestExpectSuccess(t, err)
+	myGid, err := strconv.Atoi(usr.Gid)
+	TestExpectSuccess(t, err)
+	uidFuncCalled := false
+	gidFuncCalled := false
+	uidMappingFunc := func(uid int) (int, error) {
+		uidFuncCalled = true
+		TestEqual(t, uid, 0)
+		return myUid, nil
+	}
+	gidMappingFunc := func(gid int) (int, error) {
+		gidFuncCalled = true
+		TestEqual(t, gid, 0)
+		return myGid, nil
+	}
+
+	// extract
+	tempDir := TempDir(t)
+	r := bytes.NewReader(buffer.Bytes())
+	u := NewUntar(r, tempDir)
+	u.PreserveOwners = true
+	u.OwnerMappingFunc = uidMappingFunc
+	u.GroupMappingFunc = gidMappingFunc
+	TestExpectSuccess(t, u.Extract())
+
+	// verify it was called
+	TestEqual(t, uidFuncCalled, true)
+	TestEqual(t, gidFuncCalled, true)
+
+	// verify the file
+	stat, err := os.Stat(path.Join(tempDir, "foo"))
+	TestExpectSuccess(t, err)
+	sys := stat.Sys().(*syscall.Stat_t)
+	TestEqual(t, sys.Uid, uint32(myUid))
+	TestEqual(t, sys.Gid, uint32(myGid))
 }
 
 func TestUntarFailures(t *testing.T) {

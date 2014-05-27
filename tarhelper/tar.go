@@ -56,6 +56,22 @@ type Tar struct {
 	// and push the inode on here when archiving to see if we run across the
 	// inode again later.
 	hardLinks map[uint64]string
+
+	// OwnerMappingFunc is used to give the caller the ability to control the
+	// mapping of UIDs in the tar into what they should be on the host. The
+	// function is only used when IncludeOwners is true. The function is passed in
+	// the UID of the file on the filesystem and is expected to return a UID to
+	// use within the tar file. It can also return an error if it is unable to
+	// choose a UID or the UID is not allowed.
+	OwnerMappingFunc func(int) (int, error)
+
+	// GroupMappingFunc is used to give the caller the ability to control the
+	// mapping of GIDs in the tar into what they should be on the host. The
+	// function is only used when IncludeOwners is true. The function is passed in
+	// the GID of the file on the filesystem and is expected to return a GID to
+	// use within the tar file. It can also return an error if it is unable to
+	// choose a GID or the GID is not allowed.
+	GroupMappingFunc func(int) (int, error)
 }
 
 // Mode constants from the tar spec.
@@ -80,6 +96,8 @@ func NewTar(w io.Writer, targetDir string) *Tar {
 		IncludePermissions: true,
 		IncludeOwners:      false,
 		ExcludedPaths:      []string{},
+		OwnerMappingFunc:   defaultMappingFunc,
+		GroupMappingFunc:   defaultMappingFunc,
 	}
 }
 
@@ -172,8 +190,12 @@ func (t *Tar) processEntry(fullName string, f os.FileInfo) error {
 	// copy uid/gid if Permissions enabled
 	stat := f.Sys().(*syscall.Stat_t)
 	if t.IncludeOwners {
-		header.Uid = int(stat.Uid)
-		header.Gid = int(stat.Gid)
+		if header.Uid, err = t.OwnerMappingFunc(int(stat.Uid)); err != nil {
+			return fmt.Errorf("failed to map UID for file: %v", err)
+		}
+		if header.Gid, err = t.GroupMappingFunc(int(stat.Gid)); err != nil {
+			return fmt.Errorf("failed to map GID for file: %v", err)
+		}
 	} else {
 		header.Uid = 500
 		header.Gid = 500
