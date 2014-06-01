@@ -5,9 +5,6 @@ package tarhelper
 import (
 	"archive/tar"
 	"bufio"
-	"bytes"
-	"compress/bzip2"
-	"compress/gzip"
 	"fmt"
 	"io"
 	"os"
@@ -16,19 +13,16 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
-
-	xz "github.com/apcera/cntm-deps/go-liblzma"
 )
 
 // The type of compression that this archive will be us
-type Compression int
+type Compression string
 
 const (
-	NONE   = Compression(0)
-	BZIP2  = Compression(1)
-	GZIP   = Compression(2)
-	XZ     = Compression(3)
-	DETECT = Compression(999)
+	NONE   = Compression("")
+	BZIP2  = Compression("bzip2")
+	GZIP   = Compression("gzip")
+	DETECT = Compression("detect")
 )
 
 type resolvedLink struct {
@@ -157,63 +151,54 @@ func (u *Untar) Extract() error {
 
 	// check for detect mode before the main setup, we'll change compression
 	// to the intended type and setup a new reader to re-read the header
-	if u.Compression == DETECT {
-		// setup a buffered reader
-		br := bufio.NewReader(u.source)
-
-		// read the first 2 bytes
-		data, err := br.Peek(2)
-		if err != nil {
-			return err
-		}
-
-		switch {
-		case data[0] == 0x1f && data[1] == 0x8b:
-			// gzip
-			u.Compression = GZIP
-
-		case data[0] == 0x42 && data[1] == 0x5a:
-			// bzip2
-			u.Compression = BZIP2
-
-		case bytes.Equal(data[0:6], []byte{0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00}):
-			// xz
-			u.Compression = XZ
-
-		default:
-			// assume none
-			u.Compression = NONE
-		}
-
-		// set the main source to the buffered reader
-		u.source = br
-	}
-
-	// Create a TarReader that wraps the proper io.Reader object
-	// the implements the expected compression for this file.
 	switch u.Compression {
 	case NONE:
 		u.archive = tar.NewReader(u.source)
-	case BZIP2:
-		source := bzip2.NewReader(u.source)
-		u.archive = tar.NewReader(source)
-	case GZIP:
-		source, err := gzip.NewReader(u.source)
-		if err != nil {
-			// TODO: offload this into Process since it forces a header read.
-			Log.V(1).Infof("Error creating gzip reader: %s", err)
-			return nil
+
+	case DETECT:
+		var comp Decompressor
+
+		// setup a buffered reader
+		br := bufio.NewReader(u.source)
+
+		// loop over the registered decompressors to find the right one
+		for _, c := range decompressorTypes {
+			if c.Detect(br) {
+				comp = c
+				break
+			}
 		}
-		u.archive = tar.NewReader(source)
-	case XZ:
-		source, err := xz.NewReader(u.source)
+
+		// Create the reader
+		arch, err := comp.NewReader(u.source)
 		if err != nil {
-			Log.V(1).Infof("Error creating xz reader: %s", err)
+			return err
 		}
-		u.archive = tar.NewReader(source)
+		defer func() {
+			if cl, ok := arch.(io.ReadCloser); ok {
+				cl.Close()
+			}
+		}()
+		u.archive = tar.NewReader(arch)
+
 	default:
-		Log.Errorf("Unknown compression type (%v)", u.Compression)
-		return fmt.Errorf("Unknown compression type (%v)", u.Compression)
+		// Look up the compression handler
+		comp, exists := decompressorTypes[string(u.Compression)]
+		if !exists {
+			return fmt.Errorf("unrecognized decompression type %q", u.Compression)
+		}
+
+		// Create the reader
+		arch, err := comp.NewReader(u.source)
+		if err != nil {
+			return err
+		}
+		defer func() {
+			if cl, ok := arch.(io.ReadCloser); ok {
+				cl.Close()
+			}
+		}()
+		u.archive = tar.NewReader(arch)
 	}
 
 	for {
