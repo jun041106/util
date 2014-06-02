@@ -14,7 +14,6 @@ import (
 	"syscall"
 	"testing"
 	"time"
-
 	. "github.com/apcera/util/testtool"
 )
 
@@ -441,4 +440,14 @@ func TestUntarFailures(t *testing.T) {
 	TestExpectError(t, u.Extract())
 
 	// FIXME(brady): add more cases here!
+}
+
+func TestCannotDetectCompression(t *testing.T) {
+	StartTest(t)
+	defer FinishTest(t)
+
+	u := NewUntar(strings.NewReader("bad"), "/tmp")
+	u.Compression = DETECT
+
+	TestExpectError(t, u.Extract())
 }
