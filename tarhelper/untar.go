@@ -169,6 +169,11 @@ func (u *Untar) Extract() error {
 			}
 		}
 
+		// Set the bufio.Reader to source, as calling Peek on br will trigger a read
+		// on the underlying io.Reader. This can create inconsistencies if something
+		// tries to re-use the original reader.
+		u.source = br
+
 		// Create the reader
 		arch, err := comp.NewReader(u.source)
 		if err != nil {
