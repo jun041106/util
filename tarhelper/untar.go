@@ -5,7 +5,6 @@ package tarhelper
 import (
 	"archive/tar"
 	"bufio"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -170,26 +169,28 @@ func (u *Untar) Extract() error {
 			}
 		}
 
-		if comp == nil {
-			return errors.New("can't detect compression type")
-		}
-
 		// Set the bufio.Reader to source, as calling Peek on br will trigger a read
 		// on the underlying io.Reader. This can create inconsistencies if something
 		// tries to re-use the original reader.
 		u.source = br
 
-		// Create the reader
-		arch, err := comp.NewReader(u.source)
-		if err != nil {
-			return err
-		}
-		defer func() {
-			if cl, ok := arch.(io.ReadCloser); ok {
-				cl.Close()
+		// Create the reader if a compression handler was found, else fall back on
+		// using no compression.
+		if comp != nil {
+			// Create the reader
+			arch, err := comp.NewReader(u.source)
+			if err != nil {
+				return err
 			}
-		}()
-		u.archive = tar.NewReader(arch)
+			defer func() {
+				if cl, ok := arch.(io.ReadCloser); ok {
+					cl.Close()
+				}
+			}()
+			u.archive = tar.NewReader(arch)
+		} else {
+			u.archive = tar.NewReader(u.source)
+		}
 
 	default:
 		// Look up the compression handler
