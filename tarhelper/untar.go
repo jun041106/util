@@ -5,6 +5,7 @@ package tarhelper
 import (
 	"archive/tar"
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -167,6 +168,10 @@ func (u *Untar) Extract() error {
 				comp = c
 				break
 			}
+		}
+
+		if comp == nil {
+			return errors.New("can't detect compression type")
 		}
 
 		// Set the bufio.Reader to source, as calling Peek on br will trigger a read
