@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
 	. "github.com/apcera/util/testtool"
 )
 
