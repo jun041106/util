@@ -71,6 +71,10 @@ type Untar struct {
 	// it will default to all files going to the MappedUserID/MappedGroupID.
 	PreserveOwners bool
 
+	// SkipSpecialDevices can be used to skip extracting special devices defiend
+	// within the tarball. This includes things like character or block devices.
+	SkipSpecialDevices bool
+
 	// The default UID to set files with an owner over 500 to. If PreserveOwners
 	// is false, this will be the UID assigned for all files in the archive.
 	// This defaults to the UID of the current running user.
@@ -388,6 +392,12 @@ func (u *Untar) processEntry(header *tar.Header) error {
 		}
 
 	case header.Typeflag == tar.TypeBlock || header.Typeflag == tar.TypeChar:
+		// check to see if the flag to skip character/block devices is set, and
+		// simply return if it is
+		if u.SkipSpecialDevices {
+			return nil
+		}
+
 		// determine how to OR the mode
 		devmode := uint32(0)
 		switch header.Typeflag {
