@@ -5,8 +5,32 @@ package proc
 import (
 	"io/ioutil"
 	"os"
+	"strconv"
 	"strings"
 )
+
+// ReadInt64 reads one int64 number from the first line of a file.
+func ReadInt64(file string) (int64, error) {
+	f, err := os.Open(file)
+	if err != nil {
+		return 0, err
+	}
+	defer f.Close()
+
+	buf := make([]byte, 19)
+	n, err := f.Read(buf)
+	if err != nil {
+		return 0, err
+	}
+
+	p := strings.Split(string(buf[0:n]), "\n")
+	v, err := strconv.ParseInt(p[0], 10, 64)
+	if err != nil {
+		return 0, err
+	}
+
+	return v, nil
+}
 
 // Parses the given file into various elements. This function assumes basic
 // white space semantics (' ' and '\t' for column splitting, and '\n' for

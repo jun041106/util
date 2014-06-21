@@ -7,12 +7,47 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/apcera/util/testtool"
+	tt "github.com/apcera/util/testtool"
 )
 
+func TestReadInt64(t *testing.T) {
+	tt.StartTest(t)
+	defer tt.FinishTest(t)
+
+	f := tt.WriteTempFile(t, "foo\nbar")
+
+	_, err := ReadInt64(f)
+	tt.TestExpectError(t, err)
+
+	f = tt.WriteTempFile(t, "123\n456")
+
+	v, err := ReadInt64(f)
+	tt.TestExpectSuccess(t, err)
+	tt.TestEqual(t, v, int64(123))
+
+	f = tt.WriteTempFile(t, "123456789")
+	v, err = ReadInt64(f)
+	tt.TestExpectSuccess(t, err)
+	tt.TestEqual(t, v, int64(123456789))
+
+	maxInt64 := fmt.Sprintf("%d", int64(1<<63-1))
+	f = tt.WriteTempFile(t, maxInt64)
+
+	v, err = ReadInt64(f)
+	tt.TestExpectSuccess(t, err)
+	tt.TestEqual(t, v, int64(1<<63-1))
+
+	maxInt64WithExtra := fmt.Sprintf("%d666", int64(1<<63-1))
+	f = tt.WriteTempFile(t, maxInt64WithExtra)
+
+	v, err = ReadInt64(f)
+	tt.TestExpectSuccess(t, err)
+	tt.TestEqual(t, v, int64(1<<63-1))
+}
+
 func TestParseSimpleProcFile(t *testing.T) {
-	testtool.StartTest(t)
-	defer testtool.FinishTest(t)
+	tt.StartTest(t)
+	defer tt.FinishTest(t)
 
 	// Test 1: Success.
 	lines := []string{
@@ -20,14 +55,14 @@ func TestParseSimpleProcFile(t *testing.T) {
 		" belm0  belm1\t belm2\t\t\t",
 		"",
 		"delm0"}
-	f := testtool.WriteTempFile(t, strings.Join(lines, "\n"))
+	f := tt.WriteTempFile(t, strings.Join(lines, "\n"))
 	err := ParseSimpleProcFile(
 		f,
 		func(index int, line string) error {
 			if index > len(lines) {
-				testtool.Fatalf(t, "Too many lines read: %d", index)
+				tt.Fatalf(t, "Too many lines read: %d", index)
 			} else if line != lines[index] {
-				testtool.Fatalf(t, "Invalid line read: %s", line)
+				tt.Fatalf(t, "Invalid line read: %s", line)
 			}
 			return nil
 		},
@@ -41,19 +76,19 @@ func TestParseSimpleProcFile(t *testing.T) {
 			case line == 1 && index == 2 && elm == "belm2":
 			case line == 3 && index == 0 && elm == "delm0":
 			default:
-				testtool.Fatalf(
+				tt.Fatalf(
 					t, "Unknown element read: %d, %d, %s", line, index, elm)
 			}
 			return nil
 		})
 	if err != nil {
-		testtool.Fatalf(t, "Unexpected error from ParseSimpleProcFile()")
+		tt.Fatalf(t, "Unexpected error from ParseSimpleProcFile()")
 	}
 
 	// Test 2: No function defined. This should be successful.
 	err = ParseSimpleProcFile(f, nil, nil)
 	if err != nil {
-		testtool.Fatalf(t, "Unexpected error from ParseSimpleProcFile()")
+		tt.Fatalf(t, "Unexpected error from ParseSimpleProcFile()")
 	}
 
 	// Test 3: ef returns an error.
@@ -64,7 +99,7 @@ func TestParseSimpleProcFile(t *testing.T) {
 		},
 		nil)
 	if err == nil {
-		testtool.Fatalf(t, "Expected error not returned.")
+		tt.Fatalf(t, "Expected error not returned.")
 	}
 
 	// Test 4: lf returns an error.
@@ -75,7 +110,7 @@ func TestParseSimpleProcFile(t *testing.T) {
 			return fmt.Errorf("error.")
 		})
 	if err == nil {
-		testtool.Fatalf(t, "Expected error not returned.")
+		tt.Fatalf(t, "Expected error not returned.")
 	}
 
 	// Test 6: last case lf operation.
