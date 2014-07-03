@@ -191,10 +191,10 @@ func (t *Tar) processEntry(fullName string, f os.FileInfo) error {
 	stat := f.Sys().(*syscall.Stat_t)
 	if t.IncludeOwners {
 		if header.Uid, err = t.OwnerMappingFunc(int(stat.Uid)); err != nil {
-			return fmt.Errorf("failed to map UID for file: %v", err)
+			return fmt.Errorf("failed to map UID for %q: %v", header.Name, err)
 		}
 		if header.Gid, err = t.GroupMappingFunc(int(stat.Gid)); err != nil {
-			return fmt.Errorf("failed to map GID for file: %v", err)
+			return fmt.Errorf("failed to map GID for %q: %v", header.Name, err)
 		}
 	} else {
 		header.Uid = 500
