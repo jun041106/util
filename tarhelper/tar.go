@@ -11,7 +11,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 )
 
 // Tar manages state for a TAR archive.
@@ -188,12 +187,11 @@ func (t *Tar) processEntry(fullName string, f os.FileInfo) error {
 	}
 
 	// copy uid/gid if Permissions enabled
-	stat := f.Sys().(*syscall.Stat_t)
 	if t.IncludeOwners {
-		if header.Uid, err = t.OwnerMappingFunc(int(stat.Uid)); err != nil {
+		if header.Uid, err = t.OwnerMappingFunc(uidForFileInfo(f)); err != nil {
 			return fmt.Errorf("failed to map UID for %q: %v", header.Name, err)
 		}
-		if header.Gid, err = t.GroupMappingFunc(int(stat.Gid)); err != nil {
+		if header.Gid, err = t.GroupMappingFunc(gidForFileInfo(f)); err != nil {
 			return fmt.Errorf("failed to map GID for %q: %v", header.Name, err)
 		}
 	} else {
@@ -251,8 +249,9 @@ func (t *Tar) processEntry(fullName string, f os.FileInfo) error {
 		}
 
 		// check to see if this is a hard link
-		if stat.Nlink > 1 {
-			if dst, ok := t.hardLinks[stat.Ino]; ok {
+		if linkCountForFileInfo(f) > 1 {
+			inode := inodeForFileInfo(f)
+			if dst, ok := t.hardLinks[inode]; ok {
 				// update the header if it is
 				header.Typeflag = tar.TypeLink
 				header.Linkname = dst
@@ -260,7 +259,7 @@ func (t *Tar) processEntry(fullName string, f os.FileInfo) error {
 			} else {
 				// push it on the list, and continue to write it as a file
 				// this is our first time seeing it
-				t.hardLinks[stat.Ino] = header.Name
+				t.hardLinks[inode] = header.Name
 			}
 		}
 
@@ -299,10 +298,7 @@ func (t *Tar) processEntry(fullName string, f os.FileInfo) error {
 		//
 		// stat to get devmode
 		fi, err := os.Stat(filepath.Join(t.target, fullName))
-		if sys, ok := fi.Sys().(*syscall.Stat_t); ok {
-			header.Devmajor = majordev(int64(sys.Rdev))
-			header.Devminor = minordev(int64(sys.Rdev))
-		}
+		header.Devmajor, header.Devminor = osDeviceNumbersForFileInfo(fi)
 
 		// write the header
 		err = t.archive.WriteHeader(header)

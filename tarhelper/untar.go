@@ -415,8 +415,8 @@ func (u *Untar) processEntry(header *tar.Header) error {
 
 		// syscall to mknod
 		dev := makedev(header.Devmajor, header.Devminor)
-		syscall.Umask(0000)
-		if err := syscall.Mknod(name, devmode|uint32(mode), dev); err != nil {
+		osUmask(0000)
+		if err := osMknod(name, devmode|uint32(mode), dev); err != nil {
 			return err
 		}
 
