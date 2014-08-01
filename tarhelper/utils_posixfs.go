@@ -32,8 +32,8 @@ func gidForFileInfo(fi os.FileInfo) int {
 	return int(fi.Sys().(*syscall.Stat_t).Gid)
 }
 
-func linkCountForFileInfo(fi os.FileInfo) uint16 {
-	return fi.Sys().(*syscall.Stat_t).Nlink
+func linkCountForFileInfo(fi os.FileInfo) uint {
+	return uint(fi.Sys().(*syscall.Stat_t).Nlink)
 }
 
 func inodeForFileInfo(fi os.FileInfo) uint64 {
