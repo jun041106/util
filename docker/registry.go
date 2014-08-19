@@ -107,6 +107,16 @@ func GetImage(name string) (*Image, error) {
 	return img, nil
 }
 
+// TagLayerID returns a layer ID for a given tag.
+func (i *Image) TagLayerID(tagName string) (string, error) {
+	layerID, ok := i.tags[tagName]
+	if !ok {
+		return "", fmt.Errorf("can't find tag '%s' for image '%s'", tagName, i.Name)
+	}
+
+	return layerID, nil
+}
+
 // Metadata unmarshals a Docker image metadata into provided 'v' interface.
 func (i *Image) Metadata(tagName string, v interface{}) error {
 	layerID, ok := i.tags[tagName]
