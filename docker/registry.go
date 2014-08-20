@@ -60,10 +60,9 @@ func GetImage(name string) (*Image, error) {
 	}
 	req.Header.Set("X-Docker-Token", "true")
 
-	client := &http.Client{ // That's what Docker itself uses.
+	client := &http.Client{
 		Transport: &http.Transport{
-			DisableKeepAlives: true,
-			Proxy:             http.ProxyFromEnvironment,
+			Proxy: http.ProxyFromEnvironment,
 		},
 	}
 	client.Jar, err = cookiejar.New(nil) // Docker repo API sets and uses cookies for CDN.
@@ -105,6 +104,16 @@ func GetImage(name string) (*Image, error) {
 	}
 
 	return img, nil
+}
+
+// TagLayerID returns a layer ID for a given tag.
+func (i *Image) TagLayerID(tagName string) (string, error) {
+	layerID, ok := i.tags[tagName]
+	if !ok {
+		return "", fmt.Errorf("can't find tag '%s' for image '%s'", tagName, i.Name)
+	}
+
+	return layerID, nil
 }
 
 // Metadata unmarshals a Docker image metadata into provided 'v' interface.

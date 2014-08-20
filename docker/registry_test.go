@@ -189,6 +189,26 @@ func TestGetImageHistory(t *testing.T) {
 	tt.TestEqual(t, h[1], "badcafe")
 }
 
+func TestGetImageTagLayerID(t *testing.T) {
+	tt.StartTest(t)
+	defer tt.FinishTest(t)
+
+	img, err := GetImage("foo/bar")
+	tt.TestExpectSuccess(t, err)
+
+	_, err = img.TagLayerID("tag2")
+	tt.TestExpectError(t, err)
+	tt.TestEqual(t, err.Error(), "can't find tag 'tag2' for image 'foo/bar'")
+
+	id, err := img.TagLayerID("latest")
+	tt.TestExpectSuccess(t, err)
+	tt.TestEqual(t, id, "deadbeef")
+
+	id, err = img.TagLayerID("base")
+	tt.TestExpectSuccess(t, err)
+	tt.TestEqual(t, id, "badcafe")
+}
+
 func TestGetImageMetadata(t *testing.T) {
 	tt.StartTest(t)
 	defer tt.FinishTest(t)
