@@ -60,10 +60,9 @@ func GetImage(name string) (*Image, error) {
 	}
 	req.Header.Set("X-Docker-Token", "true")
 
-	client := &http.Client{ // That's what Docker itself uses.
+	client := &http.Client{
 		Transport: &http.Transport{
-			DisableKeepAlives: true,
-			Proxy:             http.ProxyFromEnvironment,
+			Proxy: http.ProxyFromEnvironment,
 		},
 	}
 	client.Jar, err = cookiejar.New(nil) // Docker repo API sets and uses cookies for CDN.
