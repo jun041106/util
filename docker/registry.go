@@ -106,6 +106,17 @@ func GetImage(name string) (*Image, error) {
 	return img, nil
 }
 
+// Tags returns a list of tags available for image
+func (i *Image) Tags() []string {
+	result := make([]string, 0)
+
+	for tag, _ := range i.tags {
+		result = append(result, tag)
+	}
+
+	return result
+}
+
 // TagLayerID returns a layer ID for a given tag.
 func (i *Image) TagLayerID(tagName string) (string, error) {
 	layerID, ok := i.tags[tagName]

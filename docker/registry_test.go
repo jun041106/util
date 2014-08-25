@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"sort"
 	"strconv"
 	"testing"
 	"time"
@@ -187,6 +188,18 @@ func TestGetImageHistory(t *testing.T) {
 	tt.TestEqual(t, len(h), 2)
 	tt.TestEqual(t, h[0], "deadbeef")
 	tt.TestEqual(t, h[1], "badcafe")
+}
+
+func TestGetImageTags(t *testing.T) {
+	tt.StartTest(t)
+	defer tt.FinishTest(t)
+
+	img, err := GetImage("foo/bar")
+	tt.TestExpectSuccess(t, err)
+
+	tags := img.Tags()
+	sort.Strings(tags)
+	tt.TestEqual(t, tags, []string{"base", "latest"})
 }
 
 func TestGetImageTagLayerID(t *testing.T) {
