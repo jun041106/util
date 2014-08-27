@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gorilla/mux"
+	"github.com/apcera/cntm-deps/mux"
 )
 
 var (
