@@ -18,7 +18,7 @@ const (
 )
 
 var (
-	dockerIndexURL = "https://index.docker.io" // Tests can change it to point to a mock registry.
+	IndexURL = "https://index.docker.io" // Tests can change it to point to a mock registry.
 )
 
 // Image is a Docker image info (constructed from Docker API response).
@@ -44,7 +44,7 @@ func GetImage(name string) (*Image, error) {
 		name = fmt.Sprintf("%s/%s", dockerDefaultRepoPrefix, name)
 	}
 
-	u, err := url.Parse(dockerIndexURL)
+	u, err := url.Parse(IndexURL)
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +52,7 @@ func GetImage(name string) (*Image, error) {
 	// In order to get layers from Docker CDN we need to hit 'images' endpoint
 	// and request the token. Client should also accept and store cookies, as
 	// they are needed to fetch the layer data later.
-	imagesURL := fmt.Sprintf("%s/v1/repositories/%s/images", dockerIndexURL, name)
+	imagesURL := fmt.Sprintf("%s/v1/repositories/%s/images", IndexURL, name)
 
 	req, err := http.NewRequest("GET", imagesURL, nil)
 	if err != nil {
