@@ -89,6 +89,47 @@ func TestReserve(t *testing.T) {
 	}
 }
 
+func TestReserveOutOfRange(t *testing.T) {
+	ipr, err := ParseIPRange("192.168.1.10-19")
+	tt.TestExpectSuccess(t, err)
+	alloc := NewAllocator(ipr)
+
+	// reserve an IP
+	reservedIP := net.ParseIP("10.0.0.1")
+	alloc.Reserve(reservedIP)
+	tt.TestEqual(t, alloc.remaining, int64(10))
+	tt.TestEqual(t, len(alloc.reserved), 0)
+}
+
+func TestSubtract(t *testing.T) {
+	ipr, err := ParseIPRange("192.168.1.10-19")
+	tt.TestExpectSuccess(t, err)
+	alloc := NewAllocator(ipr)
+	tt.TestEqual(t, alloc.remaining, int64(10))
+
+	// create a smaller range within the same one
+	ipr2, err := ParseIPRange("192.168.1.10-14")
+	tt.TestExpectSuccess(t, err)
+
+	// subtract it
+	alloc.Subtract(ipr2)
+
+	// validate it
+	tt.TestEqual(t, alloc.remaining, int64(5))
+	tt.TestEqual(t, len(alloc.reserved), 5)
+
+	// consume everything and ensure we don't get an IP in the second range.
+	for {
+		if alloc.Remaining() == 0 {
+			break
+		}
+
+		ip := alloc.Allocate()
+		tt.TestNotEqual(t, ip, nil)
+		tt.TestEqual(t, ipr2.Contains(ip), false)
+	}
+}
+
 func TestRelease(t *testing.T) {
 	ipr, err := ParseIPRange("192.168.1.10-19")
 	tt.TestExpectSuccess(t, err)
