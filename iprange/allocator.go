@@ -78,29 +78,7 @@ func (a *IPRangeAllocator) Allocate() net.IP {
 	a.remaining--
 	newBig := big.NewInt(0).Add(a.startBig, big.NewInt(idx))
 
-	// Convert it back into a 16 byte slice. net.IP expects a 16 byte
-	// slice, and expects the elements to be not be the leading bytes
-	// but the trailing. So we must create a new slice and populate its
-	// tail.
-	buf := newBig.Bytes()
-	ipbytes := make([]byte, 16)
-	position := 16 - len(buf)
-
-	// If the position we need to copy to is less than 0, then this
-	// would cause an index out of range. This will only happen when
-	// we've max'd out 16 bytes, so then we'll just loop around to zero.
-	if position >= 0 {
-		if a.startIsIPv4 {
-			// copy only the last 4 bytes and ensure we set the IPv4 in v6 prefix
-			copy(ipbytes, ipv6in4)
-			copy(ipbytes[12:], buf[len(buf)-4:])
-		} else {
-			// copy into the 16 byte slice, as it is IPv6
-			copy(ipbytes[16-len(buf):], buf)
-		}
-	}
-
-	return net.IP(ipbytes)
+	return a.bigIntToIP(newBig)
 }
 
 // Reserve allows reserving a specific IP address within the specified range to
@@ -108,6 +86,11 @@ func (a *IPRangeAllocator) Allocate() net.IP {
 func (a *IPRangeAllocator) Reserve(ip net.IP) {
 	a.mutex.Lock()
 	defer a.mutex.Unlock()
+
+	// ensure the specified IP is within the range
+	if !a.ipRange.Contains(ip) {
+		return
+	}
 
 	// calculate the idx from the start
 	ipBig := big.NewInt(0)
@@ -137,6 +120,22 @@ func (a *IPRangeAllocator) Release(ip net.IP) {
 	if a.reserved[idx] {
 		delete(a.reserved, idx)
 		a.remaining++
+	}
+}
+
+// Subtract marks all of the IPs from another IPRange as reserved in the current
+// allocator.
+func (a *IPRangeAllocator) Subtract(iprange *IPRange) {
+	curBig := big.NewInt(0)
+	curBig.SetBytes(iprange.Start)
+	endBig := big.NewInt(0)
+	endBig.SetBytes(iprange.End)
+
+	for ; curBig.Cmp(endBig) < 1; curBig = curBig.Add(big.NewInt(1), curBig) {
+		ip := a.bigIntToIP(curBig)
+		if a.ipRange.Contains(ip) {
+			a.Reserve(ip)
+		}
 	}
 }
 
@@ -186,4 +185,30 @@ func (a *IPRangeAllocator) findNextAvailbleIndex(idx int64) int64 {
 
 	// ok, everything is probably taken
 	return -1
+}
+
+func (a *IPRangeAllocator) bigIntToIP(newBig *big.Int) net.IP {
+	// Convert it back into a 16 byte slice. net.IP expects a 16 byte
+	// slice, and expects the elements to be not be the leading bytes
+	// but the trailing. So we must create a new slice and populate its
+	// tail.
+	buf := newBig.Bytes()
+	ipbytes := make([]byte, 16)
+	position := 16 - len(buf)
+
+	// If the position we need to copy to is less than 0, then this
+	// would cause an index out of range. This will only happen when
+	// we've max'd out 16 bytes, so then we'll just loop around to zero.
+	if position >= 0 {
+		if a.startIsIPv4 {
+			// copy only the last 4 bytes and ensure we set the IPv4 in v6 prefix
+			copy(ipbytes, ipv6in4)
+			copy(ipbytes[12:], buf[len(buf)-4:])
+		} else {
+			// copy into the 16 byte slice, as it is IPv6
+			copy(ipbytes[16-len(buf):], buf)
+		}
+	}
+
+	return net.IP(ipbytes)
 }
