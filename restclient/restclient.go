@@ -289,30 +289,69 @@ type RestError struct {
 	Resp *http.Response
 	// err is the original error
 	err error
+	// ErrBody is the body of the request that errored.
+	// Not named Body since there is an accessor method.
+	ErrBody *string
 }
 
 func (r *RestError) Error() string {
 	msg := r.err.Error()
-	if r.Resp != nil && r.Resp.Body != nil {
-		b, err := ioutil.ReadAll(r.Resp.Body)
-		if err != nil {
-			return msg
-		}
-		// Rewind.
-		buf := bytes.NewBuffer(b)
-		r.Resp.Body = ioutil.NopCloser(buf)
+	prefix := msg + " - "
 
-		msg = msg + " - " + string(b)
+	// Make sure the Error reads the cached body so
+	// you can call error multiple times with no issues.
+	// Also handle json from the endpoint and look for
+	// the error field.
+	if r.Body() != "" {
+		type body struct {
+			Error string `json:"error"`
+		}
+
+		var b *body
+
+		jerr := json.Unmarshal([]byte(r.Body()), &b)
+		if jerr != nil {
+			return prefix + r.Body()
+		}
+
+		if b.Error != "" {
+			return prefix + b.Error
+		}
+
+		return prefix + r.Body()
 	}
 
 	return msg
 }
 
 func (r *RestError) Body() string {
-	if r.Resp == nil {
-		return ""
+	// Return the body if we have it.
+	if r.ErrBody != nil {
+		return *r.ErrBody
 	}
-	defer r.Resp.Body.Close()
+
+	// Easier to deal with body as regular string.
+	// ErrBody is a pointer so that I can tell if it was
+	// actually set to "".
+	strBody := ""
+
+	// If we don't have a body, return "".
+	if r.Resp == nil || r.Resp.Body == nil {
+		r.ErrBody = &strBody
+		return *r.ErrBody
+	}
+
+	// Read the body, then set a new buffer
+	// to the body field so the original
+	// response still has a body.
 	b, _ := ioutil.ReadAll(r.Resp.Body)
-	return string(b)
+	defer r.Resp.Body.Close()
+	buf := bytes.NewBuffer(b)
+	r.Resp.Body = ioutil.NopCloser(buf)
+
+	// Set ErrBody to the new body.
+	strBody = string(b)
+	r.ErrBody = &strBody
+
+	return *r.ErrBody
 }

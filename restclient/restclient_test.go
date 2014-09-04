@@ -246,6 +246,7 @@ func TestErrorResult(t *testing.T) {
 	rerr, ok := err.(*RestError)
 	tt.TestEqual(t, ok, true, "Error should be of type *RestError")
 	tt.TestEqual(t, rerr.Error(), "error in response: 500 Internal Server Error - Didn't work")
+	tt.TestEqual(t, rerr.Body(), "Didn't work")
 
 	rerr2 := new(RestError)
 	rerr2.err = fmt.Errorf("foo bar baz wibble")
@@ -280,12 +281,39 @@ func TestErrorResponse(t *testing.T) {
 	rerr, ok := err.(*RestError)
 	tt.TestEqual(t, ok, true, "Error should be of type *RestError")
 	tt.TestEqual(t, rerr.Error(), "error in response: 500 Internal Server Error - Didn't work")
+	tt.TestEqual(t, rerr.Body(), "Didn't work")
 
 	body, err := ioutil.ReadAll(resp.Body)
 	defer resp.Body.Close()
 	tt.TestExpectSuccess(t, err)
 	tt.TestEqual(t, string(body), "Didn't work")
+}
 
+func TestErrorResponseNoBody(t *testing.T) {
+	tt.StartTest(t)
+	defer tt.FinishTest(t)
+
+	// create a test server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		w.WriteHeader(500)
+	}))
+	defer server.Close()
+
+	client, err := New(server.URL)
+	tt.TestExpectSuccess(t, err)
+	req := client.NewFormRequest("GET", "/", nil)
+	resp, err := client.Do(req)
+	tt.TestExpectError(t, err)
+
+	rerr, ok := err.(*RestError)
+	tt.TestEqual(t, ok, true, "Error should be of type *RestError")
+	tt.TestEqual(t, rerr.Error(), "error in response: 500 Internal Server Error")
+
+	body, err := ioutil.ReadAll(resp.Body)
+	defer resp.Body.Close()
+	tt.TestExpectSuccess(t, err)
+	tt.TestEqual(t, string(body), "")
 }
 
 func TestInvalidJsonResponse(t *testing.T) {
