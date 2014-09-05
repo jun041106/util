@@ -289,6 +289,35 @@ func TestErrorResponse(t *testing.T) {
 	tt.TestEqual(t, string(body), "Didn't work")
 }
 
+func TestErrorResponseWithJson(t *testing.T) {
+	tt.StartTest(t)
+	defer tt.FinishTest(t)
+
+	// create a test server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		w.WriteHeader(500)
+		io.WriteString(w, `{"error": "some error"}`)
+	}))
+	defer server.Close()
+
+	client, err := New(server.URL)
+	tt.TestExpectSuccess(t, err)
+	req := client.NewFormRequest("GET", "/", nil)
+	resp, err := client.Do(req)
+	tt.TestExpectError(t, err)
+
+	rerr, ok := err.(*RestError)
+	tt.TestEqual(t, ok, true, "Error should be of type *RestError")
+	tt.TestEqual(t, rerr.Error(), "error in response: 500 Internal Server Error - some error")
+	tt.TestEqual(t, rerr.Body(), `{"error": "some error"}`)
+
+	body, err := ioutil.ReadAll(resp.Body)
+	defer resp.Body.Close()
+	tt.TestExpectSuccess(t, err)
+	tt.TestEqual(t, string(body), `{"error": "some error"}`)
+}
+
 func TestErrorResponseNoBody(t *testing.T) {
 	tt.StartTest(t)
 	defer tt.FinishTest(t)
