@@ -5,6 +5,7 @@ package tarhelper
 import (
 	"archive/tar"
 	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -63,27 +64,125 @@ func TestPathExclusion(t *testing.T) {
 	StartTest(t)
 	defer FinishTest(t)
 
+	type testcase struct {
+		RE       string // e.g. "p.*h"
+		Path     string // e.g. "path"
+		Expected map[string]bool
+	}
+
+	testcases := []testcase{
+		{
+			RE: "simple", Path: "simple",
+			Expected: map[string]bool{
+				"simple":                      true,
+				"/simple":                     true,
+				"simple/":                     true,
+				"/simple/":                    true,
+				"/before/simple":              true,
+				"/three/levels/before/simple": true,
+			},
+		}, {
+			RE: "/simple", Path: "simple",
+			Expected: map[string]bool{
+				"/simple": true, "/simple/": true,
+			},
+		}, {
+			RE:       "slash/",
+			Path:     "slash",
+			Expected: map[string]bool{},
+		}, {
+			RE:       "/simple/",
+			Path:     "simple",
+			Expected: map[string]bool{},
+		}, {
+			RE:   "sim.*-RE",
+			Path: "simple-RE",
+			Expected: map[string]bool{
+				"simple-RE":                      true,
+				"/simple-RE":                     true,
+				"simple-RE/":                     true,
+				"/simple-RE/":                    true,
+				"/before/simple-RE":              true,
+				"/three/levels/before/simple-RE": true,
+				"simp-middle-le-RE":              true,
+			},
+		}, {
+			RE:   "simple-RE.*",
+			Path: "simple-RE",
+			Expected: map[string]bool{
+				"simple-RE":                      true,
+				"/simple-RE":                     true,
+				"simple-RE/":                     true,
+				"/simple-RE/":                    true,
+				"/before/simple-RE":              true,
+				"/three/levels/before/simple-RE": true,
+				"simple-RE-after":                true,
+			},
+		}, {
+			RE:   "/simple-RE.*",
+			Path: "simple-RE",
+			Expected: map[string]bool{
+				"/simple-RE":                    true,
+				"/simple-RE/":                   true,
+				"/simple-RE/after":              true,
+				"/simple-RE/three/levels/after": true,
+			},
+		},
+	}
+
+	// test the "empty exclusion list" cases
 	w := bytes.NewBufferString("")
 	tw := NewTar(w, makeTestDir(t))
-	fooPath := "/foo/bar"
-	tmpPath := "/tmp"
-	pidPattern := "*.pid"
-	tw.ExcludePath(fooPath)
-	tw.ExcludePath(tmpPath)
-	tw.ExcludePath(pidPattern)
-	TestEqual(t, len(tw.ExcludedPaths), 3)
+	TestEqual(t, tw.shouldBeExcluded("/any/thing"), false)
+	tw.ExcludePath("")
+	TestEqual(t, tw.shouldBeExcluded("/any/thing"), false)
 
-	TestEqual(t, tw.shouldBeExcluded(fooPath), false)
-	TestEqual(t, tw.shouldBeExcluded(tmpPath), true)
-	TestEqual(t, tw.shouldBeExcluded(fooPath[1:]), true)
-	TestEqual(t, tw.shouldBeExcluded(tmpPath[1:]), true)
-	TestEqual(t, tw.shouldBeExcluded("/baz/bar"), false)
-	TestEqual(t, tw.shouldBeExcluded("foobar.pid"), true)
-	TestEqual(t, tw.shouldBeExcluded("/foo/bar/path/pid.pid"), true)
+	// test these cases on new instances of Tar object to avoid any
+	// possible side effects/conflicts
+
+	for _, tc := range testcases {
+		w = bytes.NewBufferString("")
+		tw = NewTar(w, makeTestDir(t))
+		tw.ExcludePath(tc.RE)
+
+		stdPaths := []string{
+			tc.Path,
+			"/" + tc.Path,
+			tc.Path + "/",
+			"/" + tc.Path + "/",
+			"/before/" + tc.Path,
+			"/" + tc.Path + "/after",
+			"/before/" + tc.Path + "/after",
+			"/three/levels/before/" + tc.Path,
+			"/" + tc.Path + "/three/levels/after",
+			"before-" + tc.Path,
+			tc.Path + "-after",
+			"before-" + tc.Path + "-after",
+			tc.Path[:len(tc.Path)/2] + "-middle-" + tc.Path[len(tc.Path)/2:],
+		}
+
+		for _, path := range stdPaths {
+			TestEqual(t, tw.shouldBeExcluded(path), tc.Expected[path],
+				fmt.Sprintf("Path:%q, tc:%v", path, tc))
+			delete(tc.Expected, path)
+		}
+
+		for path, exp := range tc.Expected {
+			TestEqual(t, tw.shouldBeExcluded(path), exp)
+		}
+	}
 
 	// This should return nil for these paths as they are excluded.
-	TestEqual(t, tw.processEntry(fooPath[1:], nil), nil)
-	TestEqual(t, tw.processEntry(tmpPath[1:], nil), nil)
+	// An extra check that processEntry indeed bails on excluded items
+	w = bytes.NewBufferString("")
+	tw = NewTar(w, makeTestDir(t))
+	tw.ExcludePath("/one.*")
+	tw.ExcludePath("/two/two/.*")
+	tw.ExcludePath("/three/three/three.*")
+	TestExpectSuccess(t, tw.processEntry("/one/something", nil))
+	TestExpectSuccess(t, tw.processEntry("/two/two/something", nil))
+	TestExpectSuccess(t, tw.processEntry("/three/three/three-something", nil))
+	TestExpectError(t, tw.processEntry("/two/two-something", nil))
 }
 
 func TestTarIDMapping(t *testing.T) {
