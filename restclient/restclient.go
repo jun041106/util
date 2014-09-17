@@ -22,6 +22,7 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"time"
 )
 
 // Method wraps HTTP verbs for stronger typing.
@@ -58,7 +59,7 @@ func New(baseurl string) (*Client, error) {
 
 	// create the client
 	client := &Client{
-		Driver:  http.DefaultClient,
+		Driver:  &http.Client{}, // Don't use default client; shares by reference
 		base:    base,
 		Headers: http.Header(make(map[string][]string)),
 	}
@@ -75,6 +76,11 @@ func (c *Client) BaseURL() *url.URL {
 // Set the access Token
 func (c *Client) SetAccessToken(token string) {
 	c.Headers.Set(http.CanonicalHeaderKey("Authorization"), "Bearer "+token)
+}
+
+// SetTimeout sets the timeout of a client to the given duration.
+func (c *Client) SetTimeout(duration time.Duration) {
+	c.Driver.Timeout = duration
 }
 
 // Get issues a GET request to the specified endpoint and parses the response
