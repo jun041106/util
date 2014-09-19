@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -41,7 +42,7 @@ type Tar struct {
 	// ExcludedPaths contains any paths that a user may want to exclude from the
 	// tar. Anything included in any paths set on this field will not be
 	// included in the tar.
-	ExcludedPaths []string
+	ExcludedPaths []*regexp.Regexp
 
 	// If set, this will be a virtual path that is prepended to the
 	// file location.  This allows the target to be under a temp directory
@@ -94,7 +95,6 @@ func NewTar(w io.Writer, targetDir string) *Tar {
 		hardLinks:          make(map[uint64]string),
 		IncludePermissions: true,
 		IncludeOwners:      false,
-		ExcludedPaths:      []string{},
 		OwnerMappingFunc:   defaultMappingFunc,
 		GroupMappingFunc:   defaultMappingFunc,
 	}
@@ -141,12 +141,16 @@ func (t *Tar) Archive() error {
 
 // ExcludePath appends a path, file, or pattern relative to the toplevel path to
 // be archived that is then excluded from the final archive.
-func (t *Tar) ExcludePath(name string) {
-	// Strip leading slash, if present.
-	if strings.HasPrefix(name, string(filepath.Separator)) {
-		name = name[1:]
+// pathRE is a regex that is applied to the entire filename (full path and basename)
+func (t *Tar) ExcludePath(pathRE string) {
+	if pathRE != "" {
+		re, err := regexp.Compile("^" + pathRE + "$")
+		if err != nil {
+			Log.Error(err)
+			return
+		}
+		t.ExcludedPaths = append(t.ExcludedPaths, re)
 	}
-	t.ExcludedPaths = append(t.ExcludedPaths, name)
 }
 
 func (t *Tar) processDirectory(dir string) error {
@@ -171,6 +175,7 @@ func (t *Tar) processEntry(fullName string, f os.FileInfo) error {
 
 	// Exclude any files or paths specified by the user.
 	if t.shouldBeExcluded(fullName) {
+		Log.Infof("Excluding path/file with name %s from tar", fullName)
 		return nil
 	}
 
@@ -353,12 +358,9 @@ func cleanLinkName(targetDir, name string) (string, error) {
 
 // Determines if supplied name is contained in the slice of files to exclude.
 func (t *Tar) shouldBeExcluded(name string) bool {
-	for _, exclude := range t.ExcludedPaths {
-		if match, _ := filepath.Match(exclude, name); match {
-			Log.Infof("Excluding path/file with name %s from tar", name)
-			return true
-		} else if match, _ := filepath.Match(exclude, filepath.Base(name)); match {
-			Log.Infof("Excluding path/file with name %s from tar", name)
+	name = filepath.Clean(name)
+	for _, re := range t.ExcludedPaths {
+		if re.MatchString(name) || re.MatchString(filepath.Base(name)) {
 			return true
 		}
 	}

@@ -321,9 +321,13 @@ func Timeout(l Logger, timeout, sleep time.Duration, f func() bool) {
 // -----------------------------------------------------------------------
 
 // Fatal's the test if err is nil.
-func TestExpectError(l Logger, err error) {
+func TestExpectError(l Logger, err error, msg ...string) {
+	reason := ""
+	if len(msg) > 0 {
+		reason = ": " + strings.Join(msg, "")
+	}
 	if err == nil {
-		Fatalf(l, "Expected error not returned.")
+		Fatalf(l, "Expected an error, got nil%s", reason)
 	}
 }
 
