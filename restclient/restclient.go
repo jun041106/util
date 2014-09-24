@@ -19,6 +19,7 @@ import (
 	"io"
 	"io/ioutil"
 	"mime"
+	"net"
 	"net/http"
 	"net/url"
 	"path"
@@ -136,6 +137,11 @@ func (c *Client) Do(req *Request) (*http.Response, error) {
 	// Internally, this uses c.Driver's CheckRedirect policy.
 	resp, err := c.Driver.Do(hreq)
 	if err != nil {
+		if opErr, ok := err.(*net.OpError); ok {
+			if opErr.Timeout() {
+				return nil, &RestError{Req: hreq, err: fmt.Errorf("timed out making request")}
+			}
+		}
 		return resp, &RestError{Req: hreq, Resp: resp, err: fmt.Errorf("error sending request: %s", err)}
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
