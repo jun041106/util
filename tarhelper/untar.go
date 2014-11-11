@@ -391,7 +391,7 @@ func (u *Untar) processEntry(header *tar.Header) error {
 			return fmt.Errorf("Short write while copying file %s", name)
 		}
 
-	case header.Typeflag == tar.TypeBlock || header.Typeflag == tar.TypeChar:
+	case header.Typeflag == tar.TypeBlock || header.Typeflag == tar.TypeChar || header.Typeflag == tar.TypeFifo:
 		// check to see if the flag to skip character/block devices is set, and
 		// simply return if it is
 		if u.SkipSpecialDevices {
@@ -405,6 +405,8 @@ func (u *Untar) processEntry(header *tar.Header) error {
 			devmode = syscall.S_IFCHR
 		case tar.TypeBlock:
 			devmode = syscall.S_IFBLK
+		case tar.TypeFifo:
+			devmode = syscall.S_IFIFO
 		}
 
 		// determine the mode to use
