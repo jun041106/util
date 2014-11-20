@@ -3,6 +3,7 @@
 package deepmerge
 
 import (
+	"encoding/json"
 	"errors"
 	"reflect"
 )
@@ -40,19 +41,59 @@ func Merge(dst, src map[string]interface{}) error {
 					// continue to the next item. If they are both not
 					// map[string]interface{}, then it will fall through to the default of
 					// overwriting.
-					Merge(dstMap, srcMap)
+					if err := Merge(dstMap, srcMap); err != nil {
+						return err
+					}
 					continue
 				}
 			}
 
 			// if we have reached this point, then simply overwrite the destination
 			// with the source
-			dst[key] = srcValue
+			dstValue, err := uglyDeepCopy(srcValue)
+			if err != nil {
+				return err
+			}
+			dst[key] = dstValue
 
 		} else {
 			// if the key doesn't exist, simply set it directly
-			dst[key] = srcValue
+			dstValue, err := uglyDeepCopy(srcValue)
+			if err != nil {
+				return err
+			}
+			dst[key] = dstValue
 		}
 	}
 	return nil
+}
+
+type uglyWrapper struct {
+	Field interface{}
+}
+
+// uglyDeepCopy is a truly ugly and hacky way to ensure a deep copy is done on
+// an object, but it is what is necessary to ensure that the source object is
+// fully cloned so that it can be assigned to the destination and ensure futher
+// changes within the destination do not use a shared pointer and alter the
+// source. This method of wrapping it in JSON has side effects around integer
+// handling in Go and limits object types, such has maps with only string
+// keys. However, Go has no true deep copy functionality built in or currently
+// available via third party packages that work or are up to date.
+func uglyDeepCopy(v interface{}) (interface{}, error) {
+	// marshal
+	ugly := &uglyWrapper{Field: v}
+	b, err := json.Marshal(ugly)
+	if err != nil {
+		return nil, err
+	}
+
+	// demarshal
+	var ugly2 *uglyWrapper
+	err = json.Unmarshal(b, &ugly2)
+	if err != nil {
+		return nil, err
+	}
+
+	return ugly2.Field, nil
 }
