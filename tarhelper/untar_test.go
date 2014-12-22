@@ -5,6 +5,7 @@ package tarhelper
 import (
 	"archive/tar"
 	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -67,6 +68,18 @@ func TestUntarResolveDestinations(t *testing.T) {
 func TestUntarExtractFollowingSymlinks(t *testing.T) {
 	StartTest(t)
 	defer FinishTest(t)
+
+	// pre-clean /var/tmp from stale cruft
+	for _, cruft := range []string{
+		"/var/tmp/yy",
+	} {
+		if _, err := os.Stat(cruft); err == nil {
+			err = os.Remove(cruft)
+			if err != nil {
+				t.Fatalf("cruft pre-clean error: %s", err)
+			}
+		}
+	}
 
 	// create a buffer and tar.Writer
 	buffer := bytes.NewBufferString("")
@@ -133,10 +146,10 @@ func TestUntarExtractFollowingSymlinks(t *testing.T) {
 	if CAPTURE_PRESERVE_TARBALL != "" {
 		capR := bytes.NewReader(buffer.Bytes())
 		capW, capErr := os.Create("/tmp/" + CAPTURE_PRESERVE_TARBALL + ".tar")
-		if capErr != nil { panic(capErr.Error()) }
+		if capErr != nil { t.Fatal(capErr.Error()) }
 		_, capErr = io.Copy(capW, capR)
 		if capErr != nil {
-			panic(capErr.Error())
+			t.Fatal(capErr.Error())
 		}
 		capW.Close()
 	}
@@ -157,12 +170,12 @@ func TestUntarExtractFollowingSymlinks(t *testing.T) {
 
 	fileExists := func(name string) {
 		_, err := os.Stat(path.Join(tempDir, name))
-		TestExpectSuccess(t, err)
+		TestExpectSuccess(t, err, fmt.Sprintf("expected %q to exist", name))
 	}
 
-	fileNotExists := func(name string) {
-		_, err := os.Stat(path.Join(tempDir, name))
-		TestExpectError(t, err)
+	absoluteFileNotExists := func(name string) {
+		_, err := os.Stat(name)
+		TestExpectError(t, err, fmt.Sprintf("did not expect %q to exist", name))
 	}
 
 	fileContents := func(name, contents string) {
@@ -192,9 +205,9 @@ func TestUntarExtractFollowingSymlinks(t *testing.T) {
 	// follow the real symlink
 	fileSymlinks("./pkg/etc", "/realetc")
 	fileExists("./realetc/zz")
-	fileNotExists("/realetc/zz")
+	absoluteFileNotExists("/realetc/zz")
 	fileContents("./realetc/zz", "zz")
-	fileNotExists("/var/tmp/yy")
+	absoluteFileNotExists("/var/tmp/yy")
 	fileExists("./var/tmp/yy")
 	fileContents("./var/tmp/yy", "yy")
 }
