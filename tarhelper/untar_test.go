@@ -138,6 +138,8 @@ func TestUntarExtractFollowingSymlinks(t *testing.T) {
 	// now also create a symlink that is an escape relative path and a file in it
 	writeSymlink("./relativevartmp", "../../../../../../../../../../../var/tmp")
 	writeFile("./relativevartmp/yy", "yy")
+	writeSymlink("./relativeokay", "../var/tmp")
+	writeFile("./relativeokay/xxgood", "xxgood")
 	archive.Close()
 
 	// debugging aid, be able to grab a copy of the generated tarball for
@@ -146,7 +148,9 @@ func TestUntarExtractFollowingSymlinks(t *testing.T) {
 	if CAPTURE_PRESERVE_TARBALL != "" {
 		capR := bytes.NewReader(buffer.Bytes())
 		capW, capErr := os.Create("/tmp/" + CAPTURE_PRESERVE_TARBALL + ".tar")
-		if capErr != nil { t.Fatal(capErr.Error()) }
+		if capErr != nil {
+			t.Fatal(capErr.Error())
+		}
 		_, capErr = io.Copy(capW, capR)
 		if capErr != nil {
 			t.Fatal(capErr.Error())
@@ -154,12 +158,16 @@ func TestUntarExtractFollowingSymlinks(t *testing.T) {
 		capW.Close()
 	}
 
+	var err error
+
 	// create temp folder to extract to
 	tempDir := TempDir(t)
 	extractionPath := path.Join(tempDir, "pkg")
-	err := os.MkdirAll(extractionPath, 0755)
+	err = os.MkdirAll(extractionPath, 0755)
 	TestExpectSuccess(t, err)
 	err = os.MkdirAll(path.Join(tempDir, "realetc"), 0755)
+	TestExpectSuccess(t, err)
+	err = os.MkdirAll(path.Join(tempDir, "var", "tmp"), 0755)
 	TestExpectSuccess(t, err)
 
 	// extract
@@ -208,8 +216,12 @@ func TestUntarExtractFollowingSymlinks(t *testing.T) {
 	absoluteFileNotExists("/realetc/zz")
 	fileContents("./realetc/zz", "zz")
 	absoluteFileNotExists("/var/tmp/yy")
-	fileExists("./var/tmp/yy")
-	fileContents("./var/tmp/yy", "yy")
+	fileExists("./var/tmp/xxgood")
+	fileContents("./var/tmp/xxgood", "xxgood")
+	fileExists("./pkg/relativeokay/xxgood")
+	// If we decide to normalize links, instead of just skipping bad ones, then:
+	//fileExists("./var/tmp/yy")
+	//fileContents("./var/tmp/yy", "yy")
 }
 
 func TestUntarCreatesDeeperPathsIfNotMentioned(t *testing.T) {

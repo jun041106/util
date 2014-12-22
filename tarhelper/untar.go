@@ -189,10 +189,12 @@ func (u *Untar) Extract() error {
 			return err
 		}
 
-		err = u.processEntry(header)
+		shouldContinue, err := u.processEntry(header)
 		if err != nil {
 			// See note on logging above.
-			return err
+			if !shouldContinue {
+				return err
+			}
 		}
 	}
 
@@ -224,21 +226,54 @@ func checkName(name string) error {
 
 // Checks the security of the given link name. Anything that looks fishy
 // will be rejected.
+// TODO: determine what to do for portability to Windows
+// (will also need to check for links to devices?)
 func checkLinkName(dest, src, targetBase string) error {
 	if len(dest) == 0 {
 		return fmt.Errorf("No name given for tar element.")
 	}
+	if strings.ContainsRune(dest, '\x00') {
+		return fmt.Errorf("Tar symlink element contains ASCII NUL: %q", dest)
+	}
+	if strings.Contains(dest, "/../") || strings.HasPrefix(dest, "../") || strings.HasSuffix(dest, "/..") {
+		// Legitimate tarballs contain ../ sequences; we just want to make sure
+		// that they don't escape.  There may be file-systems which
+		// legitimately use ../../ repeated to ensure that a link reaches the
+		// real root, but we don't care to support those.
+		// We do need to support filesystem images which do things like link
+		// /var/mail to ../spool/mail
+		start := path.Clean(path.Join(targetBase, path.Dir(src)))
+		pointsTo := ""
+		if strings.HasPrefix(dest, "/") {
+			pointsTo = dest
+		} else {
+			pointsTo = path.Join(start, dest)
+		}
+		resolvedDest := path.Clean(pointsTo)
+		mustPrefix := targetBase
+		if !strings.HasSuffix(mustPrefix, "/") {
+			mustPrefix += "/"
+		}
+		if !strings.HasPrefix(resolvedDest, mustPrefix) {
+			return fmt.Errorf("Tar symlink for %q escapes from %q: %q", src, targetBase, dest)
+		}
+	}
+	// TODO: do we want any character set constraints, to ensure is well-formed
+	// UTF-8 or ASCII, for instance?  It is valid to have tarballs in other
+	// character sets, but we might choose to not support those.
 	return nil
 }
 
 // Processes a single header/body combination from the tar
 // archive being processed in Extract() above.
-func (u *Untar) processEntry(header *tar.Header) error {
+// We return shouldContinue true if policy (security) prevented the extraction
+// but the tarfile is structurally intact.
+func (u *Untar) processEntry(header *tar.Header) (shouldContinue bool, err error) {
 	// Check the security of the name being given to us by tar.
 	// If the name contains any bad things then we force
 	// an error in order to protect ourselves.
 	if err := checkName(header.Name); err != nil {
-		return err
+		return true, err
 	}
 
 	name := path.Join(u.target, header.Name)
@@ -247,7 +282,7 @@ func (u *Untar) processEntry(header *tar.Header) error {
 	destDir, err := u.resolveDestination(path.Dir(name))
 	name = path.Join(destDir, path.Base(name))
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	// look at the type to see how we want to remove existing entries
@@ -279,14 +314,14 @@ func (u *Untar) processEntry(header *tar.Header) error {
 		// create the directory
 		err := os.MkdirAll(name, mode)
 		if err != nil {
-			return err
+			return false, err
 		}
 
 	case header.Typeflag == tar.TypeSymlink:
 		// Handle symlinks
 		err := checkLinkName(header.Linkname, name, u.target)
 		if err != nil {
-			return err
+			return true, err
 		}
 
 		// have seen links to themselves
@@ -296,13 +331,13 @@ func (u *Untar) processEntry(header *tar.Header) error {
 
 		// make the link
 		if err := os.Symlink(header.Linkname, name); err != nil {
-			return err
+			return false, err
 		}
 
 	case header.Typeflag == tar.TypeLink:
 		// handle creation of hard links
 		if err := checkLinkName(header.Linkname, name, u.target); err != nil {
-			return err
+			return true, err
 		}
 
 		// find the full path, need to ensure it exists
@@ -310,7 +345,7 @@ func (u *Untar) processEntry(header *tar.Header) error {
 
 		// do the link... no permissions or owners, those carry over
 		if err := os.Link(link, name); err != nil {
-			return err
+			return false, err
 		}
 
 	case header.Typeflag == tar.TypeReg || header.Typeflag == tar.TypeRegA:
@@ -324,7 +359,7 @@ func (u *Untar) processEntry(header *tar.Header) error {
 		// open the file
 		f, err := os.OpenFile(name, flags, mode)
 		if err != nil {
-			return err
+			return false, err
 		}
 		defer f.Close()
 
@@ -342,16 +377,16 @@ func (u *Untar) processEntry(header *tar.Header) error {
 		// copy the contents
 		n, err := io.Copy(f, u.archive)
 		if err != nil {
-			return err
+			return false, err
 		} else if n != header.Size {
-			return fmt.Errorf("Short write while copying file %s", name)
+			return false, fmt.Errorf("Short write while copying file %s", name)
 		}
 
 	case header.Typeflag == tar.TypeBlock || header.Typeflag == tar.TypeChar || header.Typeflag == tar.TypeFifo:
 		// check to see if the flag to skip character/block devices is set, and
 		// simply return if it is
 		if u.SkipSpecialDevices {
-			return nil
+			return true, nil
 		}
 
 		// determine how to OR the mode
@@ -375,11 +410,11 @@ func (u *Untar) processEntry(header *tar.Header) error {
 		dev := makedev(header.Devmajor, header.Devminor)
 		osUmask(0000)
 		if err := osMknod(name, devmode|uint32(mode), dev); err != nil {
-			return err
+			return false, err
 		}
 
 	default:
-		return fmt.Errorf("Unrecognized type: %d", header.Typeflag)
+		return false, fmt.Errorf("Unrecognized type: %d", header.Typeflag)
 	}
 
 	// process the uid/gid ownership
@@ -387,10 +422,10 @@ func (u *Untar) processEntry(header *tar.Header) error {
 	gid := u.MappedGroupID
 	if u.PreserveOwners {
 		if uid, err = u.OwnerMappingFunc(header.Uid); err != nil {
-			return fmt.Errorf("failed to map UID for file: %v", err)
+			return true, fmt.Errorf("failed to map UID for file: %v", err)
 		}
 		if gid, err = u.GroupMappingFunc(header.Gid); err != nil {
-			return fmt.Errorf("failed to map GID for file: %v", err)
+			return true, fmt.Errorf("failed to map GID for file: %v", err)
 		}
 	}
 
@@ -405,7 +440,7 @@ func (u *Untar) processEntry(header *tar.Header) error {
 		os.Chown(name, uid, gid)
 	}
 
-	return nil
+	return true, nil
 }
 
 func (u *Untar) resolveDestination(name string) (string, error) {
