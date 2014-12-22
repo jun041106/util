@@ -5,6 +5,7 @@ package tarhelper
 import (
 	"archive/tar"
 	"bytes"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/user"
@@ -17,6 +18,8 @@ import (
 
 	. "github.com/apcera/util/testtool"
 )
+
+const CAPTURE_PRESERVE_TARBALL string = ""
 
 func TestUntarResolveDestinations(t *testing.T) {
 	StartTest(t)
@@ -111,13 +114,32 @@ func TestUntarExtractFollowingSymlinks(t *testing.T) {
 	writeFile("./foo", "foo")
 	writeDirectory("./usr")
 	writeDirectory("./usr/bin")
+	writeDirectory("./var")
+	writeDirectory("./var/tmp")
 	writeFile("./usr/bin/bash", "bash")
 	writeSymlink("./usr/bin/sh", "bash")
 
 	// now write a symlink that is an absolute path and then a file in it
 	writeSymlink("./etc", "/realetc")
 	writeFile("./etc/zz", "zz")
+	// now also create a symlink that is an escape relative path and a file in it
+	writeSymlink("./relativevartmp", "../../../../../../../../../../../var/tmp")
+	writeFile("./relativevartmp/yy", "yy")
 	archive.Close()
+
+	// debugging aid, be able to grab a copy of the generated tarball for
+	// independent analysis; normally the const should be the empty string so
+	// that this block doesn't happen (vulnerable to symlink attacks, etc)
+	if CAPTURE_PRESERVE_TARBALL != "" {
+		capR := bytes.NewReader(buffer.Bytes())
+		capW, capErr := os.Create("/tmp/" + CAPTURE_PRESERVE_TARBALL + ".tar")
+		if capErr != nil { panic(capErr.Error()) }
+		_, capErr = io.Copy(capW, capR)
+		if capErr != nil {
+			panic(capErr.Error())
+		}
+		capW.Close()
+	}
 
 	// create temp folder to extract to
 	tempDir := TempDir(t)
@@ -136,6 +158,11 @@ func TestUntarExtractFollowingSymlinks(t *testing.T) {
 	fileExists := func(name string) {
 		_, err := os.Stat(path.Join(tempDir, name))
 		TestExpectSuccess(t, err)
+	}
+
+	fileNotExists := func(name string) {
+		_, err := os.Stat(path.Join(tempDir, name))
+		TestExpectError(t, err)
 	}
 
 	fileContents := func(name, contents string) {
@@ -165,7 +192,11 @@ func TestUntarExtractFollowingSymlinks(t *testing.T) {
 	// follow the real symlink
 	fileSymlinks("./pkg/etc", "/realetc")
 	fileExists("./realetc/zz")
+	fileNotExists("/realetc/zz")
 	fileContents("./realetc/zz", "zz")
+	fileNotExists("/var/tmp/yy")
+	fileExists("./var/tmp/yy")
+	fileContents("./var/tmp/yy", "yy")
 }
 
 func TestUntarCreatesDeeperPathsIfNotMentioned(t *testing.T) {
