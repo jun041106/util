@@ -15,6 +15,8 @@ import (
 
 	"github.com/apcera/logging"
 	"github.com/apcera/logging/unittest"
+	"github.com/apcera/logray"
+	unittestray "github.com/apcera/logray/unittest"
 )
 
 // Common interface that can be used to allow testing.B and testing.T objects
@@ -85,6 +87,7 @@ func init() {
 // Stores output from the logging system so it can be written only if
 // the test actually fails.
 var LogBuffer *unittest.LogBuffer
+var LogBufferRay *unittestray.LogBuffer
 
 // This is a list of functions that will be run on test completion. Having
 // this allows us to clean up temporary directories or files after the
@@ -102,8 +105,10 @@ func AddTestFinalizer(f func()) {
 func StartTest(l Logger) {
 	if !streamTestOutput {
 		LogBuffer = unittest.SetupBuffer()
+		LogBufferRay = unittestray.SetupBuffer()
 	} else {
 		logging.AddOutput("^default$", true, "stdout://", logging.ALL)
+		logray.AddDefaultOutput("stdout://", logray.ALL)
 	}
 	logging.LockOutput()
 }
@@ -118,6 +123,9 @@ func FinishTest(l Logger) {
 	Finalizers = nil
 	if LogBuffer != nil {
 		LogBuffer.FinishTest(l)
+	}
+	if LogBufferRay != nil {
+		LogBufferRay.FinishTest(l)
 	}
 	logging.UnlockOutput()
 }
