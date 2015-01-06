@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path"
 	"testing"
 
 	. "github.com/apcera/util/testtool"
@@ -23,6 +24,7 @@ func makeTestDir(t *testing.T) string {
 	dir := TempDir(t)
 	TestExpectSuccess(t, os.Chdir(dir))
 	mode := os.FileMode(0755)
+	os.Mkdir(cwd, mode) //Don't care about return value.  For some reason CWD is not created by go test on all systems.
 	TestExpectSuccess(t, os.Mkdir("a", mode))
 	TestExpectSuccess(t, os.Mkdir("a/b", mode))
 	TestExpectSuccess(t, os.Mkdir("a/b/c", mode))
@@ -179,10 +181,10 @@ func TestPathExclusion(t *testing.T) {
 	tw.ExcludePath("/one.*")
 	tw.ExcludePath("/two/two/.*")
 	tw.ExcludePath("/three/three/three.*")
-	TestExpectSuccess(t, tw.processEntry("/one/something", nil))
-	TestExpectSuccess(t, tw.processEntry("/two/two/something", nil))
-	TestExpectSuccess(t, tw.processEntry("/three/three/three-something", nil))
-	TestExpectError(t, tw.processEntry("/two/two-something", nil))
+	TestExpectSuccess(t, tw.processEntry("/one/something", nil, []string{}))
+	TestExpectSuccess(t, tw.processEntry("/two/two/something", nil, []string{}))
+	TestExpectSuccess(t, tw.processEntry("/three/three/three-something", nil, []string{}))
+	TestExpectError(t, tw.processEntry("/two/two-something", nil, []string{}))
 }
 
 func TestTarIDMapping(t *testing.T) {
@@ -220,4 +222,287 @@ func TestTarIDMapping(t *testing.T) {
 		TestEqual(t, header.Uid, 0)
 		TestEqual(t, header.Gid, 0)
 	}
+}
+
+func TestSymlinkOptDereferenceLinkToFile(t *testing.T) {
+	cwd, err := os.Getwd()
+	TestExpectSuccess(t, err)
+	AddTestFinalizer(func() {
+		TestExpectSuccess(t, os.Chdir(cwd))
+	})
+
+	StartTest(t)
+	defer FinishTest(t)
+
+	dir := TempDir(t)
+	TestExpectSuccess(t, os.Chdir(dir))
+	mode := os.FileMode(0755)
+	TestExpectSuccess(t, os.Mkdir("a", mode))
+	TestExpectSuccess(t, os.Mkdir("a/b", mode))
+	TestExpectSuccess(t, os.Mkdir("a/b/c", mode))
+	TestExpectSuccess(t, os.Mkdir("a/b/c/d", mode))
+	TestExpectSuccess(t, os.Mkdir("a/b/i", mode))
+	TestExpectSuccess(t, ioutil.WriteFile("a/b/i/j", []byte{'t', 'e', 's', 't'}, mode))
+	TestExpectSuccess(t, os.Symlink("/bin/bash", "a/b/bash"))
+	TestExpectSuccess(t, os.Symlink("../i/j", "a/b/c/lj"))
+	w := bytes.NewBufferString("")
+	tw := NewTar(w, dir)
+	tw.UserOptions |= c_DEREF
+	TestExpectSuccess(t, tw.Archive())
+
+	extractionPath := path.Join(dir, "pkg")
+	err = os.MkdirAll(extractionPath, 0755)
+	TestExpectSuccess(t, err)
+
+	// extract
+	r := bytes.NewReader(w.Bytes())
+	u := NewUntar(r, extractionPath)
+	u.AbsoluteRoot = dir
+	TestExpectSuccess(t, u.Extract())
+
+	dirExists := func(name string) {
+		f, err := os.Stat(path.Join(extractionPath, name))
+		TestExpectSuccess(t, err)
+		TestEqual(t, true, f.IsDir())
+	}
+
+	sameFileContents := func(f1 string, f2 string) {
+		b1, err := ioutil.ReadFile(f1)
+		TestExpectSuccess(t, err)
+
+		b2, err := ioutil.ReadFile(f2)
+		TestExpectSuccess(t, err)
+		TestEqual(t, b1, b2)
+	}
+
+	// Verify dirs a, a/b, a/b/c, a/b/c/d
+	dirExists("./a")
+	dirExists("./a/b")
+	dirExists("./a/b/c")
+	dirExists("./a/b/c/d")
+	dirExists("./a/b/i")
+
+	// Verify a/b/bash and /bin/bash are same
+	sameFileContents(path.Join(extractionPath, "./a/b/bash"), "/bin/bash")
+
+	// Verify that a/b/i/j and a/b/c/lj contents are same
+	sameFileContents(path.Join(extractionPath, "./a/b/i/j"), path.Join(extractionPath, "./a/b/c/lj"))
+}
+
+func TestSymlinkOptDereferenceLinkToDir(t *testing.T) {
+	cwd, err := os.Getwd()
+	TestExpectSuccess(t, err)
+	AddTestFinalizer(func() {
+		TestExpectSuccess(t, os.Chdir(cwd))
+	})
+
+	StartTest(t)
+	defer FinishTest(t)
+
+	dir := TempDir(t)
+	TestExpectSuccess(t, os.Chdir(dir))
+	mode := os.FileMode(0755)
+	TestExpectSuccess(t, os.Mkdir("a", mode))
+	TestExpectSuccess(t, os.Mkdir("a/b", mode))
+	TestExpectSuccess(t, os.Mkdir("a/b/c", mode))
+	TestExpectSuccess(t, os.Mkdir("a/b/c/d", mode))
+	TestExpectSuccess(t, os.Mkdir("a/b/i", mode))
+	TestExpectSuccess(t, ioutil.WriteFile("a/b/i/j", []byte{'t', 'e', 's', 't'}, mode))
+	TestExpectSuccess(t, os.Symlink("/bin/bash", "a/b/bash"))
+	TestExpectSuccess(t, os.Symlink("../i", "a/b/c/l"))
+	w := bytes.NewBufferString("")
+	tw := NewTar(w, dir)
+	tw.UserOptions |= c_DEREF
+	TestExpectSuccess(t, tw.Archive())
+
+	extractionPath := path.Join(dir, "pkg")
+	err = os.MkdirAll(extractionPath, 0755)
+	TestExpectSuccess(t, err)
+
+	// extract
+	r := bytes.NewReader(w.Bytes())
+	u := NewUntar(r, extractionPath)
+	u.AbsoluteRoot = dir
+	TestExpectSuccess(t, u.Extract())
+
+	dirExists := func(name string) {
+		f, err := os.Stat(path.Join(extractionPath, name))
+		TestExpectSuccess(t, err)
+		TestEqual(t, true, f.IsDir())
+	}
+
+	sameFileContents := func(f1 string, f2 string) {
+		b1, err := ioutil.ReadFile(f1)
+		TestExpectSuccess(t, err)
+
+		b2, err := ioutil.ReadFile(f2)
+		TestExpectSuccess(t, err)
+		TestEqual(t, b1, b2)
+	}
+
+	// Verify dirs a, a/b, a/b/c, a/b/c/d
+	dirExists("./a")
+	dirExists("./a/b")
+	dirExists("./a/b/c")
+	dirExists("./a/b/c/d")
+	dirExists("./a/b/i")
+
+	// Verify a/b/bash and /bin/bash are same
+	sameFileContents(path.Join(extractionPath, "./a/b/bash"), "/bin/bash")
+
+	// Verify that a/b/i/j and a/b/c/l/j contents are same
+	sameFileContents(path.Join(extractionPath, "./a/b/i/j"), path.Join(extractionPath, "./a/b/c/l/j"))
+}
+
+func TestSymlinkOptDereferenceCircular(t *testing.T) {
+	cwd, err := os.Getwd()
+	TestExpectSuccess(t, err)
+	AddTestFinalizer(func() {
+		TestExpectSuccess(t, os.Chdir(cwd))
+	})
+
+	StartTest(t)
+	defer FinishTest(t)
+
+	dir := TempDir(t)
+	TestExpectSuccess(t, os.Chdir(dir))
+	mode := os.FileMode(0755)
+	TestExpectSuccess(t, os.Mkdir("a", mode))
+	TestExpectSuccess(t, os.Mkdir("a/b", mode))
+	TestExpectSuccess(t, os.Mkdir("a/b/c", mode))
+	TestExpectSuccess(t, os.Mkdir("a/b/c/d", mode))
+	TestExpectSuccess(t, os.Mkdir("a/b/i", mode))
+	TestExpectSuccess(t, ioutil.WriteFile("a/b/i/j", []byte{'t', 'e', 's', 't'}, mode))
+	TestExpectSuccess(t, os.Symlink("/bin/bash", "a/b/bash"))
+	TestExpectSuccess(t, os.Symlink(dir+"/a/b/c/l", "a/b/i/ll"))
+	TestExpectSuccess(t, os.Symlink("../i", "a/b/c/l"))
+	w := bytes.NewBufferString("")
+	tw := NewTar(w, dir)
+	tw.UserOptions |= c_DEREF
+	TestExpectSuccess(t, tw.Archive())
+
+	extractionPath := path.Join(dir, "pkg")
+	err = os.MkdirAll(extractionPath, 0755)
+	TestExpectSuccess(t, err)
+
+	// extract
+	r := bytes.NewReader(w.Bytes())
+	u := NewUntar(r, extractionPath)
+	u.AbsoluteRoot = dir
+	TestExpectSuccess(t, u.Extract())
+
+	fileExists := func(name string) {
+		_, err := os.Stat(path.Join(extractionPath, name))
+		TestExpectSuccess(t, err)
+	}
+
+	dirExists := func(name string) {
+		f, err := os.Stat(path.Join(extractionPath, name))
+		TestExpectSuccess(t, err)
+		TestEqual(t, true, f.IsDir())
+	}
+
+	sameFileContents := func(f1 string, f2 string) {
+		b1, err := ioutil.ReadFile(f1)
+		TestExpectSuccess(t, err)
+
+		b2, err := ioutil.ReadFile(f2)
+		TestExpectSuccess(t, err)
+		TestEqual(t, b1, b2)
+	}
+
+	// Verify dirs a, a/b, a/b/c, a/b/c/d
+	dirExists("./a")
+	dirExists("./a/b")
+	dirExists("./a/b/c")
+	dirExists("./a/b/c/d")
+	dirExists("./a/b/i")
+
+	// Verify that the file 'j' exists in both a/b/i and a/b/c/l
+	fileExists("./a/b/i/j")
+	fileExists("./a/b/c/l/j")
+
+	// Verify a/b/bash
+	sameFileContents(path.Join(extractionPath, "./a/b/bash"), "/bin/bash")
+
+	// Verify that a/b/i/j and a/b/c/l/j contents are same
+	sameFileContents(path.Join(extractionPath, "./a/b/i/j"), path.Join(extractionPath, "./a/b/c/l/j"))
+
+	// Verify that the circular symbolic link a/b/i/ll does not exis
+	_, err = os.Stat(path.Join(extractionPath, "./a/b/i/ll"))
+	TestEqual(t, true, os.IsNotExist(err))
+}
+
+func TestSymlinkOptDereferenceCircularToRoot(t *testing.T) {
+	cwd, err := os.Getwd()
+	TestExpectSuccess(t, err)
+	AddTestFinalizer(func() {
+		TestExpectSuccess(t, os.Chdir(cwd))
+	})
+
+	StartTest(t)
+	defer FinishTest(t)
+
+	dir := TempDir(t)
+	TestExpectSuccess(t, os.Chdir(dir))
+	mode := os.FileMode(0755)
+	TestExpectSuccess(t, os.Mkdir("a", mode))
+	TestExpectSuccess(t, os.Mkdir("a/b", mode))
+	TestExpectSuccess(t, os.Mkdir("a/b/c", mode))
+	TestExpectSuccess(t, os.Mkdir("a/b/c/d", mode))
+	TestExpectSuccess(t, os.Mkdir("a/b/i", mode))
+	TestExpectSuccess(t, ioutil.WriteFile("a/b/i/j", []byte{'t', 'e', 's', 't'}, mode))
+	TestExpectSuccess(t, os.Symlink("/bin/bash", "a/b/bash"))
+	TestExpectSuccess(t, os.Symlink(dir+"/a", "a/b/i/ll"))
+	w := bytes.NewBufferString("")
+	tw := NewTar(w, dir)
+	tw.UserOptions |= c_DEREF
+	TestExpectSuccess(t, tw.Archive())
+
+	extractionPath := path.Join(dir, "pkg")
+	err = os.MkdirAll(extractionPath, 0755)
+	TestExpectSuccess(t, err)
+
+	// extract
+	r := bytes.NewReader(w.Bytes())
+	u := NewUntar(r, extractionPath)
+	u.AbsoluteRoot = dir
+	TestExpectSuccess(t, u.Extract())
+
+	fileExists := func(name string) {
+		_, err := os.Stat(path.Join(extractionPath, name))
+		TestExpectSuccess(t, err)
+	}
+
+	dirExists := func(name string) {
+		f, err := os.Stat(path.Join(extractionPath, name))
+		TestExpectSuccess(t, err)
+		TestEqual(t, true, f.IsDir())
+	}
+
+	sameFileContents := func(f1 string, f2 string) {
+		b1, err := ioutil.ReadFile(f1)
+		TestExpectSuccess(t, err)
+
+		b2, err := ioutil.ReadFile(f2)
+		TestExpectSuccess(t, err)
+		TestEqual(t, b1, b2)
+	}
+
+	// Verify dirs a, a/b, a/b/c, a/b/c/d
+	dirExists("./a")
+	dirExists("./a/b")
+	dirExists("./a/b/c")
+	dirExists("./a/b/c/d")
+	dirExists("./a/b/i")
+
+	// Verify that the file 'j' exists in a/b/i
+	fileExists("./a/b/i/j")
+
+	// Verify a/b/bash
+	sameFileContents(path.Join(extractionPath, "./a/b/bash"), "/bin/bash")
+
+	// Verify that the circular symbolic link a/b/i/ll does not exist
+	_, err = os.Stat(path.Join(extractionPath, "./a/b/i/ll"))
+	TestEqual(t, true, os.IsNotExist(err))
 }

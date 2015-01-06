@@ -14,6 +14,14 @@ import (
 	"strings"
 )
 
+// User options enumeration type. This encodes the control options provided
+// by user.
+type UserOption int
+
+// To track circular symbolic links for the dereference archive option.
+// Declaring a type here to highlight the semantics.
+type DirStack []string
+
 // Tar manages state for a TAR archive.
 type Tar struct {
 	target string
@@ -72,7 +80,16 @@ type Tar struct {
 	// use within the tar file. It can also return an error if it is unable to
 	// choose a GID or the GID is not allowed.
 	GroupMappingFunc func(int) (int, error)
+
+	// User provided control options. UserOption enum has the
+	// definitions and explanations for the various flags.
+	UserOptions UserOption
 }
+
+// UserOption definitions.
+const (
+	c_DEREF UserOption = 1 << iota // Follow symbolic links when archiving.
+)
 
 // Mode constants from the tar spec.
 const (
@@ -132,7 +149,7 @@ func (t *Tar) Archive() error {
 	}
 
 	// walk the directory tree
-	if err := t.processEntry(".", f); err != nil {
+	if err := t.processEntry(".", f, []string{}); err != nil {
 		return err
 	}
 
@@ -153,7 +170,7 @@ func (t *Tar) ExcludePath(pathRE string) {
 	}
 }
 
-func (t *Tar) processDirectory(dir string) error {
+func (t *Tar) processDirectory(dir string, dirStack []string) error {
 	// get directory entries
 	files, err := ioutil.ReadDir(filepath.Join(t.target, dir))
 	if err != nil {
@@ -162,7 +179,7 @@ func (t *Tar) processDirectory(dir string) error {
 
 	for _, f := range files {
 		fullName := filepath.Join(dir, f.Name())
-		if err := t.processEntry(fullName, f); err != nil {
+		if err := t.processEntry(fullName, f, dirStack); err != nil {
 			return err
 		}
 	}
@@ -170,7 +187,7 @@ func (t *Tar) processDirectory(dir string) error {
 	return nil
 }
 
-func (t *Tar) processEntry(fullName string, f os.FileInfo) error {
+func (t *Tar) processEntry(fullName string, f os.FileInfo, dirStack []string) error {
 	var err error
 
 	// Exclude any files or paths specified by the user.
@@ -221,8 +238,15 @@ func (t *Tar) processEntry(fullName string, f os.FileInfo) error {
 		if err != nil {
 			return err
 		}
+
+		// Push the directory to stack
+		p, err := filepath.Abs(fullName)
+		if err != nil {
+			return fmt.Errorf("error getting absolute path for path %q, err='%v'\n", fullName, err)
+		}
+
 		// process the directory's entries next
-		if err = t.processDirectory(fullName); err != nil {
+		if err = t.processDirectory(fullName, append(dirStack, p)); err != nil {
 			return err
 		}
 
@@ -238,12 +262,71 @@ func (t *Tar) processEntry(fullName string, f os.FileInfo) error {
 		if err != nil {
 			return err
 		}
-		header.Linkname = link
 
-		// write the header
-		err = t.archive.WriteHeader(header)
-		if err != nil {
-			return err
+		if t.UserOptions&c_DEREF != 0 {
+			// Evaluate the path for the link. This will give us the
+			// complete absolute path with all symlinks resolved.
+			slink, err := filepath.EvalSymlinks(link)
+			if err != nil {
+				return fmt.Errorf("error evaluating symlink %q, err='%v'", link, err)
+			}
+
+			for _, elem := range dirStack {
+				if slink == elem {
+					Log.Infof("circular link detectected : %q", fullName)
+					// We don't want to abort if we detect a cycle.
+					// Let it continue  without this path element.
+					return nil
+				}
+			}
+
+			// Ok we are not in a circular path. Proceed.
+			f, err := os.Stat(slink)
+			if err != nil {
+				return fmt.Errorf("error getting file stat for %q, err='%v'", slink, err)
+			}
+
+			if f.IsDir() {
+				// Write the header so that the symlinked directory contents appears
+				// under current dir.
+				header, err := tar.FileInfoHeader(f, "")
+				if err != nil {
+					return err
+				}
+				header.Name = "./" + fullName + "/"
+
+				// write the header
+				err = t.archive.WriteHeader(header)
+				if err != nil {
+					return err
+				}
+
+				return t.processDirectory(fullName, append(dirStack, slink))
+			} else {
+				return t.processEntry(fullName, f, dirStack)
+			}
+
+		} else {
+			dir := filepath.Dir(fullName)
+			// If the link path contains the target path, then convert the link to be
+			// relative. This ensures it is properly preserved wherever it is later
+			// extracted. If it is a path outside the target, then preserve it as an
+			// absolute path.
+			if strings.Contains(link, t.target) {
+				// remove the targetdir to ensure the link is relative
+				link, err = filepath.Rel(filepath.Join(t.target, dir), link)
+				if err != nil {
+					return err
+				}
+			}
+
+			header.Linkname = link
+			// write the header
+			err = t.archive.WriteHeader(header)
+			if err != nil {
+				return err
+			}
+
 		}
 
 	// regular file handling
@@ -340,18 +423,6 @@ func cleanLinkName(targetDir, name string) (string, error) {
 
 	// do a quick clean pass
 	link = filepath.Clean(link)
-
-	// if the link path contains the target path, then convert the link to be
-	// relative. this ensures it is properly preserved whereever it is later
-	// extracted. if it is a path outside the target, then preserve it as an
-	// absolute path
-	if strings.Contains(link, targetDir) {
-		// remove the targetdir to ensure the link is relative
-		link, err = filepath.Rel(filepath.Join(targetDir, dir), link)
-		if err != nil {
-			return "", err
-		}
-	}
 
 	return link, nil
 }
