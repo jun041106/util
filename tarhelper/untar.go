@@ -1,10 +1,9 @@
-// Copyright 2012-2014 Apcera Inc. All rights reserved.
+// Copyright 2012-2015 Apcera Inc. All rights reserved.
 
 package tarhelper
 
 import (
 	"archive/tar"
-	"bufio"
 	"fmt"
 	"io"
 	"os"
@@ -160,41 +159,11 @@ func (u *Untar) Extract() error {
 		u.archive = tar.NewReader(u.source)
 
 	case DETECT:
-		var comp Decompressor
-
-		// setup a buffered reader
-		br := bufio.NewReader(u.source)
-
-		// loop over the registered decompressors to find the right one
-		for _, c := range decompressorTypes {
-			if c.Detect(br) {
-				comp = c
-				break
-			}
+		arch, err := DetectArchiveCompression(u.source)
+		if err != nil {
+			return err
 		}
-
-		// Set the bufio.Reader to source, as calling Peek on br will trigger a read
-		// on the underlying io.Reader. This can create inconsistencies if something
-		// tries to re-use the original reader.
-		u.source = br
-
-		// Create the reader if a compression handler was found, else fall back on
-		// using no compression.
-		if comp != nil {
-			// Create the reader
-			arch, err := comp.NewReader(u.source)
-			if err != nil {
-				return err
-			}
-			defer func() {
-				if cl, ok := arch.(io.ReadCloser); ok {
-					cl.Close()
-				}
-			}()
-			u.archive = tar.NewReader(arch)
-		} else {
-			u.archive = tar.NewReader(u.source)
-		}
+		u.archive = arch
 
 	default:
 		// Look up the compression handler
