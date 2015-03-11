@@ -13,10 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/apcera/logging"
-	"github.com/apcera/logging/unittest"
 	"github.com/apcera/logray"
-	unittestray "github.com/apcera/logray/unittest"
+	"github.com/apcera/logray/unittest"
 )
 
 // Common interface that can be used to allow testing.B and testing.T objects
@@ -87,7 +85,6 @@ func init() {
 // Stores output from the logging system so it can be written only if
 // the test actually fails.
 var LogBuffer *unittest.LogBuffer
-var LogBufferRay *unittestray.LogBuffer
 
 // This is a list of functions that will be run on test completion. Having
 // this allows us to clean up temporary directories or files after the
@@ -105,12 +102,9 @@ func AddTestFinalizer(f func()) {
 func StartTest(l Logger) {
 	if !streamTestOutput {
 		LogBuffer = unittest.SetupBuffer()
-		LogBufferRay = unittestray.SetupBuffer()
 	} else {
-		logging.AddOutput("^default$", true, "stdout://", logging.ALL)
 		logray.AddDefaultOutput("stdout://", logray.ALL)
 	}
-	logging.LockOutput()
 }
 
 // Called as a defer to a test in order to clean up after a test run. All
@@ -124,10 +118,6 @@ func FinishTest(l Logger) {
 	if LogBuffer != nil {
 		LogBuffer.FinishTest(l)
 	}
-	if LogBufferRay != nil {
-		LogBufferRay.FinishTest(l)
-	}
-	logging.UnlockOutput()
 }
 
 // Call this to require that your test is run as root. NOTICE: this does not
@@ -296,9 +286,6 @@ func Fatalf(l Logger, f string, args ...interface{}) {
 		msg := fmt.Sprintf("%d - %s:%d", i, file, line)
 		lines = append(lines, msg)
 	}
-
-	logging.Errorf("Test has failed: %s", msg)
-	logging.Error("=== END OF TEST OUTPUT ===")
 	l.Fatalf("%s", strings.Join(lines, "\n"))
 }
 
