@@ -59,6 +59,19 @@ func TestHelper_newRequest(t *testing.T) {
 	tt.TestEqual(t, req.Headers, http.Header(map[string][]string{}))
 }
 
+func TestHelper_newRequestWithParams(t *testing.T) {
+	tt.StartTest(t)
+	defer tt.FinishTest(t)
+
+	client, err := New("http://example.com/resources")
+	tt.TestExpectSuccess(t, err)
+	req := client.newRequest(GET, "/excellence?yeah=stuff&more=params")
+
+	tt.TestEqual(t, req.Method, GET)
+	tt.TestEqual(t, req.URL.String(), "http://example.com/resources/excellence?yeah=stuff&more=params")
+	tt.TestEqual(t, req.Headers, http.Header(map[string][]string{}))
+}
+
 func TestNewRequest(t *testing.T) {
 	tt.StartTest(t)
 	defer tt.FinishTest(t)
