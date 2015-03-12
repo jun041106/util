@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"strings"
 	"time"
 )
 
@@ -191,6 +192,7 @@ func (c *Client) NewJsonRequest(method Method, endpoint string, obj interface{})
 		httpReq.Header.Set("Content-Type", "application/json")
 		return nil
 	}
+
 	return req
 }
 
@@ -269,8 +271,16 @@ func (r *Request) HTTPRequest() (*http.Request, error) {
 
 // resourceURL returns a *url.URL with the path resolved for a resource under base.
 func resourceURL(base *url.URL, relPath string) *url.URL {
-	ref := &url.URL{Path: path.Join(base.Path, relPath)}
+	relPath, rawQuery := splitPathQuery(relPath)
+	ref := &url.URL{Path: path.Join(base.Path, relPath), RawQuery: rawQuery}
 	return base.ResolveReference(ref)
+}
+
+func splitPathQuery(relPath string) (retPath, rawQuery string) {
+	parsedPath, _ := url.Parse(relPath)
+	rawQuery = parsedPath.RawQuery
+	retPath = strings.TrimSuffix(relPath, fmt.Sprintf("?%s", rawQuery))
+	return
 }
 
 func unmarshal(resp *http.Response, v interface{}) error {
