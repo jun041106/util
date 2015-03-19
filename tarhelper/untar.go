@@ -201,33 +201,33 @@ func (u *Untar) Extract() error {
 	return nil
 }
 
-// Checks the security of the given name. Anything that looks
+// checkname checks the security of the given name. Anything that looks
 // fishy will be rejected.
 func checkName(name string) error {
 	if len(name) == 0 {
-		return fmt.Errorf("No name given for tar element.")
+		return fmt.Errorf("no name given for tar element.")
 	}
-	comp := strings.Split(name, string(os.PathSeparator))
-	if len(comp) > 0 && comp[0] == "" {
-		return fmt.Errorf("No absolute paths allowed.")
+	if path.IsAbs(name) {
+		return fmt.Errorf("no absolute paths allowed.")
 	}
-	for i, c := range comp {
-		switch {
-		case c == "" && i != len(comp)-1:
-			// don't allow an empty name, unless it is the last element... handles
-			// cases where we may have "./" come in as the name
-			return fmt.Errorf("Empty name in file path.")
-		case c == "..":
-			return fmt.Errorf("Double dots not allowed in path.")
+	// Tar files use '/' per spec
+	for _, part := range strings.Split(name, "/") {
+		if part == ".." {
+			return fmt.Errorf("names may not include paths with '..'")
+		} else if part == "" {
+			return fmt.Errorf("names may not include empty segments")
 		}
 	}
 	return nil
 }
 
-// Checks the security of the given link name. Anything that looks fishy
-// will be rejected.
-// TODO: determine what to do for portability to Windows
-// (will also need to check for links to devices?)
+// checkLinkName checks the security of the given link name. Anything that
+// looks fishy will be rejected.  Legitimate tarballs contain `../` sequences;
+// we just want to make sure that they don't escape.  There may be file-
+// systems which legitimately use `../../` repeated to ensure that a link
+// reaches the real root, but we don't care to support those. We do need to
+// support filesystem images which do things like link `/var/mail` to
+// `../spool/mail`
 func checkLinkName(dest, src, targetBase string) error {
 	if len(dest) == 0 {
 		return fmt.Errorf("No name given for tar element.")
@@ -235,39 +235,25 @@ func checkLinkName(dest, src, targetBase string) error {
 	if strings.ContainsRune(dest, '\x00') {
 		return fmt.Errorf("Tar symlink element contains ASCII NUL: %q", dest)
 	}
-	if strings.Contains(dest, "/../") || strings.HasPrefix(dest, "../") || strings.HasSuffix(dest, "/..") {
-		// Legitimate tarballs contain ../ sequences; we just want to make sure
-		// that they don't escape.  There may be file-systems which
-		// legitimately use ../../ repeated to ensure that a link reaches the
-		// real root, but we don't care to support those.
-		// We do need to support filesystem images which do things like link
-		// /var/mail to ../spool/mail
-		start := path.Clean(path.Join(targetBase, path.Dir(src)))
-		pointsTo := ""
-		if strings.HasPrefix(dest, "/") {
-			pointsTo = dest
-		} else {
-			pointsTo = path.Join(start, dest)
-		}
-		resolvedDest := path.Clean(pointsTo)
-		mustPrefix := targetBase
-		if !strings.HasSuffix(mustPrefix, "/") {
-			mustPrefix += "/"
-		}
-		if !strings.HasPrefix(resolvedDest, mustPrefix) {
-			return fmt.Errorf("Tar symlink for %q escapes from %q: %q", src, targetBase, dest)
-		}
+
+	if !path.IsAbs(dest) {
+		dest = path.Join(targetBase, path.Dir(src), dest)
 	}
+	dest = path.Clean(dest)
+
+	if matched, err := path.Match(path.Join(targetBase, "*"), dest); err != nil || !matched {
+		return fmt.Errorf("Tar symlink for %q escapes from %q: %q", src, targetBase, dest)
+	}
+
 	// TODO: do we want any character set constraints, to ensure is well-formed
 	// UTF-8 or ASCII, for instance?  It is valid to have tarballs in other
 	// character sets, but we might choose to not support those.
 	return nil
 }
 
-// Processes a single header/body combination from the tar
-// archive being processed in Extract() above.
-// We return shouldContinue true if policy (security) prevented the extraction
-// but the tarfile is structurally intact.
+// processEntry processes a single header/body combination from the tar archive being
+// processed in Extract() above. We return shouldContinue true if policy
+// (security) prevented the extraction but the tarfile is structurally intact.
 func (u *Untar) processEntry(header *tar.Header) (shouldContinue bool, err error) {
 	// Check the security of the name being given to us by tar.
 	// If the name contains any bad things then we force
