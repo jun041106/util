@@ -75,8 +75,12 @@ func GetImage(name string) (*Image, error) {
 		return nil, err
 	}
 	defer res.Body.Close()
-
-	if res.StatusCode != http.StatusOK {
+	switch res.StatusCode {
+	case http.StatusOK:
+		// Fall through.
+	case http.StatusNotFound:
+		return nil, fmt.Errorf("image %q not found", name)
+	default:
 		return nil, fmt.Errorf("HTTP %d ", res.StatusCode)
 	}
 
