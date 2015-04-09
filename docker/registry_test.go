@@ -34,7 +34,7 @@ func TestGetImage(t *testing.T) {
 	img, err = GetImage("base", "")
 	tt.TestExpectSuccess(t, err)
 
-	tt.TestEqual(t, img.Name, "library/base")
+	tt.TestEqual(t, img.Name, "base")
 }
 
 func TestGetImageHistory(t *testing.T) {

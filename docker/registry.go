@@ -13,12 +13,9 @@ import (
 	"strings"
 )
 
-const (
-	dockerDefaultRepoPrefix = "library"
-)
-
 var (
-	DockerHubRegistryURL = "https://index.docker.io" // Tests can change it to point to a mock registry.
+	// DockerHubRegistryURL points to the official Docker registry.
+	DockerHubRegistryURL = "https://index.docker.io"
 )
 
 // Image is a Docker image info (constructed from Docker API response).
@@ -35,14 +32,10 @@ type Image struct {
 }
 
 // GetImage fetches Docker repository information from the specified Docker
-// registry, if the registry is the empty string it defaults to the DockerHub.
+// registry. If the registry is an empty string it defaults to the DockerHub.
 func GetImage(name, registryURL string) (*Image, error) {
 	if name == "" {
 		return nil, errors.New("image name is empty")
-	}
-
-	if strings.Count(name, "/") == 0 {
-		name = fmt.Sprintf("%s/%s", dockerDefaultRepoPrefix, name)
 	}
 
 	var ru *url.URL

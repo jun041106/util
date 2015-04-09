@@ -38,7 +38,7 @@ var (
 			"latest": "deadbeef",
 			"base":   "badcafe",
 		},
-		"library/base": {
+		"base": {
 			"latest": "badcafe",
 		},
 	}
