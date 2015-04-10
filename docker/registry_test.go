@@ -15,33 +15,33 @@ import (
 
 func init() {
 	registry := dockertest.RunMockRegistry()
-	IndexURL = registry.URL
+	DockerHubRegistryURL = registry.URL
 }
 
 func TestGetImage(t *testing.T) {
 	tt.StartTest(t)
 	defer tt.FinishTest(t)
 
-	img, err := GetImage("")
+	img, err := GetImage("", "")
 	tt.TestExpectError(t, err)
 	tt.TestEqual(t, err.Error(), "image name is empty")
 
-	img, err = GetImage("foo/bar")
+	img, err = GetImage("foo/bar", "")
 	tt.TestExpectSuccess(t, err)
 
 	tt.TestEqual(t, img.Name, "foo/bar")
 
-	img, err = GetImage("base")
+	img, err = GetImage("base", "")
 	tt.TestExpectSuccess(t, err)
 
-	tt.TestEqual(t, img.Name, "library/base")
+	tt.TestEqual(t, img.Name, "base")
 }
 
 func TestGetImageHistory(t *testing.T) {
 	tt.StartTest(t)
 	defer tt.FinishTest(t)
 
-	img, err := GetImage("foo/bar")
+	img, err := GetImage("foo/bar", "")
 	tt.TestExpectSuccess(t, err)
 
 	h, err := img.History("tag2")
@@ -59,7 +59,7 @@ func TestGetImageTags(t *testing.T) {
 	tt.StartTest(t)
 	defer tt.FinishTest(t)
 
-	img, err := GetImage("foo/bar")
+	img, err := GetImage("foo/bar", "")
 	tt.TestExpectSuccess(t, err)
 
 	tags := img.Tags()
@@ -71,7 +71,7 @@ func TestGetImageTagLayerID(t *testing.T) {
 	tt.StartTest(t)
 	defer tt.FinishTest(t)
 
-	img, err := GetImage("foo/bar")
+	img, err := GetImage("foo/bar", "")
 	tt.TestExpectSuccess(t, err)
 
 	_, err = img.TagLayerID("tag2")
@@ -91,7 +91,7 @@ func TestGetImageMetadata(t *testing.T) {
 	tt.StartTest(t)
 	defer tt.FinishTest(t)
 
-	img, err := GetImage("foo/bar")
+	img, err := GetImage("foo/bar", "")
 	tt.TestExpectSuccess(t, err)
 
 	var m1 map[string]interface{}
@@ -118,7 +118,7 @@ func TestReadLayer(t *testing.T) {
 	tt.StartTest(t)
 	defer tt.FinishTest(t)
 
-	img, err := GetImage("foo/bar")
+	img, err := GetImage("foo/bar", "")
 	tt.TestExpectSuccess(t, err)
 
 	r, err := img.LayerReader("deadbeef")

@@ -13,12 +13,9 @@ import (
 	"strings"
 )
 
-const (
-	dockerDefaultRepoPrefix = "library"
-)
-
 var (
-	IndexURL = "https://index.docker.io" // Tests can change it to point to a mock registry.
+	// DockerHubRegistryURL points to the official Docker registry.
+	DockerHubRegistryURL = "https://index.docker.io"
 )
 
 // Image is a Docker image info (constructed from Docker API response).
@@ -34,17 +31,21 @@ type Image struct {
 	client *http.Client
 }
 
-// GetImage fetches Docker repository information from Docker index.
-func GetImage(name string) (*Image, error) {
+// GetImage fetches Docker repository information from the specified Docker
+// registry. If the registry is an empty string it defaults to the DockerHub.
+func GetImage(name, registryURL string) (*Image, error) {
 	if name == "" {
 		return nil, errors.New("image name is empty")
 	}
 
-	if strings.Count(name, "/") == 0 {
-		name = fmt.Sprintf("%s/%s", dockerDefaultRepoPrefix, name)
+	var ru *url.URL
+	var err error
+	if len(registryURL) != 0 {
+		ru, err = url.Parse(registryURL)
+	} else {
+		ru, err = url.Parse(DockerHubRegistryURL)
+		registryURL = DockerHubRegistryURL
 	}
-
-	u, err := url.Parse(IndexURL)
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +53,7 @@ func GetImage(name string) (*Image, error) {
 	// In order to get layers from Docker CDN we need to hit 'images' endpoint
 	// and request the token. Client should also accept and store cookies, as
 	// they are needed to fetch the layer data later.
-	imagesURL := fmt.Sprintf("%s/v1/repositories/%s/images", IndexURL, name)
+	imagesURL := fmt.Sprintf("%s/v1/repositories/%s/images", registryURL, name)
 
 	req, err := http.NewRequest("GET", imagesURL, nil)
 	if err != nil {
@@ -99,7 +100,7 @@ func GetImage(name string) (*Image, error) {
 		client:    client,
 		endpoints: endpoints,
 		token:     token,
-		scheme:    u.Scheme,
+		scheme:    ru.Scheme,
 	}
 
 	img.tags, err = img.fetchTags()
