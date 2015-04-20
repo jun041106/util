@@ -163,7 +163,6 @@ func (t *Tar) ExcludePath(pathRE string) {
 	if pathRE != "" {
 		re, err := regexp.Compile("^" + pathRE + "$")
 		if err != nil {
-			Log.Error(err)
 			return
 		}
 		t.ExcludedPaths = append(t.ExcludedPaths, re)
@@ -192,7 +191,6 @@ func (t *Tar) processEntry(fullName string, f os.FileInfo, dirStack []string) er
 
 	// Exclude any files or paths specified by the user.
 	if t.shouldBeExcluded(fullName) {
-		Log.Infof("Excluding path/file with name %s from tar", fullName)
 		return nil
 	}
 
@@ -273,7 +271,6 @@ func (t *Tar) processEntry(fullName string, f os.FileInfo, dirStack []string) er
 
 			for _, elem := range dirStack {
 				if slink == elem {
-					Log.Infof("circular link detectected : %q", fullName)
 					// We don't want to abort if we detect a cycle.
 					// Let it continue  without this path element.
 					return nil
