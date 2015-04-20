@@ -123,7 +123,6 @@ func NewUntar(r io.Reader, targetDir string) *Untar {
 	// only do it if err != nil
 	if usr, err := user.Current(); err != nil {
 		if usr == nil {
-			Log.V(1).Info("user.Current() returned a nil user")
 			u.MappedUserID = 500
 			u.MappedGroupID = 500
 		} else {
@@ -146,12 +145,6 @@ func NewUntar(r io.Reader, targetDir string) *Untar {
 // broken out from new to give the caller time to set various
 // settings in the Untar object.
 func (u *Untar) Extract() error {
-	// Since this component does not have a context to work within
-	// all of its logging is done as V(1).Info so that they do not
-	// end up spamming logs. Its assumed that the upstream
-	// caller will log these errors properly.
-	Log.V(1).Info("Extracting tar file.")
-
 	// check for detect mode before the main setup, we'll change compression
 	// to the intended type and setup a new reader to re-read the header
 	switch u.Compression {
@@ -189,19 +182,16 @@ func (u *Untar) Extract() error {
 		header, err := u.archive.Next()
 		if err == io.EOF {
 			// EOF, ok, break to return
-			Log.V(1).Info("Success.")
 			break
 		}
 		if err != nil {
 			// See note on logging above.
-			Log.V(1).Infof("Error reading tar element header: %s", err)
 			return err
 		}
 
 		err = u.processEntry(header)
 		if err != nil {
 			// See note on logging above.
-			Log.V(1).Infof("Error reading tar element contents: %s", err)
 			return err
 		}
 	}
@@ -248,7 +238,6 @@ func (u *Untar) processEntry(header *tar.Header) error {
 	// If the name contains any bad things then we force
 	// an error in order to protect ourselves.
 	if err := checkName(header.Name); err != nil {
-		Log.V(1).Infof("Security error in the tar file: %s", err)
 		return err
 	}
 
@@ -353,10 +342,8 @@ func (u *Untar) processEntry(header *tar.Header) error {
 		// copy the contents
 		n, err := io.Copy(f, u.archive)
 		if err != nil {
-			Log.V(1).Infof("Error while copying file %s: %s", name, err)
 			return err
 		} else if n != header.Size {
-			Log.V(1).Infof("Short write while copying file %s", name)
 			return fmt.Errorf("Short write while copying file %s", name)
 		}
 
@@ -392,7 +379,6 @@ func (u *Untar) processEntry(header *tar.Header) error {
 		}
 
 	default:
-		Log.V(1).Infof("Unknown type in tar file: %d", header.Typeflag)
 		return fmt.Errorf("Unrecognized type: %d", header.Typeflag)
 	}
 
@@ -536,10 +522,6 @@ func (u *Untar) convertToDestination(dir string) (string, error) {
 
 func lazyChmod(name string, m os.FileMode) {
 	if fi, err := os.Stat(name); err == nil {
-		if err := os.Chmod(name, fi.Mode()|m); err != nil {
-			Log.Warningf("Failed to chmod '%s': %v", name, err)
-		}
-	} else {
-		Log.Warningf("Failed to stat '%s': %v", name, err)
+		os.Chmod(name, fi.Mode()|m)
 	}
 }
