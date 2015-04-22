@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -199,11 +200,13 @@ func (t *Tar) processEntry(fullName string, f os.FileInfo, dirStack []string) er
 	if err != nil {
 		return err
 	}
-	header.Name = "./" + fullName
+
+	// Correct Windows paths so untar works in stager's container.
+	header.Name = path.Join(".", filepath.ToSlash(fullName))
 
 	// handle VirtualPath
 	if t.VirtualPath != "" {
-		header.Name = filepath.Clean(filepath.Join(".", t.VirtualPath, header.Name))
+		header.Name = path.Join(".", filepath.ToSlash(t.VirtualPath), header.Name)
 	}
 
 	// copy uid/gid if Permissions enabled
