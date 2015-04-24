@@ -133,7 +133,9 @@ func TestUntarExtractFollowingSymlinks(t *testing.T) {
 	writeSymlink("./usr/bin/sh", "bash")
 
 	// now write a symlink that is an absolute path and then a file in it
+	// absolute path will fail; marked as escaping when untar
 	writeSymlink("./etc", "/realetc")
+	//without the symlink the path for this still just gets made in a real /etc/zz dir
 	writeFile("./etc/zz", "zz")
 	// now also create a symlink that is an escape relative path and a file in it
 	writeSymlink("./relativevartmp", "../../../../../../../../../../../var/tmp")
@@ -198,6 +200,11 @@ func TestUntarExtractFollowingSymlinks(t *testing.T) {
 		TestEqual(t, l, link)
 	}
 
+	fileInvalidSymlink := func(name, link string) {
+		_, err := os.Readlink(path.Join(tempDir, name))
+		TestExpectError(t, err)
+	}
+
 	fileExists("./pkg/foo")
 	fileContents("./pkg/foo", "foo")
 	fileExists("./pkg/usr")
@@ -211,7 +218,8 @@ func TestUntarExtractFollowingSymlinks(t *testing.T) {
 	// but the file should be in ./realetc/zz within the tempDir and not the
 	// system's root... so Untar follows how it knows it should resolve and not
 	// follow the real symlink
-	fileSymlinks("./pkg/etc", "/realetc")
+	fileInvalidSymlink("./pkg/etc", "/realetc")
+	// Will fail currently
 	fileExists("./realetc/zz")
 	absoluteFileNotExists("/realetc/zz")
 	fileContents("./realetc/zz", "zz")

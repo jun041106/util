@@ -188,7 +188,6 @@ func (u *Untar) Extract() error {
 			// See note on logging above.
 			return err
 		}
-
 		shouldContinue, err := u.processEntry(header)
 		if err != nil {
 			// See note on logging above.
@@ -211,10 +210,11 @@ func checkName(name string) error {
 		return fmt.Errorf("no absolute paths allowed.")
 	}
 	// Tar files use '/' per spec
-	for _, part := range strings.Split(name, "/") {
+	parts := strings.Split(name, "/")
+	for i, part := range parts {
 		if part == ".." {
 			return fmt.Errorf("names may not include paths with '..'")
-		} else if part == "" {
+		} else if part == "" && i != len(parts)-1 {
 			return fmt.Errorf("names may not include empty segments")
 		}
 	}
@@ -237,11 +237,12 @@ func checkLinkName(dest, src, targetBase string) error {
 	}
 
 	if !path.IsAbs(dest) {
-		dest = path.Join(targetBase, path.Dir(src), dest)
+		//dest = path.Join(targetBase, path.Dir(src), dest)
+		dest = path.Join(path.Dir(src), dest)
 	}
 	dest = path.Clean(dest)
 
-	if matched, err := path.Match(path.Join(targetBase, "*"), dest); err != nil || !matched {
+	if matched := strings.HasPrefix(dest, targetBase); !matched {
 		return fmt.Errorf("Tar symlink for %q escapes from %q: %q", src, targetBase, dest)
 	}
 
