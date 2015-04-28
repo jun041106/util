@@ -135,3 +135,87 @@ func TestIPRangeContains(t *testing.T) {
 	tt.TestEqual(t, ipr1.Contains(net.ParseIP("192.168.1.20")), true)
 	tt.TestEqual(t, ipr1.Contains(net.ParseIP("192.168.1.50")), true)
 }
+
+func TestIPRangeOverlappingSubnets(t *testing.T) {
+
+	subnet1 := "10.0.1.0/16"
+	subnet2 := "10.0.0.1/28"
+	val, _ := OverlappingSubnets(subnet1, subnet2)
+	tt.TestEqual(t, val, true)
+
+	subnet1 = "192.168.100.0/22"
+	subnet2 = "192.168.104.0/32"
+	val, _ = OverlappingSubnets(subnet1, subnet2)
+	tt.TestEqual(t, val, false)
+
+	subnet1 = "99.0.0.0/32"
+	subnet2 = "99.0.0.1/32"
+	val, _ = OverlappingSubnets(subnet1, subnet2)
+	tt.TestEqual(t, val, false)
+
+	subnet1 = "99.0.0.0/31"
+	subnet2 = "99.0.0.2/31"
+	val, _ = OverlappingSubnets(subnet1, subnet2)
+	tt.TestEqual(t, val, false)
+
+	subnet1 = "11.0.1.0/16"
+	subnet2 = "10.0.0.1/28"
+	val, _ = OverlappingSubnets(subnet1, subnet2)
+	tt.TestEqual(t, val, false)
+
+	subnet1 = "0.0.0.0/16"
+	subnet2 = "10.0.0.1/16"
+	val, _ = OverlappingSubnets(subnet1, subnet2)
+	tt.TestEqual(t, val, false)
+
+	subnet1 = "10.0.1.0/23"
+	subnet2 = "10.0.4.0/22"
+	val, _ = OverlappingSubnets(subnet1, subnet2)
+	tt.TestEqual(t, val, false)
+
+	subnet1 = "0.0.0.0/16"
+	subnet2 = "10.0.0.1/32"
+	val, _ = OverlappingSubnets(subnet1, subnet2)
+	tt.TestEqual(t, val, false)
+
+	subnet1 = "0.0.0.0/16"
+	subnet2 = "0.0.0.0/0"
+	val, _ = OverlappingSubnets(subnet1, subnet2)
+	tt.TestEqual(t, val, true)
+
+	subnet1 = "0.0.0.0/0"
+	subnet2 = "0.0.0.0/1"
+	val, _ = OverlappingSubnets(subnet1, subnet2)
+	tt.TestEqual(t, val, true)
+
+	subnet1 = "69.0.5.0/8"
+	subnet2 = "68.0.5.0/7"
+	val, _ = OverlappingSubnets(subnet1, subnet2)
+	tt.TestEqual(t, val, true)
+
+	subnet1 = "129.0.0.0/1"
+	subnet2 = "127.0.0.0/1"
+	val, _ = OverlappingSubnets(subnet1, subnet2)
+	tt.TestEqual(t, val, false)
+}
+
+func TestIPRangeOverlappingSubnetsInvalids(t *testing.T) {
+	subnet1 := "10.0.1.0/16"
+	subnet2 := "10.0.0.1/33"
+	_, err := OverlappingSubnets(subnet1, subnet2)
+	tt.TestExpectError(t, err)
+	tt.TestEqual(t, err.Error(), "failed to parse the subnet 10.0.0.1/33: invalid CIDR address: 10.0.0.1/33")
+
+	subnet1 = "10.0.1.0"
+	subnet2 = "10.0.0.1/3"
+	_, err = OverlappingSubnets(subnet1, subnet2)
+	tt.TestExpectError(t, err)
+	tt.TestEqual(t, err.Error(), "failed to parse the subnet 10.0.1.0: invalid CIDR address: 10.0.1.0")
+
+	subnet1 = "256.0.1.0/6"
+	subnet2 = "10.0.0.1/3"
+	_, err = OverlappingSubnets(subnet1, subnet2)
+	tt.TestExpectError(t, err)
+	tt.TestEqual(t, err.Error(), "failed to parse the subnet 256.0.1.0/6: invalid CIDR address: 256.0.1.0/6")
+
+}
