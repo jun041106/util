@@ -48,10 +48,7 @@ func (conn *WebsocketConnection) startPingInterval() {
 				func() {
 					conn.writeMutex.Lock()
 					defer conn.writeMutex.Unlock()
-					err := conn.ws.WriteControl(websocket.OpPong, []byte{}, time.Now().Add(conn.writeTimeout))
-					if err != nil {
-						Log.Errorf("Error writing websocket ping: %v", err)
-					}
+					conn.ws.WriteControl(websocket.OpPong, []byte{}, time.Now().Add(conn.writeTimeout))
 				}()
 			}
 		}
@@ -86,18 +83,12 @@ func (conn *WebsocketConnection) waitForReader() error {
 			go func() {
 				conn.writeMutex.Lock()
 				defer conn.writeMutex.Unlock()
-				err := conn.ws.WriteControl(websocket.OpPong, []byte{}, time.Now().Add(conn.writeTimeout))
-				if err != nil {
-					Log.Errorf("Error writing websocket ping: %v", err)
-				}
+				conn.ws.WriteControl(websocket.OpPong, []byte{}, time.Now().Add(conn.writeTimeout))
 			}()
 
 		case websocket.OpPong:
 			// received a pong, update read deadline
-			err := conn.ws.SetReadDeadline(time.Now().Add(conn.readTimeout))
-			if err != nil {
-				Log.Errorf("Error writing websocket pong: %v", err)
-			}
+			conn.ws.SetReadDeadline(time.Now().Add(conn.readTimeout))
 
 		case websocket.OpClose:
 			// received close, so return EOF
