@@ -9,11 +9,27 @@ import (
 	"sync"
 	"time"
 
-	"github.com/apcera/cntm-deps/go-websocket/websocket"
+	"github.com/apcera/util/wsconn/Godeps/_workspace/src/github.com/gorilla/websocket"
 )
 
+// Conn is an interface which a websocket library should implement to be
+// compatible with this wrapper.
+type Conn interface {
+	WriteControl(messageType int, data []byte, deadline time.Time) error
+	NextReader() (messageType int, r io.Reader, err error)
+	NextWriter(messageType int) (io.WriteCloser, error)
+
+	LocalAddr() net.Addr
+	RemoteAddr() net.Addr
+
+	SetReadDeadline(t time.Time) error
+	SetWriteDeadline(t time.Time) error
+
+	Close() error
+}
+
 // Returns a websocket connection wrapper to the net.Conn interface.
-func NewWebsocketConnection(ws *websocket.Conn) net.Conn {
+func NewWebsocketConnection(ws Conn) net.Conn {
 	wsconn := &WebsocketConnection{
 		ws:           ws,
 		readTimeout:  60 * time.Second,
@@ -26,8 +42,10 @@ func NewWebsocketConnection(ws *websocket.Conn) net.Conn {
 	return wsconn
 }
 
+// WebsocketConnection is a wrapper around a websocket connect from a lower
+// level API.  It supports things such as automatic ping/pong keepalive.
 type WebsocketConnection struct {
-	ws           *websocket.Conn
+	ws           Conn
 	reader       io.Reader
 	writeMutex   sync.Mutex
 	readTimeout  time.Duration
@@ -48,7 +66,7 @@ func (conn *WebsocketConnection) startPingInterval() {
 				func() {
 					conn.writeMutex.Lock()
 					defer conn.writeMutex.Unlock()
-					conn.ws.WriteControl(websocket.OpPong, []byte{}, time.Now().Add(conn.writeTimeout))
+					conn.ws.WriteControl(websocket.PongMessage, []byte{}, time.Now().Add(conn.writeTimeout))
 				}()
 			}
 		}
@@ -66,42 +84,44 @@ func (conn *WebsocketConnection) waitForReader() error {
 		}
 
 		switch opCode {
-		case websocket.OpBinary:
+		case websocket.BinaryMessage:
 			// binary packet
 			conn.reader = reader
 			return nil
 
-		case websocket.OpText:
+		case websocket.TextMessage:
 			// plain text package
 			b, err := ioutil.ReadAll(reader)
 			if err == nil {
 				conn.textChan <- b
 			}
 
-		case websocket.OpPing:
+		case websocket.PingMessage:
 			// receeived a ping, so send a pong
 			go func() {
 				conn.writeMutex.Lock()
 				defer conn.writeMutex.Unlock()
-				conn.ws.WriteControl(websocket.OpPong, []byte{}, time.Now().Add(conn.writeTimeout))
+				conn.ws.WriteControl(websocket.PongMessage, []byte{}, time.Now().Add(conn.writeTimeout))
 			}()
 
-		case websocket.OpPong:
+		case websocket.PongMessage:
 			// received a pong, update read deadline
 			conn.ws.SetReadDeadline(time.Now().Add(conn.readTimeout))
 
-		case websocket.OpClose:
+		case websocket.CloseMessage:
 			// received close, so return EOF
 			return io.EOF
 		}
 	}
 }
 
+// GetTextChannel returns a channel outputting all text messages from the
+// websocket.
 func (conn *WebsocketConnection) GetTextChannel() <-chan []byte {
 	return conn.textChan
 }
 
-// Reads a slice of bytes off of the websocket connection.
+// Reads slice of bytes off of the websocket connection.
 func (conn *WebsocketConnection) Read(b []byte) (n int, err error) {
 	if conn.reader == nil {
 		err = conn.waitForReader()
@@ -127,7 +147,7 @@ func (conn *WebsocketConnection) Write(b []byte) (n int, err error) {
 
 	// allocate a writer
 	var writer io.WriteCloser
-	writer, err = conn.ws.NextWriter(websocket.OpBinary)
+	writer, err = conn.ws.NextWriter(websocket.BinaryMessage)
 	if err != nil {
 		return
 	}
@@ -150,17 +170,17 @@ func (conn *WebsocketConnection) Close() error {
 	return conn.ws.Close()
 }
 
-// Returns the local portion of the connection.
+// LocalAddr returns the local net.Addr of the websocket connection.
 func (conn *WebsocketConnection) LocalAddr() net.Addr {
 	return conn.ws.LocalAddr()
 }
 
-// Returns the remote endpoint for the connection.
+// RemoteAddr returns the remote net.Addr of the websocket connection.
 func (conn *WebsocketConnection) RemoteAddr() net.Addr {
 	return conn.ws.RemoteAddr()
 }
 
-// Sets the read and write deadlines associated with the connection.
+// SetDeadline the read and write deadlines associated with the connection.
 func (conn *WebsocketConnection) SetDeadline(t time.Time) error {
 	if err := conn.ws.SetReadDeadline(t); err != nil {
 		return err
@@ -168,12 +188,12 @@ func (conn *WebsocketConnection) SetDeadline(t time.Time) error {
 	return conn.ws.SetWriteDeadline(t)
 }
 
-// Sets the read deadline associated with the connection.
+// SetReadDeadline sets the read deadline associated with the connection.
 func (conn *WebsocketConnection) SetReadDeadline(t time.Time) error {
 	return conn.ws.SetReadDeadline(t)
 }
 
-// Sets the write deadline assocated with the connection.
+// SetWriteDeadline sets the write deadline assocated with the connection.
 func (conn *WebsocketConnection) SetWriteDeadline(t time.Time) error {
 	return conn.ws.SetWriteDeadline(t)
 }

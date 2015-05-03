@@ -11,7 +11,7 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/apcera/cntm-deps/go-websocket/websocket"
+	"github.com/apcera/util/wsconn/Godeps/_workspace/src/github.com/gorilla/websocket"
 )
 
 type wsTestServer struct {
@@ -35,7 +35,7 @@ func (t wsTestServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// upgrade the connection to use websockets
-	ws, err := websocket.Upgrade(w, r.Header, nil, 1024, 1024)
+	ws, err := websocket.Upgrade(w, r, nil, 1024, 1024)
 	if err != nil {
 		http.Error(w, "Error in upgrade", 500)
 		t.Logf("Error when upgrading: %v", err)
