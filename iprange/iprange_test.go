@@ -140,63 +140,81 @@ func TestIPRangeOverlappingSubnets(t *testing.T) {
 
 	subnet1 := "10.0.1.0/16"
 	subnet2 := "10.0.0.1/28"
-	val, _ := OverlappingSubnets(subnet1, subnet2)
+	val, err := OverlappingSubnets(subnet1, subnet2)
 	tt.TestEqual(t, val, true)
+	tt.TestExpectSuccess(t, err)
 
 	subnet1 = "192.168.100.0/22"
 	subnet2 = "192.168.104.0/32"
-	val, _ = OverlappingSubnets(subnet1, subnet2)
+	val, err = OverlappingSubnets(subnet1, subnet2)
 	tt.TestEqual(t, val, false)
+	tt.TestExpectSuccess(t, err)
+
+	subnet1 = "10.0.0.0/16"
+	subnet2 = "172.27.0.228/24"
+	val, err = OverlappingSubnets(subnet1, subnet2)
+	tt.TestEqual(t, val, false)
+	tt.TestExpectSuccess(t, err)
 
 	subnet1 = "99.0.0.0/32"
 	subnet2 = "99.0.0.1/32"
-	val, _ = OverlappingSubnets(subnet1, subnet2)
+	val, err = OverlappingSubnets(subnet1, subnet2)
 	tt.TestEqual(t, val, false)
+	tt.TestExpectSuccess(t, err)
 
 	subnet1 = "99.0.0.0/31"
 	subnet2 = "99.0.0.2/31"
-	val, _ = OverlappingSubnets(subnet1, subnet2)
+	val, err = OverlappingSubnets(subnet1, subnet2)
 	tt.TestEqual(t, val, false)
+	tt.TestExpectSuccess(t, err)
 
 	subnet1 = "11.0.1.0/16"
 	subnet2 = "10.0.0.1/28"
-	val, _ = OverlappingSubnets(subnet1, subnet2)
+	val, err = OverlappingSubnets(subnet1, subnet2)
 	tt.TestEqual(t, val, false)
+	tt.TestExpectSuccess(t, err)
 
 	subnet1 = "0.0.0.0/16"
 	subnet2 = "10.0.0.1/16"
-	val, _ = OverlappingSubnets(subnet1, subnet2)
+	val, err = OverlappingSubnets(subnet1, subnet2)
 	tt.TestEqual(t, val, false)
+	tt.TestExpectSuccess(t, err)
 
 	subnet1 = "10.0.1.0/23"
 	subnet2 = "10.0.4.0/22"
-	val, _ = OverlappingSubnets(subnet1, subnet2)
+	val, err = OverlappingSubnets(subnet1, subnet2)
 	tt.TestEqual(t, val, false)
+	tt.TestExpectSuccess(t, err)
 
 	subnet1 = "0.0.0.0/16"
 	subnet2 = "10.0.0.1/32"
-	val, _ = OverlappingSubnets(subnet1, subnet2)
+	val, err = OverlappingSubnets(subnet1, subnet2)
 	tt.TestEqual(t, val, false)
+	tt.TestExpectSuccess(t, err)
 
 	subnet1 = "0.0.0.0/16"
 	subnet2 = "0.0.0.0/0"
-	val, _ = OverlappingSubnets(subnet1, subnet2)
+	val, err = OverlappingSubnets(subnet1, subnet2)
 	tt.TestEqual(t, val, true)
+	tt.TestExpectSuccess(t, err)
 
 	subnet1 = "0.0.0.0/0"
 	subnet2 = "0.0.0.0/1"
-	val, _ = OverlappingSubnets(subnet1, subnet2)
+	val, err = OverlappingSubnets(subnet1, subnet2)
 	tt.TestEqual(t, val, true)
+	tt.TestExpectSuccess(t, err)
 
 	subnet1 = "69.0.5.0/8"
 	subnet2 = "68.0.5.0/7"
-	val, _ = OverlappingSubnets(subnet1, subnet2)
+	val, err = OverlappingSubnets(subnet1, subnet2)
 	tt.TestEqual(t, val, true)
+	tt.TestExpectSuccess(t, err)
 
 	subnet1 = "129.0.0.0/1"
 	subnet2 = "127.0.0.0/1"
-	val, _ = OverlappingSubnets(subnet1, subnet2)
+	val, err = OverlappingSubnets(subnet1, subnet2)
 	tt.TestEqual(t, val, false)
+	tt.TestExpectSuccess(t, err)
 }
 
 func TestIPRangeOverlappingSubnetsInvalids(t *testing.T) {
