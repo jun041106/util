@@ -112,3 +112,65 @@ func spliceIP(baseIP, partialIP string) string {
 	finalParts := append(baseParts[:(len(baseParts)-len(partialParts))], partialParts...)
 	return strings.Join(finalParts, ".")
 }
+
+// function takes two subnets (CIDR blocks)as input and determines if they overlap.
+// this differs from the above Overlaps() in that we only specify subnets
+// and not ranges; for example: 10.0.0.0/16 and 10.0.0.0/8 are subnets and they
+// overlap. See TestIPRangeOverlappingSubnets for more examples.
+// NOTE/TODO: only supports IPv4
+func OverlappingSubnets(snet1, snet2 string) (bool, error) {
+	net1r := &IPRange{}
+	net2r := &IPRange{}
+
+	_, net1, err := net.ParseCIDR(snet1)
+	if err != nil {
+		return true, fmt.Errorf("failed to parse the subnet %v: %v", snet1, err)
+	}
+	net1r.Mask = net1.Mask
+	net1r.Start = net1.IP
+
+	_, net2, err := net.ParseCIDR(snet2)
+	if err != nil {
+		return true, fmt.Errorf("failed to parse the subnet %v: %v", snet2, err)
+	}
+	net2r.Mask = net2.Mask
+	net2r.Start = net2.IP
+
+	// determine net1.End
+	var tMaskInt uint32
+	onebits, _ := net1r.Mask.Size()
+	if (32 - onebits) == 0 {
+		tMaskInt = 0xFFFFFFFF
+	} else {
+		tMaskInt = (1 << uint32(32-onebits)) - 1
+	}
+	net1r.End = make([]byte, 4)
+	// var tMaskByte [4]byte
+	net1r.End[3] = byte(tMaskInt) | net1r.Start[3]
+	net1r.End[2] = byte(tMaskInt>>8) | net1r.Start[2]
+	net1r.End[1] = byte(tMaskInt>>16) | net1r.Start[1]
+	net1r.End[0] = byte(tMaskInt>>24) | net1r.Start[0]
+	// fmt.Printf("subnet1: start:%v mask: %v end: %v \n", net1r.Start, net1r.Mask, net1r.End)
+
+	// determine net2.End
+	onebits, _ = net2r.Mask.Size()
+	if (32 - onebits) == 0 {
+		tMaskInt = 0
+	} else {
+		tMaskInt = (1 << uint32(32-onebits)) - 1
+	}
+	net2r.End = make([]byte, 4)
+	net2r.End[3] = byte(tMaskInt) | net2r.Start[3]
+	net2r.End[2] = byte(tMaskInt>>8) | net2r.Start[2]
+	net2r.End[1] = byte(tMaskInt>>16) | net2r.Start[1]
+	net2r.End[0] = byte(tMaskInt>>24) | net2r.Start[0]
+	// fmt.Printf("subnet2: start:%v mask: %v end: %v \n", net2r.Start, net2r.Mask, net2r.End)
+
+	if net1.Contains(net2r.End) || net1.Contains(net2r.Start) {
+		return true, nil
+	}
+	if net2.Contains(net1r.End) || net2.Contains(net1r.Start) {
+		return true, nil
+	}
+	return false, nil
+}
