@@ -38,7 +38,7 @@ func RetrieveImage(imageUri string, insecure bool) (ReaderCloserSeeker, error) {
 		switch resp.StatusCode {
 		case http.StatusOK:
 		default:
-			return nil, fmt.Errorf("HTTP %d on retrieving %q", imageUri)
+			return nil, fmt.Errorf("HTTP %d on retrieving %q", resp.StatusCode, imageUri)
 		}
 
 		return newTempReader(resp.Body)
