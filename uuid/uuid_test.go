@@ -4,8 +4,9 @@ package uuid_test
 
 import (
 	"fmt"
-	"github.com/apcera/util/uuid"
 	"testing"
+
+	"github.com/apcera/util/uuid"
 )
 
 // Documents a simple use case for a generating and comparing UUIDs.
@@ -175,18 +176,6 @@ func BenchmarkVariant5(b *testing.B) {
 	}
 }
 
-// Benchmark the default string formatting function.
-func BenchmarkString(b *testing.B) {
-	// Generate a UUID outside of the timer.
-	b.StopTimer()
-	u := uuid.Variant1()
-	b.StartTimer()
-
-	for i := 0; i < b.N; i++ {
-		u.String()
-	}
-}
-
 // Benchmark the FromString() function.
 func BenchmarkFromString(b *testing.B) {
 	// Generate a UUID outside of the timer.
@@ -202,12 +191,10 @@ func BenchmarkFromString(b *testing.B) {
 // This function is not to be used, but instead is intended to demonstrate the
 // performance of the default approach (fmt.Sprintf). This is included in the
 // test files in order to ensure that it doesn't get used in production code.
-func stringSlowSprintf(u uuid.UUID) (r string) {
-	fmt.Sprintf(r, "%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-"+
-		"%02x%02x%02x%02x%02x%02x",
+func stringSlowSprintf(u uuid.UUID) string {
+	return fmt.Sprintf("%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
 		u[0], u[1], u[2], u[3], u[4], u[5], u[6], u[7],
 		u[8], u[9], u[10], u[11], u[12], u[13], u[14], u[15])
-	return r
 }
 
 // Benchmark the fmt.Sprintf() based string function. This is simply to
