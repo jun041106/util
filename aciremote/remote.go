@@ -13,6 +13,12 @@ import (
 	"github.com/appc/spec/discovery"
 )
 
+var (
+	// Client is the http.Client that is used by RetrieveImage to download
+	// images.
+	Client *http.Client = http.DefaultClient
+)
+
 // RetrieveImage can be used to retrieve a remote image, and optionally discover
 // an image based on the App Container Image Discovery specification. Supports
 // handling local images as well as
@@ -29,7 +35,7 @@ func RetrieveImage(imageUri string, insecure bool) (ReaderCloserSeeker, error) {
 
 	case "http", "https":
 		// Handle HTTP retrievals, wrapped with a tempfile that cleans up.
-		resp, err := http.Get(imageUri)
+		resp, err := Client.Get(imageUri)
 		if err != nil {
 			return nil, err
 		}
@@ -59,6 +65,7 @@ func RetrieveImage(imageUri string, insecure bool) (ReaderCloserSeeker, error) {
 			if err != nil {
 				continue
 			}
+			// FIXME should also attempt to validate the signature
 			return r, nil
 		}
 		return nil, fmt.Errorf("failed to find a valid image for %q", imageUri)
@@ -72,9 +79,9 @@ func RetrieveImage(imageUri string, insecure bool) (ReaderCloserSeeker, error) {
 // that are reteived. Seek is important as it will run through the image to
 // locate the ACI manifest before actually extracting it.
 type ReaderCloserSeeker interface {
-	io.ReadCloser
-
-	Seek(offset int64, whence int) (ret int64, err error)
+	io.Reader
+	io.Closer
+	io.Seeker
 }
 
 // tempFileReader is an implementation of the ReaderCloserSeeker interface which
