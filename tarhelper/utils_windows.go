@@ -50,3 +50,12 @@ func inodeForFileInfo(_ os.FileInfo) uint64 {
 	// provide real data here
 	return 1
 }
+
+// chmodTarEntry is used to adjust the file permissions used in tar header based
+// on the platform the archival is done.
+func chmodTarEntry(perm os.FileMode) os.FileMode {
+	// Add the x bit: make everything +x from windows
+	perm |= 0111
+
+	return perm
+}
