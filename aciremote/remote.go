@@ -16,7 +16,9 @@ import (
 var (
 	// Client is the http.Client that is used by RetrieveImage to download
 	// images.
-	Client *http.Client = http.DefaultClient
+	Client *http.Client = &http.Client{
+		Transport: &http.Transport{},
+	}
 )
 
 // RetrieveImage can be used to retrieve a remote image, and optionally discover
