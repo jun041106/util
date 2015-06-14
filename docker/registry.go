@@ -1,4 +1,4 @@
-// Copyright 2014 Apcera Inc. All rights reserved.
+// Copyright 2014-2015 Apcera Inc. All rights reserved.
 
 package docker
 
@@ -236,7 +236,16 @@ func (i *Image) getResponseFromURL(u string) (*http.Response, error) {
 	}
 
 	if res.StatusCode != http.StatusOK {
-		res.Body.Close()
+		defer res.Body.Close()
+		type errorMsg struct {
+			Error string `json:"error"`
+		}
+
+		var errMsg errorMsg
+		if err := json.NewDecoder(res.Body).Decode(&errMsg); err == nil {
+			return nil, fmt.Errorf("%s: HTTP %d - %s", u, res.StatusCode, errMsg.Error)
+		}
+
 		return nil, fmt.Errorf("%s: HTTP %d", u, res.StatusCode)
 	}
 
