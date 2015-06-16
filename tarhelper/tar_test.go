@@ -506,3 +506,38 @@ func TestSymlinkOptDereferenceCircularToRoot(t *testing.T) {
 	_, err = os.Stat(path.Join(extractionPath, "./a/b/i/ll"))
 	TestEqual(t, true, os.IsNotExist(err))
 }
+
+func TestTarPointedToFile(t *testing.T) {
+	StartTest(t)
+	defer FinishTest(t)
+
+	dir := TempDir(t)
+	apath := path.Join(dir, "a")
+
+	// write the file, then read it the same way that we'll validate it
+	TestExpectSuccess(t, ioutil.WriteFile(apath, []byte("hello world"), os.FileMode(0644)))
+	contents, err := ioutil.ReadFile(apath)
+	TestExpectSuccess(t, err)
+	TestEqual(t, string(contents), "hello world")
+
+	// tar the file
+	w := bytes.NewBufferString("")
+	tw := NewTar(w, apath)
+	TestExpectSuccess(t, tw.Archive())
+
+	// should then also be able to untar it
+	dir = TempDir(t)
+	u := NewUntar(w, dir)
+	u.AbsoluteRoot = dir
+	TestExpectSuccess(t, u.Extract())
+
+	// stat it, ensure it exists and is a file, not a directory
+	stat, err := os.Stat(path.Join(dir, "a"))
+	TestExpectSuccess(t, err)
+	TestEqual(t, stat.IsDir(), false, "should be a file, not a directory")
+
+	// read the contents to verify
+	contents, err = ioutil.ReadFile(path.Join(dir, "a"))
+	TestExpectSuccess(t, err)
+	TestEqual(t, string(contents), "hello world")
+}
