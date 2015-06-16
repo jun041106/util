@@ -290,10 +290,13 @@ func (u *Untar) processEntry(header *tar.Header) error {
 		}
 
 		// create the directory
+		oldmask := osUmask(0)
 		err := os.MkdirAll(name, mode)
 		if err != nil {
+			osUmask(oldmask)
 			return err
 		}
+		osUmask(oldmask)
 
 	case header.Typeflag == tar.TypeSymlink:
 		// Handle symlinks
@@ -335,10 +338,13 @@ func (u *Untar) processEntry(header *tar.Header) error {
 		}
 
 		// open the file
+		oldmask := osUmask(0)
 		f, err := os.OpenFile(name, flags, mode)
 		if err != nil {
+			osUmask(oldmask)
 			return err
 		}
+		osUmask(oldmask)
 		defer f.Close()
 
 		// SETUID/SETGID needs to be defered...
@@ -386,10 +392,12 @@ func (u *Untar) processEntry(header *tar.Header) error {
 
 		// syscall to mknod
 		dev := makedev(header.Devmajor, header.Devminor)
-		osUmask(0000)
+		oldmask := osUmask(0000)
 		if err := osMknod(name, devmode|uint32(mode), dev); err != nil {
+			osUmask(oldmask)
 			return err
 		}
+		osUmask(oldmask)
 
 	default:
 		return fmt.Errorf("Unrecognized type: %d", header.Typeflag)
@@ -567,6 +575,8 @@ func (u *Untar) checkEntryAgainstWhitelist(header *tar.Header) bool {
 
 func lazyChmod(name string, m os.FileMode) {
 	if fi, err := os.Stat(name); err == nil {
+		oldmask := osUmask(0)
 		os.Chmod(name, fi.Mode()|m)
+		osUmask(oldmask)
 	}
 }

@@ -9,8 +9,8 @@ import (
 	"syscall"
 )
 
-func osUmask(mask int) {
-	syscall.Umask(mask)
+func osUmask(mask int) int {
+	return syscall.Umask(mask)
 }
 
 func osMknod(name string, mode uint32, dev int) error {
