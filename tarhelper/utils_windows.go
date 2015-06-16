@@ -21,8 +21,9 @@ func minordev(dev int64) int64 {
 	panic(fmt.Sprintf("no Windows support for making Unix devices [minordev(%d)]", dev))
 }
 
-func osUmask(mask int) {
+func osUmask(mask int) int {
 	// noop
+	return 0
 }
 
 func osMknod(name string, mode uint32, dev int) error {
