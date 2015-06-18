@@ -143,14 +143,23 @@ func (t *Tar) Archive() error {
 		return fmt.Errorf("unknown compression type: %v", t.Compression)
 	}
 
-	// ensure we write the current directory
+	// ensure the target exists
 	f, err := os.Stat(t.target)
 	if err != nil {
 		return err
 	}
 
+	// If the target is a file rather than a directory, adjust our initial entry
+	// name and target. It will still get just that directory, but want to ensure
+	// we don't tar a file named "."
+	startFullName := "."
+	if !f.IsDir() {
+		t.target = filepath.Dir(t.target)
+		startFullName = filepath.Join(".", f.Name())
+	}
+
 	// walk the directory tree
-	if err := t.processEntry(".", f, []string{}); err != nil {
+	if err := t.processEntry(startFullName, f, []string{}); err != nil {
 		return err
 	}
 
