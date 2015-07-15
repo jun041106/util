@@ -7,35 +7,13 @@ import (
 	"testing"
 )
 
-type testParseURLValues struct {
-	input               string
-	expectedError       error
-	expectedRegistryURL *DockerRegistryURL
-}
-
-type testSchemeHostPortValues struct {
-	input  string
-	output string
-}
-
-type testFullRepoNameValues struct {
-	input  string
-	output string
-}
-
-type testStringValues struct {
-	input  *DockerRegistryURL
-	output string
-}
-
-type testPathValues struct {
-	input  *DockerRegistryURL
-	output string
-}
-
 func TestParseDockerRegistryURL(t *testing.T) {
-	testValues := []testParseURLValues{
+	testValues := []struct {
+		input               string
+		expectedError       error
+		expectedRegistryURL *DockerRegistryURL
 		// Make sure a full URL still works
+	}{
 		{
 			"https://registry-1.docker.io:5000/namespace/repo:tag",
 			nil,
@@ -98,7 +76,11 @@ func TestParseFullDockerRegistryURL(t *testing.T) {
 	// ... And any combination of just scheme or host with others
 	// <scheme>://<host>/:<tag>
 
-	testValues := []testParseURLValues{
+	testValues := []struct {
+		input               string
+		expectedError       error
+		expectedRegistryURL *DockerRegistryURL
+	}{
 		{
 			"https://registry-1.docker.io",
 			nil,
@@ -278,8 +260,11 @@ func TestParseFullDockerRegistryURL(t *testing.T) {
 
 }
 
-func TestSchemeHostPort(t *testing.T) {
-	testValues := []testSchemeHostPortValues{
+func TestBaseURL(t *testing.T) {
+	testValues := []struct {
+		input  string
+		output string
+	}{
 		{
 			"https://user:password@registry-1.docker.io/namespace/repo:tag",
 			"https://user:password@registry-1.docker.io",
@@ -295,15 +280,45 @@ func TestSchemeHostPort(t *testing.T) {
 		if err != nil {
 			t.Errorf("Error while parsing input URL: %s", val.input)
 		}
-		result := registryURL.SchemeHostPort()
+		result := registryURL.BaseURL()
 		if result != val.output {
-			t.Errorf("Result from SchemeHostPort: %s not equal to expected: %s", result, val.output)
+			t.Errorf("Result from BaseURL: %s not equal to expected: %s", result, val.output)
+		}
+	}
+}
+
+func TestBaseURLNoCredentials(t *testing.T) {
+	testValues := []struct {
+		input  string
+		output string
+	}{
+		{
+			"https://user:password@registry-1.docker.io/namespace/repo:tag",
+			"https://registry-1.docker.io",
+		},
+		{
+			"https://registry-1.docker.io/namespace/repo:tag",
+			"https://registry-1.docker.io",
+		},
+	}
+
+	for _, val := range testValues {
+		registryURL, err := ParseFullDockerRegistryURL(val.input)
+		if err != nil {
+			t.Errorf("Error while parsing input URL: %s", val.input)
+		}
+		result := registryURL.BaseURLNoCredentials()
+		if result != val.output {
+			t.Errorf("Result from BaseURLNoCredentials: %s not equal to expected: %s", result, val.output)
 		}
 	}
 }
 
 func TestName(t *testing.T) {
-	testValues := []testFullRepoNameValues{
+	testValues := []struct {
+		input  string
+		output string
+	}{
 		{
 			"https://registry-1.docker.io/namespace/repo:tag",
 			"namespace/repo",
@@ -320,13 +335,16 @@ func TestName(t *testing.T) {
 			t.Errorf("Error while parsing input URL: %s", val.input)
 		}
 		if registryURL.ImageName != val.output {
-			t.Errorf("Result from SchemeHostPort: %s not equal to expected: %s", registryURL.ImageName, val.output)
+			t.Errorf("Result from ImageName: %s not equal to expected: %s", registryURL.ImageName, val.output)
 		}
 	}
 }
 
 func TestDockerRegistryURLPath(t *testing.T) {
-	testValues := []testPathValues{
+	testValues := []struct {
+		input  *DockerRegistryURL
+		output string
+	}{
 		{
 			&DockerRegistryURL{
 				Scheme: "https",
@@ -392,7 +410,10 @@ func TestDockerRegistryURLPath(t *testing.T) {
 }
 
 func TestDockerRegistryURLString(t *testing.T) {
-	testValues := []testStringValues{
+	testValues := []struct {
+		input  *DockerRegistryURL
+		output string
+	}{
 		{
 			&DockerRegistryURL{
 				Scheme: "https",
@@ -451,6 +472,69 @@ func TestDockerRegistryURLString(t *testing.T) {
 
 	for _, val := range testValues {
 		result := val.input.String()
+		if result != val.output {
+			t.Errorf("Error: expected result %s not equal to actual %s", val.output, result)
+		}
+	}
+}
+
+func TestDockerRegistryURLStringNoCredentials(t *testing.T) {
+	testValues := []struct {
+		input  *DockerRegistryURL
+		output string
+	}{
+		{
+			&DockerRegistryURL{
+				Scheme:   "https",
+				Userinfo: "username:password",
+				Host:     "registry-1.docker.io",
+			},
+			"https://registry-1.docker.io",
+		},
+		{
+			&DockerRegistryURL{
+				Scheme:   "https",
+				Userinfo: "username:password",
+				Host:     "registry-1.docker.io",
+				Port:     "5000",
+			},
+			"https://registry-1.docker.io:5000",
+		},
+		{
+			&DockerRegistryURL{
+				Scheme:    "https",
+				Userinfo:  "username:password",
+				Host:      "registry-1.docker.io",
+				Port:      "5000",
+				ImageName: "repo",
+			},
+			"https://registry-1.docker.io:5000/repo",
+		},
+		{
+			&DockerRegistryURL{
+				Scheme:    "https",
+				Userinfo:  "username:password",
+				Host:      "registry-1.docker.io",
+				Port:      "5000",
+				ImageName: "namespace/repo",
+			},
+			"https://registry-1.docker.io:5000/namespace/repo",
+		},
+		{
+			&DockerRegistryURL{
+				Scheme:    "https",
+				Userinfo:  "username:password",
+				Host:      "registry-1.docker.io",
+				Port:      "5000",
+				ImageName: "namespace/repo",
+				Tag:       "tag",
+			},
+			"https://registry-1.docker.io:5000/namespace/repo:tag",
+		},
+	}
+
+	for _, val := range testValues {
+		result := val.input.StringNoCredentials()
 		if result != val.output {
 			t.Errorf("Error: expected result %s not equal to actual %s", val.output, result)
 		}

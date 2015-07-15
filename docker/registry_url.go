@@ -155,23 +155,35 @@ func parseTag(s string) (prefix, tag string, err error) {
 	return prefix, tag, nil
 }
 
-// SchemeHostPort (for lack of a better name)returns a string of everything
-// before the path in the DockerRegistryURL. The following format applies:
-// <scheme>://[username:password@]<FQDN>[:port]
-func (u *DockerRegistryURL) SchemeHostPort() string {
+// baseURL is wrapped by BaseURL and BaseURLNoCredentials.
+// The boolean flag indicates whether credentials are included in the return string.
+func (u *DockerRegistryURL) baseURL(includeCredentials bool) string {
 	if u.Scheme == "" || u.Host == "" {
 		return ""
 	}
+
 	var result string
-	if u.Userinfo != "" {
+	if u.Userinfo != "" && includeCredentials {
 		result = fmt.Sprintf("%s://%s@%s", u.Scheme, u.Userinfo, u.Host)
 	} else {
 		result = fmt.Sprintf("%s://%s", u.Scheme, u.Host)
 	}
+
 	if u.Port != "" {
 		result = fmt.Sprintf("%s:%s", result, u.Port)
 	}
 	return result
+
+}
+
+// BaseURL returns a string of the format: <scheme>://(<creds>@)?<host>(:<port>)?
+func (u *DockerRegistryURL) BaseURL() string {
+	return u.baseURL(true)
+}
+
+// BaseURLNoCredentials returns a string of the format: <scheme://host(:port)?
+func (u *DockerRegistryURL) BaseURLNoCredentials() string {
+	return u.baseURL(false)
 }
 
 // Path returns the string path segment of a DockerRegistryURL. The full format
@@ -184,19 +196,32 @@ func (u *DockerRegistryURL) Path() string {
 	}
 }
 
-// String returns the full string version of a DockerRegistryURL
-func (u *DockerRegistryURL) String() string {
-	schemeHostPort := u.SchemeHostPort()
-	if schemeHostPort == "" {
-		return ""
+// baseString is wrapped by String and StringNoCredentials.
+// It exposes a flag to indicate whether to include credentials in the BaseURL.
+func (u *DockerRegistryURL) baseString(includeCredentials bool) string {
+	var base string
+	if includeCredentials {
+		base = u.BaseURL()
+	} else {
+		base = u.BaseURLNoCredentials()
 	}
 
 	s := u.Path()
 	if s == "" {
-		return schemeHostPort
+		return base
 	} else {
-		return fmt.Sprintf("%s/%s", schemeHostPort, s)
+		return fmt.Sprintf("%s/%s", base, s)
 	}
+}
+
+// String returns the full form of a registryURL.
+func (u *DockerRegistryURL) String() string {
+	return u.baseString(true)
+}
+
+// StringNoCredentials returns the full form of a registryURL without credentials.
+func (u *DockerRegistryURL) StringNoCredentials() string {
+	return u.baseString(false)
 }
 
 // ClearUserCredentials will remove any Userinfo from a provided DockerRegistryURL object.
