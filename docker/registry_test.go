@@ -22,18 +22,19 @@ func TestGetImage(t *testing.T) {
 	tt.StartTest(t)
 	defer tt.FinishTest(t)
 
-	img, err := GetImage("", "")
+	img, statusCode, err := GetImage("", "")
 	tt.TestExpectError(t, err)
+	tt.TestEqual(t, statusCode, -1)
 	tt.TestEqual(t, err.Error(), "image name is empty")
 
-	img, err = GetImage("foo/bar", "")
+	img, statusCode, err = GetImage("foo/bar", "")
 	tt.TestExpectSuccess(t, err)
-
+	tt.TestEqual(t, statusCode, 200)
 	tt.TestEqual(t, img.Name, "foo/bar")
 
-	img, err = GetImage("base", "")
+	img, statusCode, err = GetImage("base", "")
 	tt.TestExpectSuccess(t, err)
-
+	tt.TestEqual(t, statusCode, 200)
 	tt.TestEqual(t, img.Name, "base")
 }
 
@@ -41,8 +42,9 @@ func TestGetImageHistory(t *testing.T) {
 	tt.StartTest(t)
 	defer tt.FinishTest(t)
 
-	img, err := GetImage("foo/bar", "")
+	img, statusCode, err := GetImage("foo/bar", "")
 	tt.TestExpectSuccess(t, err)
+	tt.TestEqual(t, statusCode, 200)
 
 	h, err := img.History("tag2")
 	tt.TestExpectError(t, err)
@@ -59,8 +61,9 @@ func TestGetImageTags(t *testing.T) {
 	tt.StartTest(t)
 	defer tt.FinishTest(t)
 
-	img, err := GetImage("foo/bar", "")
+	img, statusCode, err := GetImage("foo/bar", "")
 	tt.TestExpectSuccess(t, err)
+	tt.TestEqual(t, statusCode, 200)
 
 	tags := img.Tags()
 	sort.Strings(tags)
@@ -71,8 +74,9 @@ func TestGetImageTagLayerID(t *testing.T) {
 	tt.StartTest(t)
 	defer tt.FinishTest(t)
 
-	img, err := GetImage("foo/bar", "")
+	img, statusCode, err := GetImage("foo/bar", "")
 	tt.TestExpectSuccess(t, err)
+	tt.TestEqual(t, statusCode, 200)
 
 	_, err = img.TagLayerID("tag2")
 	tt.TestExpectError(t, err)
@@ -91,8 +95,9 @@ func TestGetImageMetadata(t *testing.T) {
 	tt.StartTest(t)
 	defer tt.FinishTest(t)
 
-	img, err := GetImage("foo/bar", "")
+	img, statusCode, err := GetImage("foo/bar", "")
 	tt.TestExpectSuccess(t, err)
+	tt.TestEqual(t, statusCode, 200)
 
 	var m1 map[string]interface{}
 	err = img.Metadata("tag2", &m1)
@@ -118,8 +123,9 @@ func TestReadLayer(t *testing.T) {
 	tt.StartTest(t)
 	defer tt.FinishTest(t)
 
-	img, err := GetImage("foo/bar", "")
+	img, statusCode, err := GetImage("foo/bar", "")
 	tt.TestExpectSuccess(t, err)
+	tt.TestEqual(t, statusCode, 200)
 
 	r, err := img.LayerReader("deadbeef")
 	tt.TestExpectSuccess(t, err)

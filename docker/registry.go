@@ -33,9 +33,10 @@ type Image struct {
 
 // GetImage fetches Docker repository information from the specified Docker
 // registry. If the registry is an empty string it defaults to the DockerHub.
-func GetImage(name, registryURL string) (*Image, error) {
+// The integer return value is the status code of the HTTP response.
+func GetImage(name, registryURL string) (*Image, int, error) {
 	if name == "" {
-		return nil, errors.New("image name is empty")
+		return nil, -1, errors.New("image name is empty")
 	}
 
 	var ru *url.URL
@@ -47,7 +48,7 @@ func GetImage(name, registryURL string) (*Image, error) {
 		registryURL = DockerHubRegistryURL
 	}
 	if err != nil {
-		return nil, err
+		return nil, -1, err
 	}
 
 	// In order to get layers from Docker CDN we need to hit 'images' endpoint
@@ -57,7 +58,7 @@ func GetImage(name, registryURL string) (*Image, error) {
 
 	req, err := http.NewRequest("GET", imagesURL, nil)
 	if err != nil {
-		return nil, err
+		return nil, -1, err
 	}
 	req.Header.Set("X-Docker-Token", "true")
 
@@ -68,28 +69,28 @@ func GetImage(name, registryURL string) (*Image, error) {
 	}
 	client.Jar, err = cookiejar.New(nil) // Docker repo API sets and uses cookies for CDN.
 	if err != nil {
-		return nil, err
+		return nil, -1, err
 	}
 
 	res, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, res.StatusCode, err
 	}
 	defer res.Body.Close()
 	switch res.StatusCode {
 	case http.StatusOK:
 		// Fall through.
 	case http.StatusNotFound:
-		return nil, fmt.Errorf("image %q not found", name)
+		return nil, res.StatusCode, fmt.Errorf("image %q not found", name)
 	default:
-		return nil, fmt.Errorf("HTTP %d ", res.StatusCode)
+		return nil, res.StatusCode, fmt.Errorf("HTTP %d ", res.StatusCode)
 	}
 
 	token := res.Header.Get("X-Docker-Token")
 	endpoints := strings.Split(res.Header.Get("X-Docker-Endpoints"), ",")
 
 	if len(endpoints) == 0 {
-		return nil, errors.New("Docker index response didn't contain any endpoints")
+		return nil, res.StatusCode, errors.New("Docker index response didn't contain any endpoints")
 	}
 	for i := range endpoints {
 		endpoints[i] = strings.Trim(endpoints[i], " ")
@@ -105,10 +106,10 @@ func GetImage(name, registryURL string) (*Image, error) {
 
 	img.tags, err = img.fetchTags()
 	if err != nil {
-		return nil, err
+		return nil, res.StatusCode, err
 	}
 
-	return img, nil
+	return img, res.StatusCode, nil
 }
 
 // Tags returns a list of tags available for image
