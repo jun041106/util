@@ -74,7 +74,7 @@ func GetImage(name, registryURL string) (*Image, int, error) {
 
 	res, err := client.Do(req)
 	if err != nil {
-		return nil, res.StatusCode, err
+		return nil, -1, err
 	}
 	defer res.Body.Close()
 	switch res.StatusCode {
