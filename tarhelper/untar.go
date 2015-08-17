@@ -286,7 +286,7 @@ func (u *Untar) processEntry(header *tar.Header) error {
 		// don't return error if it already exists
 		mode := os.FileMode(0755)
 		if u.PreservePermissions {
-			mode = os.FileMode(header.Mode) | u.IncludedPermissionMask
+			mode = header.FileInfo().Mode() | u.IncludedPermissionMask
 		}
 
 		// create the directory
@@ -337,7 +337,7 @@ func (u *Untar) processEntry(header *tar.Header) error {
 		// determine the mode to use
 		mode := os.FileMode(0644)
 		if u.PreservePermissions {
-			mode = os.FileMode(header.Mode) | u.IncludedPermissionMask
+			mode = header.FileInfo().Mode() | u.IncludedPermissionMask
 		}
 
 		// open the file
@@ -393,7 +393,7 @@ func (u *Untar) processEntry(header *tar.Header) error {
 		// determine the mode to use
 		mode := os.FileMode(0644)
 		if u.PreservePermissions {
-			mode = os.FileMode(header.Mode) | u.IncludedPermissionMask
+			mode = header.FileInfo().Mode() | u.IncludedPermissionMask
 		}
 
 		// syscall to mknod
