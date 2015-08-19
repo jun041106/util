@@ -4,11 +4,14 @@
 
 package terminal
 
-//FIXME(Sha): These color codes aren't correct for windows.  Leaving here for compilation reasons.
-//  Should be fixed in the future when windows term colors are implemented.
-var ColorError int = 167
-var ColorWarn int = 93
-var ColorSuccess int = 82
+import "fmt"
+
+// Using basic colors for Windows:
+// http://ascii-table.com/ansi-escape-sequences.php
+var ColorError int = 35
+var ColorWarn int = 33
+var ColorSuccess int = 32
+var ColorNeutral int = 36
 var BackgroundColorBlack = "\033[30;49m"
 var BackgroundColorWhite = "\033[30;47m"
 var ResetCode string = "\033[0m"
@@ -18,7 +21,14 @@ var ResetCode string = "\033[0m"
 //---------------------------------------------------------------------------
 
 func Colorize(color int, msg string) string {
-	return msg
+	//FIXME(Sha): This logic assumes that because tty is set that the terminal supports colors.
+	//	This needs to be fixed via bringing in PDCurses or some other library.
+	if !stdoutIsTTY {
+		return msg
+	}
+
+	// Uses basic color set rather than extended set.
+	return fmt.Sprintf("\033[0;%dm%s%s", color, msg, ResetCode)
 }
 
 // BoldText returns the bold-ified version of the passed-in string.
