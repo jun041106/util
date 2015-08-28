@@ -9,6 +9,7 @@ import "fmt"
 var ColorError int = 167
 var ColorWarn int = 93
 var ColorSuccess int = 82
+var ColorNeutral int = 50
 var BackgroundColorBlack = "\033[30;49m"
 var BackgroundColorWhite = "\033[30;47m"
 var ResetCode string = "\033[0m"
