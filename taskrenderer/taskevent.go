@@ -3,7 +3,8 @@
 package taskrenderer
 
 const (
-	progressKey = "progress"
+	progressCurrent = "progress"
+	progressTotal   = "total"
 )
 
 // A TaskEvent carries structured information about events that occur during
@@ -48,6 +49,13 @@ type TaskEvent struct {
 
 	// Tags provide a hint as to what is being tracked.
 	Tags []string `json:"tags"`
+	// CurrentProgress indicates the current state of progress for
+	// this subtask.
+	CurrentProgress uint64 `json:""`
+
+	// TotalProgress indicates the total size of progress for this
+	// subtask.
+	TotalProgress uint64 `json:""`
 
 	// Data is extra information about this TaskEvent.
 	Data map[string]interface{} `json:"data"`

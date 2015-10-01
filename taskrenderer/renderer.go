@@ -1,3 +1,5 @@
+// Copyright 2015 Apcera Inc. All rights reserved.
+
 package taskrenderer
 
 import (
@@ -6,20 +8,22 @@ import (
 	"time"
 )
 
+// Renderer holds all of the state necessary to gather and output TaskEvents.
 type Renderer struct {
 	out io.Writer
 	err io.Writer
 
 	eventCh chan *TaskEvent
-	quitCh  chan struct{}
 
 	options *FormatOptions
 }
 
+// FormatOptions provides a way to customize the output of TaskEvents.
 type FormatOptions struct {
 	showTime bool
 }
 
+// New instantiates and returns a new Renderer object.
 func New(out io.Writer, err io.Writer, showTime bool) *Renderer {
 	return &Renderer{
 		out: out,
@@ -30,18 +34,16 @@ func New(out io.Writer, err io.Writer, showTime bool) *Renderer {
 	}
 }
 
-func (r *Renderer) RenderEvents(eventCh chan *TaskEvent, quitCh chan struct{}) error {
-
-	for {
-		select {
-		case event := <-eventCh:
-			r.renderEvent(event)
-		case <-quitCh:
-			return nil
-		}
+// RenderEvents reads every event sent on the given channel and renders it.
+// The channel can be closed by the caller at any time to stop rendering.
+func (r *Renderer) RenderEvents(eventCh chan *TaskEvent) {
+	for event := range eventCh {
+		r.renderEvent(event)
 	}
 }
 
+// renderEvent varies output depending on the information provided
+// by the current taskEvent.
 func (r *Renderer) renderEvent(event *TaskEvent) {
 	s := ""
 
@@ -57,21 +59,9 @@ func (r *Renderer) renderEvent(event *TaskEvent) {
 
 	s += fmt.Sprintf("Subtask (%d/%d): %s ", event.Index, event.Total, event.Subtask)
 
-	if event.Data != nil {
-		if progress, ok := event.Data[progressKey]; ok {
-			switch t := progress.(type) {
-			case string:
-				s += fmt.Sprintf("Progress: %s", t)
-			case int:
-				s += fmt.Sprintf("Progress: %d", t)
-			case float32:
-			case float64:
-				i := int(t)
-				s += fmt.Sprintf("Progress: %d", i)
-			default:
-				// do nothing, just being explicit
-			}
-		}
+	if event.TotalProgress != 0 {
+		s += fmt.Sprintf("Progress (%d/%d)", event.CurrentProgress, event.TotalProgress)
 	}
+
 	fmt.Fprintf(r.out, "%s\n", s)
 }
