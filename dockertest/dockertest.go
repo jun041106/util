@@ -1,4 +1,4 @@
-// Copyright 2014 Apcera Inc. All rights reserved.
+// Copyright 2014-2015 Apcera Inc. All rights reserved.
 
 package dockertest
 
@@ -32,11 +32,20 @@ var (
 			"layer":    string([]byte{0xd4, 0xe5, 0xf6}),
 			"checksum": "2bd330f",
 		},
+		"bd51c4e1b5aceec2ff4bdd87d3fe5f1f16e1120490dee47e2999036f5bc55ccf": { // A random (valid) LayerID
+			"json":     `{"id":"bd51c4e1b5aceec2ff4bdd87d3fe5f1f16e1120490dee47e2999036f5bc55ccf","k1": "v1"}`,
+			"ancestry": `["bd51c4e1b5aceec2ff4bdd87d3fe5f1f16e1120490dee47e2999036f5bc55ccf"]`,
+			"layer":    string([]byte{0xa1, 0xb2, 0xc3}),
+			"checksum": "abcd1234",
+		},
 	}
 	testRepositories = map[string]map[string]string{
 		"foo/bar": {
 			"latest": "deadbeef",
 			"base":   "badcafe",
+		},
+		"some/image": {
+			"latest": "bd51c4e1b5aceec2ff4bdd87d3fe5f1f16e1120490dee47e2999036f5bc55ccf",
 		},
 		"base": {
 			"latest": "badcafe",
