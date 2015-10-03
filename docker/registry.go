@@ -172,6 +172,16 @@ func (i *Image) LayerReader(id string) (io.ReadCloser, error) {
 	return resp.Body, nil
 }
 
+// LayerURLs returns several URLs for a specific layer.
+// FIXME: hacky crap
+func (i *Image) LayerURLs(id string) []string {
+	var urls []string
+	for _, ep := range i.endpoints {
+		urls = append(urls, fmt.Sprintf("%s://%s/v1/images/%s/layer", i.scheme, ep, id))
+	}
+	return urls
+}
+
 // fetchTags fetches tags for the image and caches them in the Image struct,
 // so that other methods can look them up efficiently.
 func (i *Image) fetchTags() (map[string]string, error) {
