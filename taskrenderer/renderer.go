@@ -36,7 +36,7 @@ func New(out io.Writer, err io.Writer, showTime bool) *Renderer {
 
 // RenderEvents reads every event sent on the given channel and renders it.
 // The channel can be closed by the caller at any time to stop rendering.
-func (r *Renderer) RenderEvents(eventCh chan *TaskEvent) {
+func (r *Renderer) RenderEvents(eventCh <-chan *TaskEvent) {
 	for event := range eventCh {
 		r.renderEvent(event)
 	}
@@ -45,6 +45,11 @@ func (r *Renderer) RenderEvents(eventCh chan *TaskEvent) {
 // renderEvent varies output depending on the information provided
 // by the current taskEvent.
 func (r *Renderer) renderEvent(event *TaskEvent) {
+	switch event.Type {
+	case "eos":
+		return
+	}
+
 	s := ""
 
 	if r.options.showTime {
@@ -57,7 +62,7 @@ func (r *Renderer) renderEvent(event *TaskEvent) {
 
 	s += fmt.Sprintf("%s -- ", event.Stage)
 
-	if event.Subtask.Total != 1 {
+	if event.Subtask.Total != 0 {
 		s += fmt.Sprintf("(%d/%d): ", event.Subtask.Index, event.Subtask.Total)
 	}
 

@@ -288,6 +288,26 @@ func (i *Image) parseResponseFromURL(u string, result interface{}) error {
 	return nil
 }
 
+// Cookie returns the string representation of the first
+// cookie stored in stored client's cookie jar.
+func (i *Image) Cookie(u string) (string, error) {
+	if i.client.Jar == nil {
+		return "", nil
+	}
+
+	baseURL, err := url.Parse(u)
+	if err != nil {
+		return "", fmt.Errorf("Invalid URL: %s", err)
+	}
+
+	cookies := i.client.Jar.Cookies(baseURL)
+	if len(cookies) == 0 {
+		return "", nil
+	}
+
+	return cookies[0].String(), nil
+}
+
 // combineEndpointErrors takes a mapping of Docker API endpoints to errors encountered
 // while talking to them and returns a single error that contains all endpoint URLs
 // along with error for each URL.
