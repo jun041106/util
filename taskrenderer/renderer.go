@@ -48,23 +48,6 @@ func (r *Renderer) renderEvent(event *TaskEvent) {
 	switch event.Type {
 	case "eos":
 		return
-	case "server_error":
-		fallthrough
-	case "client_error":
-		err := "Error"
-		var msg string
-		v, ok := event.Payload["error"]
-		if !ok {
-			goto out
-		}
-		msg, ok = v.(string)
-		if !ok {
-			goto out
-		}
-		err += ": " + msg
-	out:
-		fmt.Fprintf(r.out, "%s\n", err)
-		return
 	}
 
 	s := ""
