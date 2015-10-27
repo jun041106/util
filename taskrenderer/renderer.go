@@ -60,18 +60,21 @@ func (r *Renderer) renderEvent(event *TaskEvent) {
 		s += fmt.Sprintf("[%s] -- ", event.Thread)
 	}
 
-	s += fmt.Sprintf("%s -- ", event.Stage)
+	s += fmt.Sprintf("%s", event.Stage)
 
-	if event.Subtask.Total != 0 {
-		s += fmt.Sprintf("(%d/%d): ", event.Subtask.Index, event.Subtask.Total)
-	}
+	if event.Subtask.Name != "" {
+		s += " -- "
+		if event.Subtask.Total != 0 {
+			s += fmt.Sprintf("(%d/%d): ", event.Subtask.Index, event.Subtask.Total)
+		}
 
-	s += fmt.Sprintf("%s", event.Subtask.Name)
+		s += fmt.Sprintf("%s", event.Subtask.Name)
 
-	if event.Subtask.Progress.Total != 0 {
-		s += fmt.Sprintf(" ... %d%%",
-			(event.Subtask.Progress.Current/event.Subtask.Progress.Total)*100,
-		)
+		if event.Subtask.Progress.Total != 0 {
+			s += fmt.Sprintf(" ... %d%%",
+				(event.Subtask.Progress.Current/event.Subtask.Progress.Total)*100,
+			)
+		}
 	}
 
 	fmt.Fprintf(r.out, "%s\n", s)
