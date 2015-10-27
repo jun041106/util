@@ -30,7 +30,7 @@ func TestUntarResolveDestinations(t *testing.T) {
 	runTest := func(p, e string) {
 		dst, err := u.resolveDestination(p)
 		TestExpectSuccess(t, err)
-		TestEqual(t, e, dst)
+		TestEqual(t, dst, e)
 	}
 
 	runTest("a", "a")
