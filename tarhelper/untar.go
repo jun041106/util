@@ -8,8 +8,8 @@ import (
 	"io"
 	"os"
 	"os/user"
-	"path"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -254,11 +254,11 @@ func (u *Untar) processEntry(header *tar.Header) error {
 		return nil
 	}
 
-	name := path.Join(u.target, header.Name)
+	name := filepath.Join(u.target, header.Name)
 
 	// resolve the destination and then reset the name based on the resolution
-	destDir, err := u.resolveDestination(path.Dir(name))
-	name = path.Join(destDir, path.Base(name))
+	destDir, err := u.resolveDestination(filepath.Dir(name))
+	name = filepath.Join(destDir, filepath.Base(name))
 	if err != nil {
 		return err
 	}
@@ -325,7 +325,7 @@ func (u *Untar) processEntry(header *tar.Header) error {
 		}
 
 		// find the full path, need to ensure it exists
-		link := path.Clean(path.Join(u.target, header.Linkname))
+		link := filepath.Join(u.target, header.Linkname)
 
 		// do the link... no permissions or owners, those carry over
 		if err := os.Link(link, name); err != nil {
@@ -349,7 +349,7 @@ func (u *Untar) processEntry(header *tar.Header) error {
 
 		// Perform a chmod after creation to ensure modes are applied directly,
 		// regardless of umask.
-		if err := f.Chmod(mode); err != nil {
+		if err := os.Chmod(name, mode); err != nil {
 			return err
 		}
 
@@ -441,13 +441,6 @@ func (u *Untar) processEntry(header *tar.Header) error {
 func (u *Untar) resolveDestination(name string) (string, error) {
 	pathParts := strings.Split(name, string(os.PathSeparator))
 
-	// this prefix is used to know if we're absolute paths or not later when
-	// rejoining
-	prefix := "." + string(os.PathSeparator)
-	if path.IsAbs(name) {
-		prefix = string(os.PathSeparator)
-	}
-
 	// walk the path parts to find at what point the resolvedLinks deviates
 	i := 0
 	for i, _ = range pathParts {
@@ -464,7 +457,18 @@ func (u *Untar) resolveDestination(name string) (string, error) {
 	// normally it begins with the previous dest, but if it is empty we need to
 	// start with resolving the first path piece
 	if len(u.resolvedLinks) == 0 {
-		dst, err := u.convertToDestination(path.Join(prefix, pathParts[i]))
+		p := pathParts[i]
+
+		if p == "" {
+			// Path shouldn't start empty; resolve it from the root.
+			if runtime.GOOS == "windows" {
+				p = filepath.VolumeName(name)
+			} else {
+				p = string(os.PathSeparator)
+			}
+		}
+
+		dst, err := u.convertToDestination(p)
 		if err != nil {
 			return "", err
 		}
@@ -477,10 +481,10 @@ func (u *Untar) resolveDestination(name string) (string, error) {
 
 	// build up the resolution for the rest of the pieces
 	for j := i; j < len(pathParts); j++ {
-		testPath := path.Join(
-			prefix,
+		testPath := filepath.Join(
 			u.resolvedLinks[len(u.resolvedLinks)-1].dst,
 			pathParts[j])
+
 		dst, err := u.convertToDestination(testPath)
 		if err != nil {
 			return "", err
@@ -533,13 +537,11 @@ func (u *Untar) convertToDestination(dir string) (string, error) {
 		}
 
 		// if the path is absolute, we want it based on the AbsoluteRoot
-		if path.IsAbs(link) {
-			link = path.Join(u.AbsoluteRoot, ".", link)
-			link = path.Clean(link)
+		if filepath.IsAbs(link) {
+			link = filepath.Join(u.AbsoluteRoot, ".", link)
 		} else {
 			// clean up the path to be a more complete dest from the target
-			link = path.Join(path.Dir(dir), ".", link)
-			link = path.Clean(link)
+			link = filepath.Join(filepath.Dir(dir), ".", link)
 		}
 
 		// return the link
