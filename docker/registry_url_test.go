@@ -48,6 +48,11 @@ func TestParseDockerRegistryURL(t *testing.T) {
 				Tag:       "tag",
 			},
 		},
+		{
+			"some/weird/:image",
+			fmt.Errorf(`Image name must not have a trailing "/": some/weird/`),
+			&DockerRegistryURL{},
+		},
 	}
 
 	for i, val := range testValues {
