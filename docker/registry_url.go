@@ -152,6 +152,11 @@ func parseTag(s string) (prefix, tag string, err error) {
 		// Unlikely edge case but it doesn't hurt to test for it.
 		return "", "", fmt.Errorf("Path should not contain more than one colon: %q", s)
 	}
+
+	if strings.HasSuffix(prefix, "/") {
+		return "", "", fmt.Errorf(`Image name must not have a trailing "/": %s`, prefix)
+	}
+
 	return prefix, tag, nil
 }
 

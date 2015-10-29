@@ -49,17 +49,21 @@ func TestParseDockerRegistryURL(t *testing.T) {
 			},
 		},
 	}
+
 	for i, val := range testValues {
 		result, err := ParseDockerRegistryURL(val.input)
-		if err != nil {
-			if val.expectedError == nil {
-				t.Errorf("Case %d: Unexpected error while parsing struct", i)
-			}
-			if err.Error() != val.expectedError.Error() {
-				t.Errorf("Case %d: Actual error %s does not match expected error %s", i, err, val.expectedError)
-			}
+		if err != nil && val.expectedError != nil && err.Error() == val.expectedError.Error() {
+			continue
+		} else if err != nil && val.expectedError != nil && err.Error() != val.expectedError.Error() {
+			t.Errorf("Case %d: Actual error %s does not match expected error %s", i, err, val.expectedError)
 			// Error was expected and matched, don't go on to check the result
 			// because it is likely to not be relevant.
+			continue
+		} else if err != nil && val.expectedError == nil {
+			t.Errorf("Case %d: Unexpected error while parsing struct", i)
+			continue
+		} else if err == nil && val.expectedError != nil {
+			t.Errorf("Expected an error but didn't get one: %s", val.expectedError)
 			continue
 		}
 		checkURL(t, result, val.expectedRegistryURL)
@@ -240,24 +244,31 @@ func TestParseFullDockerRegistryURL(t *testing.T) {
 			fmt.Errorf(`Path cannot be made up of just a tag: "%s"`, ":tag"),
 			&DockerRegistryURL{},
 		},
+		{
+			"http://127.0.0.1:49375/some/weird/:image",
+			fmt.Errorf(`Image name must not have a trailing "/": some/weird/`),
+			&DockerRegistryURL{},
+		},
 	}
 
 	for i, val := range testValues {
 		result, err := ParseFullDockerRegistryURL(val.input)
-		if err != nil {
-			if val.expectedError == nil {
-				t.Errorf("Case %d: Unexpected error while parsing struct", i)
-			}
-			if err.Error() != val.expectedError.Error() {
-				t.Errorf("Case %d: Actual error %s does not match expected error %s", i, err, val.expectedError)
-			}
+		if err != nil && val.expectedError != nil && err.Error() == val.expectedError.Error() {
+			continue
+		} else if err != nil && val.expectedError != nil && err.Error() != val.expectedError.Error() {
+			t.Errorf("Case %d: Actual error %s does not match expected error %s", i, err, val.expectedError)
 			// Error was expected and matched, don't go on to check the result
 			// because it is likely to not be relevant.
+			continue
+		} else if err != nil && val.expectedError == nil {
+			t.Errorf("Case %d: Unexpected error while parsing struct", i)
+			continue
+		} else if err == nil && val.expectedError != nil {
+			t.Errorf("Expected an error but didn't get one: %s", val.expectedError)
 			continue
 		}
 		checkURL(t, result, val.expectedRegistryURL)
 	}
-
 }
 
 func TestBaseURL(t *testing.T) {
