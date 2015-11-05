@@ -172,6 +172,24 @@ func (i *Image) LayerReader(id string) (io.ReadCloser, error) {
 	return resp.Body, nil
 }
 
+// LayerURLs returns several URLs for a specific layer.
+func (i *Image) LayerURLs(id string) []string {
+	var urls []string
+	for _, ep := range i.endpoints {
+		urls = append(urls, fmt.Sprintf("%s://%s/v1/images/%s/layer", i.scheme, ep, id))
+	}
+	return urls
+}
+
+// AuthorizationHeader exposes the authorization header created for the image
+// for external layer downloads.
+func (i *Image) AuthorizationHeader() string {
+	if i.token == "" {
+		return ""
+	}
+	return fmt.Sprintf("Token %s", i.token)
+}
+
 // fetchTags fetches tags for the image and caches them in the Image struct,
 // so that other methods can look them up efficiently.
 func (i *Image) fetchTags() (map[string]string, error) {
@@ -268,6 +286,26 @@ func (i *Image) parseResponseFromURL(u string, result interface{}) error {
 	}
 
 	return nil
+}
+
+// Cookie returns the string representation of the first
+// cookie stored in stored client's cookie jar.
+func (i *Image) Cookie(u string) (string, error) {
+	if i.client.Jar == nil {
+		return "", nil
+	}
+
+	baseURL, err := url.Parse(u)
+	if err != nil {
+		return "", fmt.Errorf("Invalid URL: %s", err)
+	}
+
+	cookies := i.client.Jar.Cookies(baseURL)
+	if len(cookies) == 0 {
+		return "", nil
+	}
+
+	return cookies[0].String(), nil
 }
 
 // combineEndpointErrors takes a mapping of Docker API endpoints to errors encountered
