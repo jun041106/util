@@ -38,13 +38,13 @@ func New(out io.Writer, err io.Writer, showTime bool) *Renderer {
 // The channel can be closed by the caller at any time to stop rendering.
 func (r *Renderer) RenderEvents(eventCh <-chan *TaskEvent) {
 	for event := range eventCh {
-		r.renderEvent(event)
+		r.RenderEvent(event)
 	}
 }
 
 // renderEvent varies output depending on the information provided
 // by the current taskEvent.
-func (r *Renderer) renderEvent(event *TaskEvent) {
+func (r *Renderer) RenderEvent(event *TaskEvent) {
 	switch event.Type {
 	case "eos":
 		return
