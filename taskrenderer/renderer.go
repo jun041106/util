@@ -4,17 +4,11 @@ package taskrenderer
 
 import (
 	"fmt"
-	"io"
 	"time"
 )
 
 // Renderer holds all of the state necessary to gather and output TaskEvents.
 type Renderer struct {
-	out io.Writer
-	err io.Writer
-
-	eventCh chan *TaskEvent
-
 	options *FormatOptions
 }
 
@@ -24,10 +18,8 @@ type FormatOptions struct {
 }
 
 // New instantiates and returns a new Renderer object.
-func New(out io.Writer, err io.Writer, showTime bool) *Renderer {
+func New(showTime bool) *Renderer {
 	return &Renderer{
-		out: out,
-		err: err,
 		options: &FormatOptions{
 			showTime: showTime,
 		},
@@ -38,16 +30,16 @@ func New(out io.Writer, err io.Writer, showTime bool) *Renderer {
 // The channel can be closed by the caller at any time to stop rendering.
 func (r *Renderer) RenderEvents(eventCh <-chan *TaskEvent) {
 	for event := range eventCh {
-		r.renderEvent(event)
+		r.RenderEvent(event)
 	}
 }
 
 // renderEvent varies output depending on the information provided
 // by the current taskEvent.
-func (r *Renderer) renderEvent(event *TaskEvent) {
+func (r *Renderer) RenderEvent(event *TaskEvent) string {
 	switch event.Type {
 	case "eos":
-		return
+		return ""
 	}
 
 	s := ""
@@ -77,5 +69,5 @@ func (r *Renderer) renderEvent(event *TaskEvent) {
 		}
 	}
 
-	fmt.Fprintf(r.out, "%s\n", s)
+	return s
 }
