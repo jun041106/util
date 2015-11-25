@@ -181,6 +181,26 @@ func (u *DockerRegistryURL) baseURL(includeCredentials bool) string {
 
 }
 
+// HostPort returns the HostPort of the registry URL. If there is no port, then
+// it returns just the host.
+func (u *DockerRegistryURL) HostPort() string {
+	if u.Port == "" {
+		return u.Host
+	}
+	return net.JoinHostPort(u.Host, u.Port)
+
+}
+
+// AddLibraryNamespace explicitly appends the `library` namespace used for
+// official images.
+func (u *DockerRegistryURL) AddLibraryNamespace() {
+	// If the image name does not contain '/', it is intended to be an official
+	// image; so we add the `library` namespace to the URL.
+	if !strings.Contains(u.ImageName, "/") {
+		u.ImageName = fmt.Sprintf("library/%s", u.ImageName)
+	}
+}
+
 // BaseURL returns a string of the format: <scheme>://(<creds>@)?<host>(:<port>)?
 func (u *DockerRegistryURL) BaseURL() string {
 	return u.baseURL(true)
