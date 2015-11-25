@@ -1,20 +1,20 @@
 // Copyright 2014 Apcera Inc. All rights reserved.
 // Borrowing general test structure from Docker mock registry test.
 
-package docker
+package v1
 
 import (
 	"io/ioutil"
 	"sort"
 	"testing"
 
-	"github.com/apcera/util/dockertest"
+	"github.com/apcera/util/dockertest/v1"
 
 	tt "github.com/apcera/util/testtool"
 )
 
 func init() {
-	registry := dockertest.RunMockRegistry()
+	registry := v1.RunMockRegistry()
 	DockerHubRegistryURL = registry.URL
 }
 
