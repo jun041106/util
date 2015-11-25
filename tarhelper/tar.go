@@ -346,7 +346,7 @@ func (t *Tar) processEntry(fullName string, f os.FileInfo, dirStack []string) er
 		}
 
 		// Necessary to ensure files from Windows have +x bit written.
-		header.Mode = int64(chmodTarEntry(mode))
+		chmodTarEntry(header)
 
 		// check to see if this is a hard link
 		if linkCountForFileInfo(f) > 1 {

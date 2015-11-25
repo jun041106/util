@@ -5,6 +5,7 @@
 package tarhelper
 
 import (
+	"archive/tar"
 	"fmt"
 	"os"
 )
@@ -49,9 +50,6 @@ func inodeForFileInfo(_ os.FileInfo) uint64 {
 
 // chmodTarEntry is used to adjust the file permissions used in tar header based
 // on the platform the archival is done.
-func chmodTarEntry(perm os.FileMode) os.FileMode {
-	// Add the x bit: make everything +x from windows
-	perm |= 0111
-
-	return perm
+func chmodTarEntry(h *tar.Header) {
+	h.Mode |= 0111
 }

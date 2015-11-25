@@ -5,6 +5,7 @@
 package tarhelper
 
 import (
+	"archive/tar"
 	"os"
 	"syscall"
 )
@@ -38,6 +39,5 @@ func inodeForFileInfo(fi os.FileInfo) uint64 {
 
 // chmodTarEntry is used to adjust the file permissions used in tar header based
 // on the platform the archival is done.
-func chmodTarEntry(perm os.FileMode) os.FileMode {
-	return perm // noop for posixfs as golang APIs provide perm bits correctly
+func chmodTarEntry(h *tar.Header) {
 }
