@@ -541,3 +541,32 @@ func TestTarPointedToFile(t *testing.T) {
 	TestExpectSuccess(t, err)
 	TestEqual(t, string(contents), "hello world")
 }
+
+func TestTarPreserveSetuid(t *testing.T) {
+	StartTest(t)
+	defer FinishTest(t)
+
+	dir := TempDir(t)
+	apath := path.Join(dir, "a")
+
+	err := ioutil.WriteFile(apath, []byte("hello world"), os.FileMode(0644))
+	TestExpectSuccess(t, err)
+
+	err = os.Chmod(apath, os.FileMode(0644)|os.ModeSetuid)
+	TestExpectSuccess(t, err)
+
+	w := bytes.NewBufferString("")
+	tw := NewTar(w, apath)
+	err = tw.Archive()
+	TestExpectSuccess(t, err)
+
+	dir = TempDir(t)
+	u := NewUntar(w, dir)
+	u.AbsoluteRoot = dir
+	err = u.Extract()
+	TestExpectSuccess(t, err)
+
+	stat, err := os.Stat(path.Join(dir, "a"))
+	TestExpectSuccess(t, err)
+	TestEqual(t, stat.Mode()&os.ModeSetuid != 0, true, "must have setuid bit")
+}
