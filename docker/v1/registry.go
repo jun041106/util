@@ -1,6 +1,10 @@
 // Copyright 2014-2015 Apcera Inc. All rights reserved.
 
-package docker
+// v1 is a Docker v1 Registry API client implementation. The v1 API has
+// been deprecated by the public Docker Hub as of December 7th, 2015.
+//
+// See: https://docs.docker.com/v1.6/reference/api/registry_api/
+package v1
 
 import (
 	"encoding/json"

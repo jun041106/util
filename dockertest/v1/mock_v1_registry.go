@@ -1,6 +1,6 @@
 // Copyright 2014-2015 Apcera Inc. All rights reserved.
 
-package dockertest
+package v1
 
 import (
 	"encoding/json"
