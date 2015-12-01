@@ -67,6 +67,8 @@ func ParseDockerRegistryURL(s string) (*DockerRegistryURL, error) {
 // ParseFullDockerRegistryURL validates an input string URL to make sure
 // that it conforms to the Docker V1 registry URL schema.
 func ParseFullDockerRegistryURL(s string) (*DockerRegistryURL, error) {
+	s = handleSchemelessQuayRegistries(s)
+
 	registryURL := &DockerRegistryURL{}
 	u, err := url.Parse(s)
 	if err != nil {
@@ -96,6 +98,17 @@ func ParseFullDockerRegistryURL(s string) (*DockerRegistryURL, error) {
 		return nil, err
 	}
 	return registryURL, nil
+}
+
+// handleSchemelessQuayRegistries handles scheme-less Quay URLs provided as Quay
+// lists on their repository pages. No-op for non-Quay registries, or for Quay
+// URLs provdied with a scheme.
+func handleSchemelessQuayRegistries(s string) string {
+	if !strings.HasPrefix(s, "quay.io") {
+		return s
+	}
+
+	return "https://" + s
 }
 
 // splitHostPort wraps net.SplitHostPort, and can be called on a host

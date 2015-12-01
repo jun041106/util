@@ -127,6 +127,15 @@ func TestParseFullDockerRegistryURL(t *testing.T) {
 			},
 		},
 		{
+			"quay.io/namespace/repo",
+			nil,
+			&DockerRegistryURL{
+				Scheme:    "https",
+				Host:      "quay.io",
+				ImageName: "namespace/repo",
+			},
+		},
+		{
 			"https://registry-1.docker.io/namespace/repo:tag",
 			nil,
 			&DockerRegistryURL{
@@ -266,7 +275,7 @@ func TestParseFullDockerRegistryURL(t *testing.T) {
 			// because it is likely to not be relevant.
 			continue
 		} else if err != nil && val.expectedError == nil {
-			t.Errorf("Case %d: Unexpected error while parsing struct", i)
+			t.Errorf("Case %d: Unexpected error while parsing struct: %s", i, err)
 			continue
 		} else if err == nil && val.expectedError != nil {
 			t.Errorf("Expected an error but didn't get one: %s", val.expectedError)
