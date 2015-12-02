@@ -19,6 +19,9 @@ var (
 	testHttpServer *httptest.Server
 	mu             sync.Mutex
 
+	// skipAuth skips sending authorization challenges entirely.
+	skipAuth bool
+
 	// Note: currently does not support supplying signed manifests.
 	testImageManifests = map[string]string{
 		"library/nats:latest": libraryNatsLatestManifest,
@@ -44,6 +47,14 @@ func RunMockRegistry() *httptest.Server {
 	return testHttpServer
 }
 
+// SetSkipAuth allows for configuring the mock registry to not send auth
+// challenges.
+func SetSkipAuth(enabled bool) {
+	mu.Lock()
+	defer mu.Unlock()
+	skipAuth = enabled
+}
+
 func logHandler(handler http.Handler) http.Handler {
 	if !testVerbose {
 		return handler
@@ -66,6 +77,10 @@ func writeResponse(w http.ResponseWriter, httpStatus int, payload interface{}) {
 }
 
 func checkAuth(w http.ResponseWriter, r *http.Request) bool {
+	if skipAuth {
+		return true
+	}
+
 	if (len(r.Header.Get("Authorization"))) > 0 {
 		return true
 	}
