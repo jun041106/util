@@ -46,7 +46,7 @@ func GetProcessStats(pid int) (*ProcessStats, error) {
 
 	// use float in going from ticks to time to ensure we preserve granularity
 	// below 1 second.
-	p.CpuNs = time.Duration(float64(totalTicks)/float64(ticks)) * time.Second
+	p.CpuNs = time.Duration(float64(totalTicks) / float64(ticks) * float64(time.Second))
 
 	// Calculate the total resident set pages/size. Index based on man proc(5).
 	totalPages, err := sum(fields[23])
