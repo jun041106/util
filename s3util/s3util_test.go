@@ -185,7 +185,7 @@ func TestUploadToS3(t *testing.T) {
 	}
 	defer os.Remove(fullName)
 
-	listener, err := net.Listen("tcp", ":0")
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
