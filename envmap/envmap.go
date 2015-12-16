@@ -122,6 +122,16 @@ func (e *EnvMap) Strings() []string {
 	return r
 }
 
+// Keys returns an array of the keys of the environment map.
+func (e *EnvMap) Keys() []string {
+	var keys []string
+	for k, _ := range e.Map() {
+		keys = append(keys, k)
+	}
+
+	return keys
+}
+
 func (e *EnvMap) NewChild() *EnvMap {
 	return &EnvMap{
 		env:     make(map[string]string, 0),
