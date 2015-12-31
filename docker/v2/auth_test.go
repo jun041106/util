@@ -7,8 +7,7 @@ import (
 	"net/http"
 	"testing"
 
-	// TODO: godep?
-	"github.com/docker/distribution/registry/client/auth"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/registry/client/auth"
 )
 
 func TestDocker_BuildAuthenticationURL(t *testing.T) {

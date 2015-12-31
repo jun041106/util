@@ -13,8 +13,7 @@ import (
 	"net/url"
 	"strings"
 
-	// TODO: godep?
-	"github.com/docker/distribution/registry/client/auth"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/registry/client/auth"
 )
 
 // authenticate retrieves an authentication token for an action against a V2

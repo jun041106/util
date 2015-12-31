@@ -17,11 +17,9 @@ import (
 	"path"
 
 	"github.com/apcera/util/docker"
-
-	// TODO: godep?
-	"github.com/docker/distribution/digest"
-	"github.com/docker/distribution/manifest/schema1"
-	"github.com/docker/distribution/registry/client/auth"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/digest"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/manifest/schema1"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/registry/client/auth"
 )
 
 var (
