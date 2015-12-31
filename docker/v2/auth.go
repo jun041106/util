@@ -38,17 +38,25 @@ func (d *DockerClient) authenticate(resp *http.Response) (string, error) {
 		return "", fmt.Errorf("got %d authentication challenges", len(challenges))
 	}
 
-	token, err := d.fetchV2AuthToken(challenges[0])
+	token, err := d.fetchToken(challenges[0])
 	if err != nil {
 		return "", err
 	}
 
+	// Store a copy of the original challenge. As we need one token per request,
+	// we'll need to request more tokens with the same scope.
+	d.authChallenge = challenges[0]
+
 	return token, nil
 }
 
-// fetchV2AuthToken handles an authentication challenge and returns a token that
+// fetchToken handles an authentication challenge and returns a token that
 // allows us to access a registry.
-func (d *DockerClient) fetchV2AuthToken(challenge auth.Challenge) (string, error) {
+func (d *DockerClient) fetchToken(challenge auth.Challenge) (string, error) {
+	if challenge.Parameters == nil {
+		return "", errors.New("must provide challenge for token fetch")
+	}
+
 	rawURL, err := buildAuthenticationURL(challenge.Parameters, d.imageURL.ImageName)
 	if err != nil {
 		return "", err

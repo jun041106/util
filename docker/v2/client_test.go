@@ -14,6 +14,34 @@ func init() {
 	DockerHubRegistryURL = v2Registry.URL
 }
 
+func TestFetchImage(t *testing.T) {
+	imageName := "library/nats:latest"
+	unparsedDockerURL := fmt.Sprintf("%s/%s", DockerHubRegistryURL, imageName)
+
+	dockerClient, err := NewDockerClientFromRawURL(unparsedDockerURL)
+	if err != nil {
+		t.Fatalf("Failed to create Docker client for %q: %s", unparsedDockerURL, err)
+	}
+
+	layers, err := dockerClient.FetchImage()
+	if err == nil {
+		t.Fatal("Expected authentication error fetching image")
+	}
+
+	if err := dockerClient.CheckV2Support(); err != nil {
+		t.Fatalf("Failed to check for v2 registry support: %s", err)
+	}
+
+	layers, err = dockerClient.FetchImage()
+	if err != nil {
+		t.Fatalf("Failed to fetch docker image: %s", err)
+	}
+
+	if len(layers) != 6 {
+		t.Fatalf("Expected 6 layers, got %d", len(layers))
+	}
+}
+
 func TestFetchImage_NoAuth(t *testing.T) {
 	imageName := "library/nats:latest"
 	unparsedDockerURL := fmt.Sprintf("%s/%s", DockerHubRegistryURL, imageName)

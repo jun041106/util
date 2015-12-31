@@ -21,6 +21,7 @@ import (
 	// TODO: godep?
 	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/manifest/schema1"
+	"github.com/docker/distribution/registry/client/auth"
 )
 
 var (
@@ -32,13 +33,14 @@ var (
 	ErrUnsupported = errors.New("Registry does not support v2 API")
 )
 
-// A DockerClient allows pulling Docker images and layers from a registry that
-// implements the v2 registry API.
+// A DockerClient pulls a single Docker image from a registry that conforms to
+// the v2 Docker registry API.
 type DockerClient struct {
-	imageURL      *docker.DockerRegistryURL
-	imageMetadata map[string]interface{}
-	tokens        map[string]string
-	httpClient    *http.Client
+	imageURL        *docker.DockerRegistryURL
+	authChallenge   auth.Challenge
+	imageFetchToken string
+	imageMetadata   map[string]interface{}
+	httpClient      *http.Client
 }
 
 // NewDockerClient initializes a new client for fetching Docker images and
@@ -47,7 +49,6 @@ type DockerClient struct {
 func NewDockerClient(imageURL *docker.DockerRegistryURL) (*DockerClient, error) {
 	client := &DockerClient{
 		imageURL:   imageURL,
-		tokens:     make(map[string]string),
 		httpClient: &http.Client{},
 	}
 
@@ -92,8 +93,7 @@ func (d *DockerClient) CheckV2Support() error {
 		if err != nil {
 			return err
 		}
-
-		d.tokens[v2ImageManifestURL(d.imageURL)] = token
+		d.imageFetchToken = token
 	default:
 		return ErrUnsupported
 	}
@@ -109,7 +109,7 @@ func v2SupportCheckURL(imageURL *docker.DockerRegistryURL) string {
 //
 // See: https://docs.docker.com/registr/yspec/api/
 func (d *DockerClient) FetchImage() ([]string, error) {
-	unparsedImageURL := v2ImageManifestURL(d.imageURL)
+	unparsedImageURL := imageManifestURL(d.imageURL)
 
 	imageURL, err := url.Parse(unparsedImageURL)
 	if err != nil {
@@ -125,8 +125,8 @@ func (d *DockerClient) FetchImage() ([]string, error) {
 		req.AddCookie(cookie)
 	}
 
-	if d.tokens[imageURL.String()] != "" {
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", d.tokens[imageURL.String()]))
+	if d.imageFetchToken != "" {
+		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", d.imageFetchToken))
 	}
 
 	resp, err := d.httpClient.Do(req)
@@ -177,7 +177,7 @@ func (d *DockerClient) FetchImage() ([]string, error) {
 	return layerIDs, nil
 }
 
-func v2ImageManifestURL(imageURL *docker.DockerRegistryURL) string {
+func imageManifestURL(imageURL *docker.DockerRegistryURL) string {
 	return fmt.Sprintf("%s://%s", imageURL.Scheme, path.Join(imageURL.HostPort(),
 		"v2", imageURL.ImageName, "manifests", imageURL.Tag))
 }
@@ -190,7 +190,12 @@ func (d *DockerClient) LayerReader(layerID string) (io.ReadCloser, error) {
 		return nil, err
 	}
 
-	layerURL, err := url.Parse(v2LayerDownloadURL(d.imageURL, layerDigest))
+	token, err := d.fetchToken(d.authChallenge)
+	if err != nil {
+		return nil, err
+	}
+
+	layerURL, err := url.Parse(layerDownloadURL(d.imageURL, layerDigest))
 	if err != nil {
 		return nil, err
 	}
@@ -198,6 +203,10 @@ func (d *DockerClient) LayerReader(layerID string) (io.ReadCloser, error) {
 	req, err := http.NewRequest("GET", layerURL.String(), nil)
 	if err != nil {
 		return nil, err
+	}
+
+	if token != "" {
+		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
 	}
 
 	for _, cookie := range d.httpClient.Jar.Cookies(layerURL) {
@@ -213,13 +222,22 @@ func (d *DockerClient) LayerReader(layerID string) (io.ReadCloser, error) {
 	case http.StatusOK:
 		// OK
 	case http.StatusUnauthorized:
-
+		// TODO: consider inspecting the 'error' field from the Challenge header
+		// to see if it's useful to an end user.
+		return nil, fmt.Errorf("not authorized to pull layer %q", layerDigest)
+	default:
+		return nil, fmt.Errorf("failed to fetch layer: %s", resp.Status)
 	}
 
 	return resp.Body, nil
 }
 
-func v2LayerDownloadURL(imageURL *docker.DockerRegistryURL, blobSum digest.Digest) string {
+func layerDownloadURL(imageURL *docker.DockerRegistryURL, blobSum digest.Digest) string {
 	return fmt.Sprintf("%s://%s/v2/%s/blobs/%s",
 		imageURL.Scheme, imageURL.HostPort(), imageURL.ImageName, blobSum.String())
+}
+
+// RawMetadata returns the image metadata.
+func (d *DockerClient) RawMetadata() map[string]interface{} {
+	return d.imageMetadata
 }
