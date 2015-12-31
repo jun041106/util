@@ -3,7 +3,7 @@ package storage
 import (
 	"testing"
 
-	"github.com/docker/distribution/digest"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/digest"
 )
 
 func TestPathMapper(t *testing.T) {

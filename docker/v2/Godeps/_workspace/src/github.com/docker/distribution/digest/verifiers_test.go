@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/distribution/testutil"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/testutil"
 )
 
 func TestDigestVerifier(t *testing.T) {

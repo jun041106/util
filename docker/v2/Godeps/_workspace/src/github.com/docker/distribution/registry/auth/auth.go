@@ -36,7 +36,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/docker/distribution/context"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/context"
 )
 
 // UserInfo carries information about

@@ -5,16 +5,16 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/docker/distribution"
-	"github.com/docker/distribution/context"
-	"github.com/docker/distribution/digest"
-	"github.com/docker/distribution/manifest"
-	"github.com/docker/distribution/manifest/schema1"
-	"github.com/docker/distribution/registry/storage"
-	"github.com/docker/distribution/registry/storage/cache/memory"
-	"github.com/docker/distribution/registry/storage/driver/inmemory"
-	"github.com/docker/distribution/testutil"
-	"github.com/docker/libtrust"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/context"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/digest"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/manifest"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/manifest/schema1"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/registry/storage"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/registry/storage/cache/memory"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/registry/storage/driver/inmemory"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/testutil"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/libtrust"
 )
 
 func TestListener(t *testing.T) {

@@ -10,9 +10,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Sirupsen/logrus"
-	"github.com/docker/distribution/registry/client"
-	"github.com/docker/distribution/registry/client/transport"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/Sirupsen/logrus"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/registry/client"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/registry/client/transport"
 )
 
 // AuthenticationHandler is an interface for authorizing a request from

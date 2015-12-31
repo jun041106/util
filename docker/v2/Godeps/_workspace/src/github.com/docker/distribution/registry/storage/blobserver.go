@@ -5,10 +5,10 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/docker/distribution"
-	"github.com/docker/distribution/context"
-	"github.com/docker/distribution/digest"
-	"github.com/docker/distribution/registry/storage/driver"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/context"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/digest"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/registry/storage/driver"
 )
 
 // TODO(stevvooe): This should configurable in the future.

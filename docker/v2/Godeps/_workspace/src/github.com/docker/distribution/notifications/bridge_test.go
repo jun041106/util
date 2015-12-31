@@ -3,14 +3,11 @@ package notifications
 import (
 	"testing"
 
-	"github.com/docker/distribution/digest"
-
-	"github.com/docker/libtrust"
-
-	"github.com/docker/distribution/manifest/schema1"
-
-	"github.com/docker/distribution/registry/api/v2"
-	"github.com/docker/distribution/uuid"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/digest"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/manifest/schema1"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/registry/api/v2"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/uuid"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/libtrust"
 )
 
 var (

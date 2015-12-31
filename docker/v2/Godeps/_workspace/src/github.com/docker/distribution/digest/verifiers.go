@@ -5,7 +5,7 @@ import (
 	"io"
 	"io/ioutil"
 
-	"github.com/docker/docker/pkg/tarsum"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/docker/pkg/tarsum"
 )
 
 // Verifier presents a general verification interface to be used with message

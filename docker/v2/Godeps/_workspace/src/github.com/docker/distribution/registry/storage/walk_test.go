@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/docker/distribution/context"
-	"github.com/docker/distribution/registry/storage/driver"
-	"github.com/docker/distribution/registry/storage/driver/inmemory"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/context"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/registry/storage/driver"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/registry/storage/driver/inmemory"
 )
 
 func testFS(t *testing.T) (driver.StorageDriver, map[string]string, context.Context) {

@@ -8,14 +8,14 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
-	"github.com/docker/distribution/uuid"
-	"github.com/gorilla/mux"
+	log "github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/Sirupsen/logrus"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/uuid"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/gorilla/mux"
 )
 
-// Common errors used with this package.
 var (
-	ErrNoRequestContext        = errors.New("no http request in context")
+	ErrNoRequestContext = // Common errors used with this package.
+	errors.New("no http request in context")
 	ErrNoResponseWriterContext = errors.New("no http response in context")
 )
 

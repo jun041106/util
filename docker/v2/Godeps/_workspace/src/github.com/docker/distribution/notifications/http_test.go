@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/docker/distribution/manifest/schema1"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/manifest/schema1"
 )
 
 // TestHTTPSink mocks out an http endpoint and notifies it under a couple of

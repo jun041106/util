@@ -5,11 +5,11 @@ package oss
 import (
 	"io/ioutil"
 
-	alioss "github.com/denverdino/aliyungo/oss"
-	"github.com/docker/distribution/context"
-	storagedriver "github.com/docker/distribution/registry/storage/driver"
-	"github.com/docker/distribution/registry/storage/driver/testsuites"
-	//"log"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/context"
+	storagedriver "github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/registry/storage/driver"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/registry/storage/driver/testsuites"
+	alioss "github.com/denverdino/aliyungo/oss" //"log"
+
 	"os"
 	"strconv"
 	"testing"

@@ -11,9 +11,9 @@ import (
 	"time"
 
 	"github.com/AdRoll/goamz/cloudfront"
-	"github.com/docker/distribution/context"
-	storagedriver "github.com/docker/distribution/registry/storage/driver"
-	storagemiddleware "github.com/docker/distribution/registry/storage/driver/middleware"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/context"
+	storagedriver "github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/registry/storage/driver"
+	storagemiddleware "github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/registry/storage/driver/middleware"
 )
 
 // cloudFrontStorageMiddleware provides an simple implementation of layerHandler that

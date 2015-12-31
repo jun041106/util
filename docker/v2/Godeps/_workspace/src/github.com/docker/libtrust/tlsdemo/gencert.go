@@ -6,7 +6,7 @@ import (
 	"log"
 	"net"
 
-	"github.com/docker/libtrust"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/libtrust"
 )
 
 var (

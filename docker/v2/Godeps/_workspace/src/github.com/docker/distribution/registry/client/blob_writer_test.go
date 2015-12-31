@@ -6,14 +6,14 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/docker/distribution"
-	"github.com/docker/distribution/registry/api/errcode"
-	"github.com/docker/distribution/registry/api/v2"
-	"github.com/docker/distribution/testutil"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/registry/api/errcode"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/registry/api/v2"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/testutil"
 )
 
-// Test implements distribution.BlobWriter
-var _ distribution.BlobWriter = &httpBlobUpload{}
+var _ distribution. // Test implements distribution.BlobWriter
+BlobWriter = &httpBlobUpload{}
 
 func TestUploadReadFrom(t *testing.T) {
 	_, b := newRandomBlob(64)

@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/docker/distribution/health"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/health"
 )
 
 // FileChecker checks the existence of a file and returns an error

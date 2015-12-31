@@ -9,8 +9,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/docker/distribution"
-	"github.com/docker/distribution/context"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/context"
 )
 
 type httpBlobUpload struct {

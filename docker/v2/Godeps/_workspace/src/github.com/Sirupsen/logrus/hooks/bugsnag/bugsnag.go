@@ -3,7 +3,7 @@ package logrus_bugsnag
 import (
 	"errors"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/Sirupsen/logrus"
 	"github.com/bugsnag/bugsnag-go"
 )
 

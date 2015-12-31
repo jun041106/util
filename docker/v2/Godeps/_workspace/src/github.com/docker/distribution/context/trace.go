@@ -4,7 +4,7 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/docker/distribution/uuid"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/uuid"
 )
 
 // WithTrace allocates a traced timing span in a new context. This allows a

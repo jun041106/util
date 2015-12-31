@@ -7,10 +7,9 @@ import (
 	"os"
 	"testing"
 
-	ctx "github.com/docker/distribution/context"
-	storagedriver "github.com/docker/distribution/registry/storage/driver"
-	"github.com/docker/distribution/registry/storage/driver/testsuites"
-
+	ctx "github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/context"
+	storagedriver "github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/registry/storage/driver"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/registry/storage/driver/testsuites"
 	"gopkg.in/check.v1"
 )
 

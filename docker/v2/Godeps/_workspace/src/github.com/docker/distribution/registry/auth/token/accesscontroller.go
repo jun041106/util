@@ -11,9 +11,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/docker/distribution/context"
-	"github.com/docker/distribution/registry/auth"
-	"github.com/docker/libtrust"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/context"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/registry/auth"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/libtrust"
 )
 
 // accessSet maps a typed, named resource to

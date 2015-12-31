@@ -2,10 +2,10 @@ package logrus_sentry
 
 import (
 	"fmt"
-	"time"
 	"net/http"
+	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/Sirupsen/logrus"
 	"github.com/getsentry/raven-go"
 )
 

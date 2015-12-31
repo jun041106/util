@@ -3,8 +3,8 @@ package schema1
 import (
 	"crypto/x509"
 
-	"github.com/Sirupsen/logrus"
-	"github.com/docker/libtrust"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/Sirupsen/logrus"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/libtrust"
 )
 
 // Verify verifies the signature of the signed manifest returning the public

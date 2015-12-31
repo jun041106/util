@@ -9,9 +9,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/docker/distribution/digest"
-	"github.com/docker/distribution/version"
-	"github.com/docker/docker/pkg/tarsum"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/digest"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/version"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/docker/pkg/tarsum"
 )
 
 var (

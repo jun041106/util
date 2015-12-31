@@ -29,7 +29,7 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/net/context"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/golang.org/x/net/context"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 
@@ -38,10 +38,10 @@ import (
 	"google.golang.org/cloud"
 	"google.golang.org/cloud/storage"
 
-	ctx "github.com/docker/distribution/context"
-	storagedriver "github.com/docker/distribution/registry/storage/driver"
-	"github.com/docker/distribution/registry/storage/driver/base"
-	"github.com/docker/distribution/registry/storage/driver/factory"
+	ctx "github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/context"
+	storagedriver "github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/registry/storage/driver"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/registry/storage/driver/base"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/registry/storage/driver/factory"
 )
 
 const driverName = "gcs"

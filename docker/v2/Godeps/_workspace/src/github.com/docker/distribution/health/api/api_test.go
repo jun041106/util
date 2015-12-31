@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/docker/distribution/health"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/health"
 )
 
 // TestGETDownHandlerDoesNotChangeStatus ensures that calling the endpoint

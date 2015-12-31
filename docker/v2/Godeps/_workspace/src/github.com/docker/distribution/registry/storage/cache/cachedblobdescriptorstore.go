@@ -1,10 +1,9 @@
 package cache
 
 import (
-	"github.com/docker/distribution/context"
-	"github.com/docker/distribution/digest"
-
-	"github.com/docker/distribution"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/context"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/digest"
 )
 
 // Metrics is used to hold metric counters

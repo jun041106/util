@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/docker/distribution/context"
-	"github.com/docker/distribution/digest"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/context"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/digest"
 )
 
 var (

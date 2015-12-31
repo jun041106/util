@@ -3,8 +3,8 @@ package context
 import (
 	"sync"
 
-	"github.com/docker/distribution/uuid"
-	"golang.org/x/net/context"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/uuid"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/golang.org/x/net/context"
 )
 
 // Context is a copy of Context from the golang.org/x/net/context package.

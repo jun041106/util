@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/docker/distribution/health"
+	"github.com/apcera/util/docker/v2/Godeps/_workspace/src/github.com/docker/distribution/health"
 )
 
 var (
