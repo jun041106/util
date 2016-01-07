@@ -62,6 +62,56 @@ func TestTarVirtualPath(t *testing.T) {
 	TestExpectSuccess(t, tw.Archive())
 }
 
+func TestExcludeRootPath(t *testing.T) {
+	StartTest(t)
+	defer FinishTest(t)
+
+	w := bytes.NewBufferString("")
+	tw := NewTar(w, makeTestDir(t))
+	tw.ExcludeRootPath = true
+	TestEqual(t, tw.excludeRootPath("./"), true)
+	TestExpectSuccess(t, tw.Archive())
+
+	archive := tar.NewReader(w)
+	rootHeader := ""
+	for {
+		header, err := archive.Next()
+		if err == io.EOF {
+			break
+		}
+		if header.Name == "./" {
+			rootHeader = header.Name
+		}
+	}
+
+	TestNotEqual(t, rootHeader, "./")
+}
+
+func TestIncludeRootPath(t *testing.T) {
+	StartTest(t)
+	defer FinishTest(t)
+
+	w := bytes.NewBufferString("")
+	tw := NewTar(w, makeTestDir(t))
+	tw.ExcludeRootPath = false
+	TestEqual(t, tw.excludeRootPath("./"), false)
+	TestExpectSuccess(t, tw.Archive())
+
+	archive := tar.NewReader(w)
+	rootHeader := ""
+	for {
+		header, err := archive.Next()
+		if err == io.EOF {
+			break
+		}
+		if header.Name == "./" {
+			rootHeader = header.Name
+		}
+	}
+
+	TestEqual(t, rootHeader, "./")
+}
+
 func TestPathExclusion(t *testing.T) {
 	StartTest(t)
 	defer FinishTest(t)

@@ -82,6 +82,11 @@ type Tar struct {
 	// choose a GID or the GID is not allowed.
 	GroupMappingFunc func(int) (int, error)
 
+	// ExcludeRootPath ensures the resulting tarball does not include
+	// a header entry for "./". This prevents untarring from modifying
+	// the parent directory.
+	ExcludeRootPath bool
+
 	// User provided control options. UserOption enum has the
 	// definitions and explanations for the various flags.
 	UserOptions UserOption
@@ -244,9 +249,11 @@ func (t *Tar) processEntry(fullName string, f os.FileInfo, dirStack []string) er
 		header.Name = header.Name + "/"
 
 		// write the header
-		err = t.archive.WriteHeader(header)
-		if err != nil {
-			return err
+		if !t.excludeRootPath(header.Name) {
+			err = t.archive.WriteHeader(header)
+			if err != nil {
+				return err
+			}
 		}
 
 		// Push the directory to stack
@@ -447,5 +454,14 @@ func (t *Tar) shouldBeExcluded(name string) bool {
 			return true
 		}
 	}
+	return false
+}
+
+// Determines if the path is the root path and should be excluded.
+func (t *Tar) excludeRootPath(headerName string) bool {
+	if t.ExcludeRootPath && headerName == "./" {
+		return true
+	}
+
 	return false
 }
