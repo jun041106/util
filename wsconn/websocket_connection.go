@@ -66,7 +66,7 @@ func (conn *WebsocketConnection) startPingInterval() {
 				func() {
 					conn.writeMutex.Lock()
 					defer conn.writeMutex.Unlock()
-					conn.ws.WriteControl(websocket.PongMessage, []byte{}, time.Now().Add(conn.writeTimeout))
+					conn.ws.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(conn.writeTimeout))
 				}()
 			}
 		}
