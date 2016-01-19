@@ -25,6 +25,7 @@ type Conn interface {
 	SetReadDeadline(t time.Time) error
 	SetWriteDeadline(t time.Time) error
 
+	ReadJSON(v interface{}) error
 	Close() error
 }
 
@@ -196,4 +197,8 @@ func (conn *WebsocketConnection) SetReadDeadline(t time.Time) error {
 // SetWriteDeadline sets the write deadline assocated with the connection.
 func (conn *WebsocketConnection) SetWriteDeadline(t time.Time) error {
 	return conn.ws.SetWriteDeadline(t)
+}
+
+func (conn *WebsocketConnection) ReadJSON(v interface{}) error {
+	return conn.ws.ReadJSON(v)
 }
