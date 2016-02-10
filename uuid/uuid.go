@@ -15,7 +15,6 @@ import (
 	math_rand "math/rand"
 	"net"
 	"sync"
-	"time"
 )
 
 // The number of nano seconds between the switch to the Gregorian Calendar and
@@ -90,56 +89,6 @@ func setNodeName() {
 	nodeName = make([]byte, UUIDHardwareByteLen)
 	io.ReadFull(crypto_rand.Reader, nodeName)
 	nodeName[0] = nodeName[0] | 0x01
-}
-
-// Generates a "Variant 1" style UUID. This uses the machines MAC address, and
-// the time since 15 October 1582 in nanoseconds, divided by 100.
-//
-// This form of UUID is useful when you do not care if you leak MAC info, can
-// be sure that MAC addresses are not duplicated on your network, and can
-// be sure that no more than 9,999 UUIDs will be generated every 100ns.
-func Variant1() (u UUID) {
-	// Format is as follows
-	// Time stamp (60 bits): aaabbbbcccccccc
-	// clock id (16 bits): dddd
-	// node id (48 bits): eeeeeeeeeeee
-	// Output is: cccccccc-bbbb-1aaa-dddd-Eeeeeeeeeeee
-	// where 1 is mandated, and E must have its MSB set.
-
-	setupOnce.Do(setNodeName)
-
-	// UUID uses time as nano seconds since the west adopted the
-	// Gregorian calendar, divided by 100. We manage this by adding
-	// a precomputed offset since Unix() uses time since Jan 1, 1970.
-	ts := (time.Now().UnixNano() / 100) + Variant1EpochOffset
-
-	// Clock correct gets incremented every time we generate two UUIDs in the
-	// same 100 nano second period. Should be rare.
-	if ts == lastTime {
-		clockCorrect += 1
-	} else {
-		lastTime = ts
-	}
-
-	u = make([]byte, UUIDByteLen)
-	u[0] = byte((ts >> (3 * 8)) & 0xff)
-	u[1] = byte((ts >> (2 * 8)) & 0xff)
-	u[2] = byte((ts >> (1 * 8)) & 0xff)
-	u[3] = byte(ts & 0xff)
-	u[4] = byte((ts >> (5 * 8)) & 0xff)
-	u[5] = byte((ts >> (4 * 8)) & 0xff)
-	u[6] = byte((ts>>(7*8))&0x0f + 0x10)
-	u[7] = byte((ts >> (6 * 8)) & 0xff)
-	u[8] = byte((clockCorrect>>1)&0x1f) | 0x80
-	u[9] = byte(clockCorrect & 0xff)
-	u[10] = byte(nodeName[0])
-	u[11] = byte(nodeName[1])
-	u[12] = byte(nodeName[2])
-	u[13] = byte(nodeName[3])
-	u[14] = byte(nodeName[4])
-	u[15] = byte(nodeName[5])
-
-	return u
 }
 
 // RFC4122 defined DNS name space UUID for Variant 3 and 5 UUIDs.
