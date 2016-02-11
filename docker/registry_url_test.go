@@ -1,4 +1,4 @@
-// Copyright 2015 Apcera Inc. All rights reserved.
+// Copyright 2015-2016 Apcera Inc. All rights reserved.
 
 package docker
 
@@ -46,6 +46,13 @@ func TestParseDockerRegistryURL(t *testing.T) {
 			&DockerRegistryURL{
 				ImageName: "repo",
 				Tag:       "tag",
+			},
+		},
+		{
+			"httpd",
+			nil,
+			&DockerRegistryURL{
+				ImageName: "httpd",
 			},
 		},
 		{
