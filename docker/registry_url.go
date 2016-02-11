@@ -1,4 +1,4 @@
-// Copyright 2015 Apcera Inc. All rights reserved.
+// Copyright 2015-2016 Apcera Inc. All rights reserved.
 
 package docker
 
@@ -53,7 +53,7 @@ func ParseDockerRegistryURL(s string) (*DockerRegistryURL, error) {
 		return registryURL, nil
 	}
 	// String didn't parse but was supposed to be a full registry URL.
-	if strings.HasPrefix(s, "http") || strings.HasPrefix(s, "https") {
+	if strings.HasPrefix(s, "http://") || strings.HasPrefix(s, "https://") {
 		return nil, fmt.Errorf("Invalid full Docker registry URL: %s", err)
 	}
 
