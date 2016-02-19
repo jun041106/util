@@ -24,7 +24,8 @@ var (
 
 	// Note: currently does not support supplying signed manifests.
 	testImageManifests = map[string]string{
-		"library/nats:latest": libraryNatsLatestManifest,
+		"library/nats:latest":   libraryNatsLatestManifest,
+		"library/foobar:latest": libraryFoobarLatestManifest,
 	}
 )
 
