@@ -100,11 +100,11 @@ func AddTestFinalizer(f func()) {
 // are needed. All tests in this module should start by calling this
 // function.
 func StartTest(l Logger) {
-	if !streamTestOutput {
-		LogBuffer = unittest.SetupBuffer()
-	} else {
-		logray.AddDefaultOutput("stdout://", logray.ALL)
-	}
+	//if !streamTestOutput {
+	//LogBuffer = unittest.SetupBuffer()
+	//} else {
+	logray.AddDefaultOutput("stdout://", logray.ALL)
+	//}
 }
 
 // Called as a defer to a test in order to clean up after a test run. All
