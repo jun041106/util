@@ -12,7 +12,6 @@ func TestParseDockerRegistryURL(t *testing.T) {
 		input               string
 		expectedError       error
 		expectedRegistryURL *DockerRegistryURL
-		// Make sure a full URL still works
 	}{
 		{
 			"https://registry-1.docker.io:5000/namespace/repo:tag",
@@ -26,9 +25,42 @@ func TestParseDockerRegistryURL(t *testing.T) {
 			},
 		},
 		{
+			"registry-1.docker.io:5000/namespace/repo:tag",
+			nil,
+			&DockerRegistryURL{
+				Scheme:    "https",
+				Host:      "registry-1.docker.io",
+				Port:      "5000",
+				ImageName: "namespace/repo",
+				Tag:       "tag",
+			},
+		},
+		{
+			"http://registry-1.docker.io:5000/namespace/repo:tag",
+			nil,
+			&DockerRegistryURL{
+				Scheme:    "http",
+				Host:      "registry-1.docker.io",
+				Port:      "5000",
+				ImageName: "namespace/repo",
+				Tag:       "tag",
+			},
+		},
+		{
+			"http://registry-1.docker.io/namespace/repo:tag",
+			nil,
+			&DockerRegistryURL{
+				Scheme:    "http",
+				Host:      "registry-1.docker.io",
+				ImageName: "namespace/repo",
+				Tag:       "tag",
+			},
+		},
+		{
 			"repo",
 			nil,
 			&DockerRegistryURL{
+				Scheme:    "https",
 				ImageName: "repo",
 			},
 		},
@@ -36,14 +68,26 @@ func TestParseDockerRegistryURL(t *testing.T) {
 			"namespace/repo:tag",
 			nil,
 			&DockerRegistryURL{
+				Scheme:    "https",
 				ImageName: "namespace/repo",
 				Tag:       "tag",
+			},
+		},
+		{
+			"docker-registry.apcera.net/alex/ubuntu-img:15.10",
+			nil,
+			&DockerRegistryURL{
+				Scheme:    "https",
+				Host:      "docker-registry.apcera.net",
+				ImageName: "alex/ubuntu-img",
+				Tag:       "15.10",
 			},
 		},
 		{
 			"repo:tag",
 			nil,
 			&DockerRegistryURL{
+				Scheme:    "https",
 				ImageName: "repo",
 				Tag:       "tag",
 			},
@@ -52,12 +96,13 @@ func TestParseDockerRegistryURL(t *testing.T) {
 			"httpd",
 			nil,
 			&DockerRegistryURL{
+				Scheme:    "https",
 				ImageName: "httpd",
 			},
 		},
 		{
 			"some/weird/:image",
-			fmt.Errorf(`Image name must not have a trailing "/": some/weird/`),
+			fmt.Errorf(`Image name must not have a trailing "/": weird/`),
 			&DockerRegistryURL{},
 		},
 	}
@@ -67,12 +112,10 @@ func TestParseDockerRegistryURL(t *testing.T) {
 		if err != nil && val.expectedError != nil && err.Error() == val.expectedError.Error() {
 			continue
 		} else if err != nil && val.expectedError != nil && err.Error() != val.expectedError.Error() {
-			t.Errorf("Case %d: Actual error %s does not match expected error %s", i, err, val.expectedError)
-			// Error was expected and matched, don't go on to check the result
-			// because it is likely to not be relevant.
+			t.Errorf("Case %d: Actual error %q does not match expected error: %q", i, err, val.expectedError)
 			continue
 		} else if err != nil && val.expectedError == nil {
-			t.Errorf("Case %d: Unexpected error while parsing struct", i)
+			t.Errorf("Case %d: Unexpected error while parsing struct: %s", i, err)
 			continue
 		} else if err == nil && val.expectedError != nil {
 			t.Errorf("Expected an error but didn't get one: %s", val.expectedError)
@@ -589,21 +632,21 @@ func TestClearUserCredentials(t *testing.T) {
 
 func checkURL(t *testing.T, actualURL, expectedURL *DockerRegistryURL) {
 	if actualURL.Scheme != expectedURL.Scheme {
-		t.Fatalf("actualURL.Scheme %s does not match assertion: %s", actualURL.Scheme, expectedURL.Scheme)
+		t.Errorf("actualURL.Scheme %q does not match assertion: %q", actualURL.Scheme, expectedURL.Scheme)
 	}
 	if actualURL.Userinfo != expectedURL.Userinfo {
-		t.Fatalf("actualURL.Userinfo %s does not match assertion: %s", actualURL.Userinfo, expectedURL.Userinfo)
+		t.Errorf("actualURL.Userinfo %q does not match assertion: %q", actualURL.Userinfo, expectedURL.Userinfo)
 	}
 	if actualURL.Host != expectedURL.Host {
-		t.Fatalf("actualURL.Host %s does not match assertion: %s", actualURL.Host, expectedURL.Host)
+		t.Errorf("actualURL.Host %q does not match assertion: %q", actualURL.Host, expectedURL.Host)
 	}
 	if actualURL.Port != expectedURL.Port {
-		t.Fatalf("actualURL.Port %s does not match assertion: %s", actualURL.Port, expectedURL.Port)
+		t.Errorf("actualURL.Port %q does not match assertion: %q", actualURL.Port, expectedURL.Port)
 	}
 	if actualURL.ImageName != expectedURL.ImageName {
-		t.Fatalf("actualURL.ImageName %s does not match assertion: %s", actualURL.ImageName, expectedURL.ImageName)
+		t.Errorf("actualURL.ImageName %q does not match assertion: %q", actualURL.ImageName, expectedURL.ImageName)
 	}
 	if actualURL.Tag != expectedURL.Tag {
-		t.Fatalf("actualURL.Tag %s does not match assertion: %s", actualURL.Tag, expectedURL.Tag)
+		t.Errorf("actualURL.Tag %q does not match assertion: %q", actualURL.Tag, expectedURL.Tag)
 	}
 }
