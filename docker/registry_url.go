@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"path"
 	"strings"
 )
 
@@ -57,7 +58,25 @@ func ParseDockerRegistryURL(s string) (*DockerRegistryURL, error) {
 		return nil, fmt.Errorf("Invalid full Docker registry URL: %s", err)
 	}
 
-	registryURL = &DockerRegistryURL{}
+	// At this point we have no scheme, possibly a host, possibly a port,
+	// possibly a repo, possibly an image name, and possibly a tag. We want to
+	// expand the Docker registry URL here, using HTTPS as a default scheme.
+	registryURL = &DockerRegistryURL{
+		Scheme: "https",
+	}
+
+	registryURLParts := strings.Split(s, "/")
+	if len(registryURLParts) == 3 {
+		// host[:port]/[repo/]image/[:tag]
+		host, port, err := splitHostPort(registryURLParts[0])
+		if err != nil {
+			return nil, err
+		}
+		registryURL.Host = host
+		registryURL.Port = port
+		s = path.Join(registryURLParts[1], registryURLParts[2])
+	}
+
 	if err = registryURL.parsePath(s); err != nil {
 		return nil, err
 	}
@@ -69,7 +88,10 @@ func ParseDockerRegistryURL(s string) (*DockerRegistryURL, error) {
 func ParseFullDockerRegistryURL(s string) (*DockerRegistryURL, error) {
 	s = handleSchemelessQuayRegistries(s)
 
-	registryURL := &DockerRegistryURL{}
+	registryURL := &DockerRegistryURL{
+		Scheme: "https",
+	}
+
 	u, err := url.Parse(s)
 	if err != nil {
 		return nil, err
@@ -121,7 +143,7 @@ func splitHostPort(hostport string) (string, string, error) {
 	}
 }
 
-// parsePath parses the Registry URL path (after <scheme>:://<host>:<port>)
+// parsePath parses the Registry URL path (after <scheme>://<host>:<port>)
 // into namespace, repo, and tag. All of these are optional parts of the
 // path.
 func (url *DockerRegistryURL) parsePath(s string) error {
