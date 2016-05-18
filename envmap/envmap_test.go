@@ -3,6 +3,7 @@
 package envmap
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -152,6 +153,7 @@ func TestEnvMapGetRaw(t *testing.T) {
 		tt.Fatalf(t, "GetRaw(VAR1) should be the raw string: %q", v)
 	}
 }
+
 func TestEnvMapGetUnflattened(t *testing.T) {
 	tt.StartTest(t)
 	defer tt.FinishTest(t)
@@ -167,4 +169,28 @@ func TestEnvMapGetUnflattened(t *testing.T) {
 	tt.TestEqual(t, envMap["VAR1"], "abc 123 $VAR2")
 	tt.TestEqual(t, envMap["VAR2"], "xyz")
 	tt.TestEqual(t, envMap["VARIABLE"], "foo bar $STR")
+}
+
+func TestJsonMarshalUnmarshal(t *testing.T) {
+	tt.StartTest(t)
+	defer tt.FinishTest(t)
+
+	e := NewEnvMap()
+	e.Set("A", "1")
+	e.Set("B", "2")
+	c := e.NewChild()
+	c.Set("B", "22")
+	c.Set("C", "3")
+
+	m := c.Map()
+	tt.TestEqual(t, m, map[string]string{"A": "1", "B": "22", "C": "3"})
+
+	b, err := json.Marshal(c)
+	tt.TestExpectSuccess(t, err)
+
+	var c2 *EnvMap
+	err = json.Unmarshal(b, &c2)
+	tt.TestExpectSuccess(t, err)
+
+	tt.TestEqual(t, c2.Map(), m)
 }
