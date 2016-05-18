@@ -9,35 +9,35 @@ import (
 
 // Provides a simple storage layer for environment like variables.
 type EnvMap struct {
-	env     map[string]string
-	parent  *EnvMap
-	flatten bool
+	Env     map[string]string
+	Parent  *EnvMap
+	Flatten bool
 }
 
 func NewEnvMap() (r *EnvMap) {
 	r = new(EnvMap)
-	r.env = make(map[string]string, 0)
-	r.flatten = true
+	r.Env = make(map[string]string, 0)
+	r.Flatten = true
 	return r
 }
 
 // FlattenMap when set to false will not flatten the
 // results of an EnvMap.
 func (e *EnvMap) FlattenMap(flatMap bool) {
-	e.flatten = flatMap
+	e.Flatten = flatMap
 }
 
 func (e *EnvMap) Set(key, value string) {
-	if prev, ok := e.env[key]; ok == true {
+	if prev, ok := e.Env[key]; ok == true {
 		resolve := func(s string) string {
 			if s == key {
 				return prev
 			}
 			return "$" + key
 		}
-		e.env[key] = os.Expand(value, resolve)
+		e.Env[key] = os.Expand(value, resolve)
 	} else {
-		e.env[key] = value
+		e.Env[key] = value
 	}
 }
 
@@ -55,7 +55,7 @@ func (e *EnvMap) get(
 			if last == nil {
 				return ""
 			}
-			processQueue[s] = last.parent
+			processQueue[s] = last.Parent
 			r, _ := last.get(s, top, processQueue, cache)
 			return r
 		}
@@ -65,13 +65,13 @@ func (e *EnvMap) get(
 	}
 
 	for e != nil {
-		if value, ok := e.env[key]; ok == true {
-			processQueue[key] = e.parent
+		if value, ok := e.Env[key]; ok == true {
+			processQueue[key] = e.Parent
 			s := os.Expand(value, resolve)
 			delete(processQueue, key)
 			return s, true
 		}
-		e = e.parent
+		e = e.Parent
 	}
 	return "", false
 }
@@ -86,22 +86,22 @@ func (e *EnvMap) Get(key string) (string, bool) {
 
 func (e *EnvMap) GetRaw(key string) (string, bool) {
 	for e != nil {
-		if value, ok := e.env[key]; ok == true {
+		if value, ok := e.Env[key]; ok == true {
 			return value, true
 		}
-		e = e.parent
+		e = e.Parent
 	}
 	return "", false
 }
 
 func (e *EnvMap) Map() map[string]string {
-	cache := make(map[string]string, len(e.env))
+	cache := make(map[string]string, len(e.Env))
 	processQueue := make(map[string]*EnvMap, 10)
 
-	for p := e; p != nil; p = p.parent {
-		for k := range p.env {
+	for p := e; p != nil; p = p.Parent {
+		for k := range p.Env {
 			if _, ok := cache[k]; ok == false {
-				if e.flatten {
+				if e.Flatten {
 					cache[k], _ = e.get(k, e, processQueue, cache)
 				} else {
 					cache[k], _ = e.GetRaw(k)
@@ -134,8 +134,8 @@ func (e *EnvMap) Keys() []string {
 
 func (e *EnvMap) NewChild() *EnvMap {
 	return &EnvMap{
-		env:     make(map[string]string, 0),
-		parent:  e,
-		flatten: true,
+		Env:     make(map[string]string, 0),
+		Parent:  e,
+		Flatten: true,
 	}
 }
