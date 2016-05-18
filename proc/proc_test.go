@@ -115,7 +115,7 @@ func TestInterfaceStats(t *testing.T) {
 
 	expect := func(expected InterfaceStat, returned InterfaceStat) {
 		if expected.Device != returned.Device {
-			Fatalf(t, "Expected Device=%d, got %d",
+			Fatalf(t, "Expected Device=%s, got %s",
 				expected.Device, returned.Device)
 		} else if expected.RxBytes != returned.RxBytes {
 			Fatalf(t, "Expected RxBytes=%d, got %d",
