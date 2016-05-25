@@ -14,7 +14,7 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/apcera/util/wsconn/Godeps/_workspace/src/github.com/gorilla/websocket"
+	"github.com/gorilla/websocket"
 )
 
 const (
