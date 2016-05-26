@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/apcera/util/wsconn/Godeps/_workspace/src/github.com/gorilla/websocket"
+	"github.com/gorilla/websocket"
 )
 
 // Conn is an interface which a websocket library should implement to be

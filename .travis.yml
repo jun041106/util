@@ -4,6 +4,10 @@ go:
   - 1.6.2
   - tip
 
+env:
+  global:
+    - GO15VENDOREXPERIMENT=1
+
 before_install:
   - sudo apt-get update -qq
   - sudo apt-get install -qq liblzma-dev
@@ -13,7 +17,7 @@ install:
   - go get github.com/apcera/logray
 
 script:
-  - go fmt ./...
-  - go vet ./...
-  - go test -i -race ./...
-  - go test -v -race ./...
+  - go fmt $(go list ./... | grep -v /vendor/)
+  - go vet $(go list ./... | grep -v /vendor/)
+  - go test -i -race $(go list ./... | grep -v /vendor/)
+  - go test -v -race $(go list ./... | grep -v /vendor/)
