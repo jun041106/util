@@ -441,6 +441,13 @@ func (u *Untar) processEntry(header *tar.Header) error {
 func (u *Untar) resolveDestination(name string) (string, error) {
 	pathParts := strings.Split(name, string(os.PathSeparator))
 
+	// On Windows, Split will remove the '\' from "C:\". This would cause
+	// Extract to extract to the wrong directory. Here we detect this issue and
+	// insert the missing trailing '\' when necessary.
+	if runtime.GOOS == "windows" && filepath.IsAbs(name) {
+		pathParts[0] += string(os.PathSeparator)
+	}
+
 	// walk the path parts to find at what point the resolvedLinks deviates
 	i := 0
 	for i, _ = range pathParts {
