@@ -23,6 +23,8 @@ const (
 	BZIP2  = Compression("bzip2")
 	GZIP   = Compression("gzip")
 	DETECT = Compression("detect")
+
+	WindowsMaxPathLen = 260 // characters
 )
 
 type resolvedLink struct {
@@ -258,9 +260,23 @@ func (u *Untar) processEntry(header *tar.Header) error {
 
 	// resolve the destination and then reset the name based on the resolution
 	destDir, err := u.resolveDestination(filepath.Dir(name))
-	name = filepath.Join(destDir, filepath.Base(name))
 	if err != nil {
 		return err
+	}
+
+	name = filepath.Join(destDir, filepath.Base(name))
+
+	// The path length of the extracted file might exceed Windows maximum of
+	// 260 chars.
+	if runtime.GOOS == "windows" {
+		absPath, err := filepath.Abs(name)
+		if err != nil {
+			return fmt.Errorf("failed to validate path length of extracted file %q: %v", name, err)
+		}
+
+		if len(absPath) > WindowsMaxPathLen {
+			return fmt.Errorf("path length of extracted file is %d chars (windows max: %d chars)", len(absPath), WindowsMaxPathLen)
+		}
 	}
 
 	// look at the type to see how we want to remove existing entries
