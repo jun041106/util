@@ -11,7 +11,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/apcera/util/dockertest/Godeps/_workspace/src/github.com/gorilla/mux"
+	"github.com/gorilla/mux"
 )
 
 var (
