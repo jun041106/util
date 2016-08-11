@@ -78,6 +78,9 @@ func writeResponse(w http.ResponseWriter, httpStatus int, payload interface{}) {
 }
 
 func checkAuth(w http.ResponseWriter, r *http.Request) bool {
+	header := w.Header()
+	header.Add("Docker-Distribution-API-Version", "registry/2.0")
+
 	if skipAuth {
 		return true
 	}
