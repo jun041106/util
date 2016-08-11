@@ -11,6 +11,7 @@ import (
 	"os"
 	"path"
 	"testing"
+	"time"
 
 	. "github.com/apcera/util/testtool"
 )
@@ -185,9 +186,9 @@ func TestPathExclusion(t *testing.T) {
 	// test the "empty exclusion list" cases
 	w := bytes.NewBufferString("")
 	tw := NewTar(w, makeTestDir(t))
-	TestEqual(t, tw.shouldBeExcluded("/any/thing"), false)
+	TestEqual(t, tw.shouldBeExcluded("/any/thing", false), false)
 	tw.ExcludePath("")
-	TestEqual(t, tw.shouldBeExcluded("/any/thing"), false)
+	TestEqual(t, tw.shouldBeExcluded("/any/thing", false), false)
 
 	// test these cases on new instances of Tar object to avoid any
 	// possible side effects/conflicts
@@ -214,13 +215,13 @@ func TestPathExclusion(t *testing.T) {
 		}
 
 		for _, path := range stdPaths {
-			TestEqual(t, tw.shouldBeExcluded(path), tc.Expected[path],
+			TestEqual(t, tw.shouldBeExcluded(path, false), tc.Expected[path],
 				fmt.Sprintf("Path:%q, tc:%v", path, tc))
 			delete(tc.Expected, path)
 		}
 
 		for path, exp := range tc.Expected {
-			TestEqual(t, tw.shouldBeExcluded(path), exp)
+			TestEqual(t, tw.shouldBeExcluded(path, false), exp)
 		}
 	}
 
@@ -231,10 +232,10 @@ func TestPathExclusion(t *testing.T) {
 	tw.ExcludePath("/one.*")
 	tw.ExcludePath("/two/two/.*")
 	tw.ExcludePath("/three/three/three.*")
-	TestExpectSuccess(t, tw.processEntry("/one/something", nil, []string{}))
-	TestExpectSuccess(t, tw.processEntry("/two/two/something", nil, []string{}))
-	TestExpectSuccess(t, tw.processEntry("/three/three/three-something", nil, []string{}))
-	TestExpectError(t, tw.processEntry("/two/two-something", nil, []string{}))
+	var fi staticFileInfo
+	TestExpectSuccess(t, tw.processEntry("/one/something", fi, []string{}))
+	TestExpectSuccess(t, tw.processEntry("/two/two/something", fi, []string{}))
+	TestExpectSuccess(t, tw.processEntry("/three/three/three-something", fi, []string{}))
 }
 
 func TestTarIDMapping(t *testing.T) {
@@ -620,3 +621,12 @@ func TestTarPreserveSetuid(t *testing.T) {
 	TestExpectSuccess(t, err)
 	TestEqual(t, stat.Mode()&os.ModeSetuid != 0, true, "must have setuid bit")
 }
+
+type staticFileInfo struct{}
+
+func (m staticFileInfo) Name() string       { return "foo" }
+func (m staticFileInfo) Size() int64        { return 1 }
+func (m staticFileInfo) Mode() os.FileMode  { return 7777 }
+func (m staticFileInfo) ModTime() time.Time { return time.Now() }
+func (m staticFileInfo) IsDir() bool        { return false }
+func (m staticFileInfo) Sys() interface{}   { return nil }
