@@ -258,6 +258,7 @@ func (r *Request) HTTPRequest() (*http.Request, error) {
 
 	// merge headers
 	req.Header = r.Headers
+	req.Close = true
 
 	// generate the body
 	if r.prepare != nil {
