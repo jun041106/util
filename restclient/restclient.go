@@ -61,6 +61,7 @@ func New(baseurl string) (*Client, error) {
 
 	transport := http.DefaultTransport.(*http.Transport)
 	transport.ResponseHeaderTimeout = 0 * time.Second
+	transport.ExpectContinueTimeout = 5 * time.Second
 
 	// create the client
 	client := &Client{
