@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"sync"
 
 	"github.com/gorilla/mux"
@@ -104,16 +103,15 @@ func handlerToken(w http.ResponseWriter, r *http.Request) {
 	// https://docs.docker.com/registry/spec/auth/token/
 	//
 	// Expected form: `service=registry.docker.io&scope=repository:library/nats"`
-	parts := strings.Split(r.URL.RawQuery, "=")
-	if len(parts) != 3 {
-		writeResponse(w, http.StatusBadRequest, "bad request")
-		return
-	}
+	query := r.URL.Query()
 
-	// TODO: check realm, service, scope more thoroughly?
-	if parts[0] != "service" {
-		writeResponse(w, http.StatusBadRequest, "bad request")
-		return
+	service := query.Get("service")
+	scope := query.Get("scope")
+
+	if service == "" {
+		writeResponse(w, http.StatusBadRequest, "bad request: service is required")
+	} else if scope == "" {
+		writeResponse(w, http.StatusBadRequest, "bad request: scope is required")
 	}
 
 	tokenResponse := `{"token": "Bearer someBearerToken"}`
