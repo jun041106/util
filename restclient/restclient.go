@@ -59,15 +59,9 @@ func New(baseurl string) (*Client, error) {
 		return nil, fmt.Errorf("URL is not absolute: %s", baseurl)
 	}
 
-	transport := http.DefaultTransport.(*http.Transport)
-	transport.ResponseHeaderTimeout = 0 * time.Second
-	transport.ExpectContinueTimeout = 5 * time.Second
-
 	// create the client
 	client := &Client{
-		Driver: &http.Client{
-			Transport: transport,
-		}, // Don't use default client; shares by reference
+		Driver:  &http.Client{}, // Don't use default client; shares by reference
 		base:    base,
 		Headers: http.Header(make(map[string][]string)),
 	}
