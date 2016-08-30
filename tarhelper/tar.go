@@ -19,9 +19,24 @@ import (
 // by user.
 type UserOption int
 
-// To track circular symbolic links for the dereference archive option.
+// DirStack tracks circular symbolic links for the dereference archive option.
 // Declaring a type here to highlight the semantics.
 type DirStack []string
+
+// ignoreInfo expands the idea of excluding a path by also specifying metadata
+// about the regexp and how to process a match.
+type ignoreInfo struct {
+	// regexp is the regular expression responsible for deciding matches.
+	regexp *regexp.Regexp
+
+	// exclude specifies whether or not the matched file should be excluded or
+	// included. This allows subsequent matches to reinclude files previously
+	// excluded.
+	exclude bool
+
+	// dirOnly will consider the regexp a match only if it is also a directory.
+	dirOnly bool
+}
 
 // Tar manages state for a TAR archive.
 type Tar struct {
@@ -48,10 +63,10 @@ type Tar struct {
 	// reserved for normal users.
 	IncludeOwners bool
 
-	// ExcludedPaths contains any paths that a user may want to exclude from the
+	// ignorePaths contains any paths that a user may want to exclude from the
 	// tar. Anything included in any paths set on this field will not be
 	// included in the tar.
-	ExcludedPaths []*regexp.Regexp
+	ignorePaths []ignoreInfo
 
 	// If set, this will be a virtual path that is prepended to the
 	// file location.  This allows the target to be under a temp directory
@@ -173,15 +188,46 @@ func (t *Tar) Archive() error {
 
 // ExcludePath appends a path, file, or pattern relative to the toplevel path to
 // be archived that is then excluded from the final archive.
-// pathRE is a regex that is applied to the entire filename (full path and basename)
+// pathRE is a regex that will be anchored at the start and end then applied to
+// the entire filename (full path and basename)
 func (t *Tar) ExcludePath(pathRE string) {
 	if pathRE != "" {
 		re, err := regexp.Compile("^" + pathRE + "$")
 		if err != nil {
 			return
 		}
-		t.ExcludedPaths = append(t.ExcludedPaths, re)
+		t.ignorePaths = append(t.ignorePaths, ignoreInfo{regexp: re, exclude: true, dirOnly: false})
 	}
+}
+
+// IncludePath appends a path, file, or pattern relative to the toplevel path to
+// be archived that is then excluded from the final archive.
+// pathRE is a regex that will be anchored at the start and end then applied to
+// the entire filename (full path and basename)
+func (t *Tar) IncludePath(pathRE string) {
+	if pathRE != "" {
+		re, err := regexp.Compile("^" + pathRE + "$")
+		if err != nil {
+			return
+		}
+		t.ignorePaths = append(t.ignorePaths, ignoreInfo{regexp: re, exclude: false, dirOnly: false})
+	}
+}
+
+// IncludeRegexp adds a Regexp into the list to consider when selectiong files
+// to exclude. Files or directories matching the regexp will _not_ be excluded,
+// even if they matched a previous Regexp. Files are only considered a match if
+// they match the Regexp and isDir is false.
+func (t *Tar) IncludeRegexp(re *regexp.Regexp, dirOnly bool) {
+	t.ignorePaths = append(t.ignorePaths, ignoreInfo{regexp: re, exclude: false, dirOnly: dirOnly})
+}
+
+// ExcludeRegexp adds a Regexp into the list to consider when selectiong files
+// to exclude. Files or directories matching the regexp will be excluded, even
+// if they matched a previous Regexp from IncludeRegexp. Files are only
+// considered a match if they match the Regexp and isDir is false.
+func (t *Tar) ExcludeRegexp(re *regexp.Regexp, dirOnly bool) {
+	t.ignorePaths = append(t.ignorePaths, ignoreInfo{regexp: re, exclude: true, dirOnly: dirOnly})
 }
 
 func (t *Tar) processDirectory(dir string, dirStack []string) error {
@@ -205,7 +251,7 @@ func (t *Tar) processEntry(fullName string, f os.FileInfo, dirStack []string) er
 	var err error
 
 	// Exclude any files or paths specified by the user.
-	if t.shouldBeExcluded(fullName) {
+	if t.shouldBeExcluded(fullName, f.IsDir()) {
 		return nil
 	}
 
@@ -446,18 +492,25 @@ func cleanLinkName(targetDir, name string) (string, error) {
 	return link, nil
 }
 
-// Determines if supplied name is contained in the slice of files to exclude.
-func (t *Tar) shouldBeExcluded(name string) bool {
-	name = filepath.Clean(name)
-	for _, re := range t.ExcludedPaths {
-		if re.MatchString(name) || re.MatchString(filepath.Base(name)) {
-			return true
+// shouldBeExcluded determines if supplied name is contained in the slice of
+// files to exclude. ignorePaths are considered in order so that files excluded
+// by one criteria can be reincluded by a later one.
+func (t *Tar) shouldBeExcluded(name string, isDir bool) bool {
+	name = filepath.ToSlash(filepath.Clean(name))
+	var exclude bool
+	for _, re := range t.ignorePaths {
+		if re.regexp.MatchString(name) || re.regexp.MatchString(filepath.Base(name)) {
+			if !re.dirOnly || (re.dirOnly && isDir) {
+				exclude = re.exclude
+			}
 		}
 	}
-	return false
+
+	return exclude
 }
 
-// Determines if the path is the root path and should be excluded.
+// excludeRootPath determines if the path is the root path and should be
+// excluded.
 func (t *Tar) excludeRootPath(headerName string) bool {
 	if t.ExcludeRootPath && headerName == "./" {
 		return true
