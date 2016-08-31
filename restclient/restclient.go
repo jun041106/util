@@ -46,6 +46,8 @@ type Client struct {
 	base *url.URL
 	// Headers represents common headers that are added to each request.
 	Headers http.Header
+	// KeepAlives enabled
+	KeepAlives bool
 }
 
 // New returns a *Client with the specified base URL endpoint, expected to
@@ -61,9 +63,35 @@ func New(baseurl string) (*Client, error) {
 
 	// create the client
 	client := &Client{
-		Driver:  &http.Client{}, // Don't use default client; shares by reference
-		base:    base,
-		Headers: http.Header(make(map[string][]string)),
+		Driver:     &http.Client{}, // Don't use default client; shares by reference
+		Headers:    http.Header(make(map[string][]string)),
+		base:       base,
+		KeepAlives: true,
+	}
+
+	return client, nil
+}
+
+// NewWithoutKeepAlives returns a new client with keepalives disabled.
+func NewDisableKeepAlives(baseurl string) (*Client, error) {
+	base, err := url.ParseRequestURI(baseurl)
+	if err != nil {
+		return nil, err
+	} else if !base.IsAbs() || base.Host == "" {
+		return nil, fmt.Errorf("URL is not absolute: %s", baseurl)
+	}
+
+	transport := http.DefaultTransport.(*http.Transport)
+	transport.DisableKeepAlives = true
+
+	// create the client
+	client := &Client{
+		Driver: &http.Client{
+			Transport: transport,
+		}, // Don't use default client; shares by reference
+		Headers:    http.Header(make(map[string][]string)),
+		base:       base,
+		KeepAlives: false,
 	}
 
 	return client, nil
@@ -135,6 +163,11 @@ func (c *Client) Do(req *Request) (*http.Response, error) {
 	if err != nil {
 		return nil, &RestError{Req: hreq, err: fmt.Errorf("error preparing request: %s", err)}
 	}
+
+	if !c.KeepAlives {
+		hreq.Close = true
+	}
+
 	// Internally, this uses c.Driver's CheckRedirect policy.
 	resp, err := c.Driver.Do(hreq)
 	if err != nil {
