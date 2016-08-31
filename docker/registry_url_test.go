@@ -3,7 +3,10 @@
 package docker
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/url"
+	"reflect"
 	"testing"
 )
 
@@ -13,6 +16,18 @@ func TestParseDockerRegistryURL(t *testing.T) {
 		expectedError       error
 		expectedRegistryURL *DockerRegistryURL
 	}{
+		{
+			"https://user:test%2fpass@registry-1.docker.io:5000/namespace/repo:tag",
+			nil,
+			&DockerRegistryURL{
+				Scheme:    "https",
+				Host:      "registry-1.docker.io",
+				Port:      "5000",
+				ImageName: "namespace/repo",
+				Tag:       "tag",
+				Userinfo:  url.UserPassword("user", "test/pass"),
+			},
+		},
 		{
 			"https://registry-1.docker.io:5000/namespace/repo:tag",
 			nil,
@@ -241,7 +256,7 @@ func TestParseFullDockerRegistryURL(t *testing.T) {
 			nil,
 			&DockerRegistryURL{
 				Scheme:   "https",
-				Userinfo: "user:password",
+				Userinfo: url.UserPassword("user", "password"),
 				Host:     "registry-1.docker.io",
 				Port:     "5000",
 			},
@@ -251,7 +266,7 @@ func TestParseFullDockerRegistryURL(t *testing.T) {
 			nil,
 			&DockerRegistryURL{
 				Scheme:    "https",
-				Userinfo:  "user:password",
+				Userinfo:  url.UserPassword("user", "password"),
 				Host:      "registry-1.docker.io",
 				Port:      "5000",
 				ImageName: "repo",
@@ -262,7 +277,7 @@ func TestParseFullDockerRegistryURL(t *testing.T) {
 			nil,
 			&DockerRegistryURL{
 				Scheme:    "https",
-				Userinfo:  "user:password",
+				Userinfo:  url.UserPassword("user", "password"),
 				Host:      "registry-1.docker.io",
 				Port:      "5000",
 				ImageName: "namespace/repo",
@@ -273,7 +288,7 @@ func TestParseFullDockerRegistryURL(t *testing.T) {
 			nil,
 			&DockerRegistryURL{
 				Scheme:    "https",
-				Userinfo:  "user:password",
+				Userinfo:  url.UserPassword("user", "password"),
 				Host:      "registry-1.docker.io",
 				Port:      "5000",
 				ImageName: "namespace/repo",
@@ -287,7 +302,7 @@ func TestParseFullDockerRegistryURL(t *testing.T) {
 			nil,
 			&DockerRegistryURL{
 				Scheme:    "https",
-				Userinfo:  "user:password",
+				Userinfo:  url.UserPassword("user", "password"),
 				Host:      "registry-1.docker.io",
 				Port:      "5000",
 				ImageName: "namespace/repo",
@@ -466,7 +481,7 @@ func TestDockerRegistryURLPath(t *testing.T) {
 		{
 			&DockerRegistryURL{
 				Scheme:    "https",
-				Userinfo:  "username:password",
+				Userinfo:  url.UserPassword("user", "password"),
 				Host:      "registry-1.docker.io",
 				Port:      "5000",
 				ImageName: "namespace/repo",
@@ -535,13 +550,13 @@ func TestDockerRegistryURLString(t *testing.T) {
 		{
 			&DockerRegistryURL{
 				Scheme:    "https",
-				Userinfo:  "username:password",
+				Userinfo:  url.UserPassword("user", "password"),
 				Host:      "registry-1.docker.io",
 				Port:      "5000",
 				ImageName: "namespace/repo",
 				Tag:       "tag",
 			},
-			"https://username:password@registry-1.docker.io:5000/namespace/repo:tag",
+			"https://user:password@registry-1.docker.io:5000/namespace/repo:tag",
 		},
 	}
 
@@ -561,7 +576,7 @@ func TestDockerRegistryURLStringNoCredentials(t *testing.T) {
 		{
 			&DockerRegistryURL{
 				Scheme:   "https",
-				Userinfo: "username:password",
+				Userinfo: url.UserPassword("user", "password"),
 				Host:     "registry-1.docker.io",
 			},
 			"https://registry-1.docker.io",
@@ -569,7 +584,7 @@ func TestDockerRegistryURLStringNoCredentials(t *testing.T) {
 		{
 			&DockerRegistryURL{
 				Scheme:   "https",
-				Userinfo: "username:password",
+				Userinfo: url.UserPassword("user", "password"),
 				Host:     "registry-1.docker.io",
 				Port:     "5000",
 			},
@@ -578,7 +593,7 @@ func TestDockerRegistryURLStringNoCredentials(t *testing.T) {
 		{
 			&DockerRegistryURL{
 				Scheme:    "https",
-				Userinfo:  "username:password",
+				Userinfo:  url.UserPassword("user", "password"),
 				Host:      "registry-1.docker.io",
 				Port:      "5000",
 				ImageName: "repo",
@@ -588,7 +603,7 @@ func TestDockerRegistryURLStringNoCredentials(t *testing.T) {
 		{
 			&DockerRegistryURL{
 				Scheme:    "https",
-				Userinfo:  "username:password",
+				Userinfo:  url.UserPassword("user", "password"),
 				Host:      "registry-1.docker.io",
 				Port:      "5000",
 				ImageName: "namespace/repo",
@@ -598,7 +613,7 @@ func TestDockerRegistryURLStringNoCredentials(t *testing.T) {
 		{
 			&DockerRegistryURL{
 				Scheme:    "https",
-				Userinfo:  "username:password",
+				Userinfo:  url.UserPassword("user", "password"),
 				Host:      "registry-1.docker.io",
 				Port:      "5000",
 				ImageName: "namespace/repo",
@@ -618,13 +633,80 @@ func TestDockerRegistryURLStringNoCredentials(t *testing.T) {
 
 func TestClearUserCredentials(t *testing.T) {
 	registryURL := DockerRegistryURL{
-		Userinfo: "user:password",
+		Userinfo: url.UserPassword("user", "password"),
 	}
 
 	registryURL.ClearUserCredentials()
 
-	if registryURL.Userinfo != "" {
+	if registryURL.Userinfo != nil {
 		t.Errorf("ClearUserCredentials did not clear Userinfo field.")
+	}
+}
+
+// TestMarshalJSON_Userinfo marhals and unmarshals the JSON to ensure that userinfo is
+// handled properly.
+func TestMarshalJSON_Userinfo(t *testing.T) {
+	testValues := []struct {
+		input *DockerRegistryURL
+		msg   string
+	}{
+		{
+			nil,
+			"nil",
+		},
+		{
+			&DockerRegistryURL{
+				Scheme:    "https",
+				Host:      "registry-1.docker.io",
+				Port:      "5000",
+				ImageName: "namespace/repo",
+				Tag:       "tag",
+			},
+			"Basic info without userinfo",
+		},
+		{
+			&DockerRegistryURL{
+				Scheme:    "https",
+				Host:      "registry-1.docker.io",
+				Port:      "5000",
+				ImageName: "namespace/repo",
+				Tag:       "tag",
+				Userinfo:  url.UserPassword("user", "pass"),
+			},
+			"Basic info simple userinfo",
+		},
+		{
+			&DockerRegistryURL{
+				Scheme:   "https",
+				Host:     "registry-1.docker.io",
+				Userinfo: url.UserPassword("user", "pass/word"),
+			},
+			"Basic info special chars in userinfo",
+		},
+		{
+			&DockerRegistryURL{
+				Scheme:   "https",
+				Host:     "registry-1.docker.io",
+				Userinfo: url.User("user"),
+			},
+			"Basic info with just user",
+		},
+	}
+
+	for _, val := range testValues {
+		jsonS, err := json.Marshal(val.input)
+		if err != nil {
+			t.Fatalf("Unexpected error while marshalling data: %v Data: %v", err, val.input)
+		}
+		var newVal *DockerRegistryURL = nil
+		err = json.Unmarshal(jsonS, &newVal)
+		if err != nil {
+			t.Fatalf("Unexpected error while unmarshalling data: %v Data: %v", err, string(jsonS))
+		}
+
+		if !reflect.DeepEqual(val.input, newVal) {
+			t.Errorf("Expected %+v but got %+v instead.", val.input, newVal)
+		}
 	}
 }
 
@@ -634,7 +716,10 @@ func checkURL(t *testing.T, actualURL, expectedURL *DockerRegistryURL) {
 	if actualURL.Scheme != expectedURL.Scheme {
 		t.Errorf("actualURL.Scheme %q does not match assertion: %q", actualURL.Scheme, expectedURL.Scheme)
 	}
-	if actualURL.Userinfo != expectedURL.Userinfo {
+	if actualURL.Userinfo != nil && expectedURL.Userinfo == nil ||
+		actualURL.Userinfo == nil && expectedURL.Userinfo != nil ||
+		(actualURL.Userinfo != nil && expectedURL.Userinfo != nil &&
+			actualURL.Userinfo.String() != expectedURL.Userinfo.String()) {
 		t.Errorf("actualURL.Userinfo %q does not match assertion: %q", actualURL.Userinfo, expectedURL.Userinfo)
 	}
 	if actualURL.Host != expectedURL.Host {
