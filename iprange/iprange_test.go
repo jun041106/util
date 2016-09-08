@@ -4,6 +4,7 @@ package iprange
 
 import (
 	"net"
+	"regexp"
 	"testing"
 
 	tt "github.com/apcera/util/testtool"
@@ -68,7 +69,8 @@ func TestIPRangeParseBasicStringIPv4(t *testing.T) {
 	// 192.168.1.1/zz
 	_, err = ParseIPRange("192.168.1.1/zz")
 	tt.TestExpectError(t, err)
-	tt.TestEqual(t, err.Error(), "failed to parse the network mask: strconv.ParseInt: parsing \"zz\": invalid syntax")
+	r := regexp.MustCompile(`failed to parse the network mask: strconv\.(ParseInt|Atoi): parsing "zz": invalid syntax`)
+	tt.TestMatch(t, err.Error(), r)
 
 	// 192.168.1.1-255/32
 	_, err = ParseIPRange("192.168.1.1-255/32")
