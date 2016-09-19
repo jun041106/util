@@ -3,6 +3,7 @@
 package docker
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/url"
@@ -25,8 +26,10 @@ type DockerRegistryURL struct {
 	// Scheme can be http or https.
 	Scheme string `json:",omitempty"`
 
-	// Userinfo holds basic auth credentials.
-	Userinfo string `json:",omitempty"`
+	// Userinfo holds basic auth credentials. If you want to use a preformed
+	// token for authentication, it should be decoded from base64 and parsed
+	// into the url.Userinfo type.
+	Userinfo *url.Userinfo `json:",omitempty"`
 
 	// Host is a Fully Qualified Domain Name.
 	Host string `json:",omitempty"`
@@ -102,10 +105,7 @@ func ParseFullDockerRegistryURL(s string) (*DockerRegistryURL, error) {
 	}
 
 	registryURL.Scheme = u.Scheme
-
-	if u.User != nil {
-		registryURL.Userinfo = u.User.String()
-	}
+	registryURL.Userinfo = u.User
 
 	host, port, err := splitHostPort(u.Host)
 	if err != nil {
@@ -203,7 +203,7 @@ func (u *DockerRegistryURL) baseURL(includeCredentials bool) string {
 	}
 
 	var result string
-	if u.Userinfo != "" && includeCredentials {
+	if u.Userinfo != nil && includeCredentials {
 		result = fmt.Sprintf("%s://%s@%s", u.Scheme, u.Userinfo, u.Host)
 	} else {
 		result = fmt.Sprintf("%s://%s", u.Scheme, u.Host)
@@ -286,5 +286,52 @@ func (u *DockerRegistryURL) StringNoCredentials() string {
 
 // ClearUserCredentials will remove any Userinfo from a provided DockerRegistryURL object.
 func (u *DockerRegistryURL) ClearUserCredentials() {
-	u.Userinfo = ""
+	u.Userinfo = nil
+}
+
+// MarshalJSON implements marshalling which will maintain the url.Userinfo
+// details which are normally lost due to lack of exported fields.
+func (u *DockerRegistryURL) MarshalJSON() ([]byte, error) {
+	// Using the alias type allows it to have all the same fields as the
+	// DockerRegistryURL but avoids a loop when marshalling since it will not
+	// have the same MarshalJSON method.
+	type Alias DockerRegistryURL
+	ui := ""
+	if u != nil && u.Userinfo != nil {
+		ui = u.Userinfo.String()
+	}
+	return json.Marshal(&struct {
+		Userinfo string `json:",omitempty"`
+		*Alias
+	}{
+		Userinfo: ui,
+		Alias:    (*Alias)(u),
+	})
+}
+
+// UnmarshalJSON implements unmarshalling which will maintain the url.Userinfo
+// details which are normally lost due to lack of exported fields.
+func (u *DockerRegistryURL) UnmarshalJSON(data []byte) error {
+	// Using the alias type allows it to have all the same fields as the
+	// DockerRegistryURL but avoids a loop when marshalling since it will not
+	// have the same UnmarshalJSON method.
+	type Alias DockerRegistryURL
+	aux := &struct {
+		Userinfo string `json:",omitempty"`
+		*Alias
+	}{
+		Alias: (*Alias)(u),
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	if aux.Userinfo == "" {
+		return nil
+	}
+	ui, err := url.Parse("http://" + aux.Userinfo + "@foo.com")
+	if err != nil {
+		return fmt.Errorf("error parsing userinfo: %s", err)
+	}
+	u.Userinfo = ui.User
+	return nil
 }
