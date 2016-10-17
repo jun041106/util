@@ -1,4 +1,4 @@
-// Copyright 2013 Apcera Inc. All rights reserved.
+// Copyright 2013-2016 Apcera Inc. All rights reserved.
 
 package tarhelper
 
@@ -620,6 +620,42 @@ func TestTarPreserveSetuid(t *testing.T) {
 	stat, err := os.Stat(path.Join(dir, "a"))
 	TestExpectSuccess(t, err)
 	TestEqual(t, stat.Mode()&os.ModeSetuid != 0, true, "must have setuid bit")
+}
+
+func TestTarCustomHandler(t *testing.T) {
+	StartTest(t)
+	defer FinishTest(t)
+
+	w := bytes.NewBufferString("")
+	tw := NewTar(w, makeTestDir(t))
+	tw.CustomHandlers = []TarCustomHandler{
+		func(fullpath string, fi os.FileInfo, header *tar.Header) (bool, error) {
+			if header.Name == "a/b/i/j/m" {
+				header.Name = "a/b/i/j/n"
+				header.Size = 0
+				return true, nil
+			}
+			return false, nil
+		},
+	}
+	TestExpectSuccess(t, tw.Archive())
+
+	archive := tar.NewReader(w)
+	hasRenamedFile := false
+	for {
+		header, err := archive.Next()
+		if err == io.EOF {
+			break
+		}
+		if header.Name == "a/b/i/j/m" {
+			Fatalf(t, "The \"a/b/i/j/m\" file should have been omitted")
+		}
+		if header.Name == "a/b/i/j/n" {
+			hasRenamedFile = true
+		}
+	}
+
+	TestEqual(t, hasRenamedFile, true, "The tar file did not include the renamed file")
 }
 
 type staticFileInfo struct{}

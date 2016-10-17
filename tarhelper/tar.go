@@ -1,4 +1,4 @@
-// Copyright 2012-2013 Apcera Inc. All rights reserved.
+// Copyright 2012-2016 Apcera Inc. All rights reserved.
 
 package tarhelper
 
@@ -37,6 +37,11 @@ type ignoreInfo struct {
 	// dirOnly will consider the regexp a match only if it is also a directory.
 	dirOnly bool
 }
+
+// TarCustomHandler are used to inject custom behavior for handling file entries
+// going into a tar file. For more information, see Tar.CustomerHandlers
+// description.
+type TarCustomHandler func(fullpath string, fi os.FileInfo, header *tar.Header) (bool, error)
 
 // Tar manages state for a TAR archive.
 type Tar struct {
@@ -105,6 +110,16 @@ type Tar struct {
 	// User provided control options. UserOption enum has the
 	// definitions and explanations for the various flags.
 	UserOptions UserOption
+
+	// CustomHandlers is used to allow the code calling tarhelper to inject custom
+	// logic for how to handle certain entries being written to the tar file. The
+	// Tar handler will loop over and call to these functions. They return a
+	// boolean which should be true when the built in logic for handling the file
+	// should be skipped. They also return an error which will cause the tar
+	// function to abort and bubble up the handler's error. The functions are
+	// passed the path where the entry are located on disk, the os.FileInfo for
+	// the file, and the *tar.Header entry for it.
+	CustomHandlers []TarCustomHandler
 }
 
 // UserOption definitions.
@@ -282,6 +297,23 @@ func (t *Tar) processEntry(fullName string, f os.FileInfo, dirStack []string) er
 		header.Gid = 500
 	}
 
+	// Check for any custom handlers that will process it.
+	for _, handler := range t.CustomHandlers {
+		bypass, err := handler(filepath.Join(t.target, fullName), f, header)
+		if err != nil {
+			return err
+		}
+		if bypass {
+			// write the header
+			err = t.archive.WriteHeader(header)
+			if err != nil {
+				return err
+			}
+			return nil
+		}
+	}
+
+	// Use built in handlers.
 	mode := f.Mode()
 	switch {
 	// directory handling

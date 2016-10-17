@@ -1,14 +1,16 @@
-// Copyright 2012-2013 Apcera Inc. All rights reserved.
+// Copyright 2012-2016 Apcera Inc. All rights reserved.
 
 package tarhelper
 
 import (
 	"archive/tar"
 	"bytes"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/user"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
@@ -537,4 +539,84 @@ func TestUntarWhitelist(t *testing.T) {
 	fileNotExists("/usr/nope/not")
 	fileNotExists("/usr/justdir/not")
 	fileNotExists("/etc/not")
+}
+
+func TestUntarCustomHandler(t *testing.T) {
+	StartTest(t)
+	defer FinishTest(t)
+
+	// create a buffer and tar.Writer
+	buffer := bytes.NewBufferString("")
+	archive := tar.NewWriter(buffer)
+
+	writeDirectory := func(name string) {
+		header := new(tar.Header)
+		header.Name = name + "/"
+		header.Typeflag = tar.TypeDir
+		header.Mode = 0755
+		header.Mode |= c_ISDIR
+		header.ModTime = time.Now()
+		TestExpectSuccess(t, archive.WriteHeader(header))
+	}
+
+	writeFile := func(name, contents string) {
+		b := []byte(contents)
+		header := new(tar.Header)
+		header.Name = name
+		header.Typeflag = tar.TypeReg
+		header.Mode = 0644
+		header.Mode |= c_ISREG
+		header.ModTime = time.Now()
+		header.Size = int64(len(b))
+
+		TestExpectSuccess(t, archive.WriteHeader(header))
+		_, err := archive.Write(b)
+		TestExpectSuccess(t, err)
+		TestExpectSuccess(t, archive.Flush())
+	}
+
+	writeDirectory(".")
+	writeFile("./foo", "foo")
+	writeFile("./foobar", "foobar")
+
+	archive.Close()
+
+	// create temp folder to extract to
+	tempDir := TempDir(t)
+
+	// extract
+	r := bytes.NewReader(buffer.Bytes())
+	u := NewUntar(r, tempDir)
+	u.CustomHandlers = []UntarCustomHandler{
+		func(rootpath string, header *tar.Header, reader io.Reader) (bool, error) {
+			if filepath.Clean(header.Name) != "foobar" {
+				return false, nil
+			}
+
+			f, err := os.Create(filepath.Join(rootpath, "foobar2"))
+			if err != nil {
+				return false, err
+			}
+			defer f.Close()
+			if _, err := io.Copy(f, reader); err != nil {
+				return false, err
+			}
+			return true, nil
+		},
+	}
+	TestExpectSuccess(t, u.Extract())
+
+	fileExists := func(name string) {
+		_, err := os.Stat(path.Join(tempDir, name))
+		TestExpectSuccess(t, err)
+	}
+
+	fileNotExists := func(name string) {
+		_, err := os.Stat(path.Join(tempDir, name))
+		TestExpectError(t, err)
+	}
+
+	fileExists("/foo")
+	fileNotExists("/foobar")
+	fileExists("/foobar2")
 }
