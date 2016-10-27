@@ -1,4 +1,4 @@
-// Copyright 2012-2015 Apcera Inc. All rights reserved.
+// Copyright 2012-2016 Apcera Inc. All rights reserved.
 
 package tarhelper
 
@@ -27,6 +27,10 @@ const (
 	WindowsMaxPathLen = 260 // characters
 )
 
+// UntarCustomHandler are used to inject custom behavior for handling in a tar
+// file. For more information, see Untar.CustomerHandlers description.
+type UntarCustomHandler func(rootpath string, header *tar.Header, reader io.Reader) (bool, error)
+
 type resolvedLink struct {
 	src string
 	dst string
@@ -34,7 +38,6 @@ type resolvedLink struct {
 
 // Untar manages state of a TAR archive to be extracted.
 type Untar struct {
-
 	// The directory that the files will be extracted into. This will
 	// be the root for all paths contained within the tar file.
 	target string
@@ -112,6 +115,17 @@ type Untar struct {
 	// file. It can also return an error if it is unable to choose a GID or the
 	// GID is not allowed.
 	GroupMappingFunc func(int) (int, error)
+
+	// CustomHandlers is used to allow the code calling tarhelper to inject custom
+	// logic for how to handle certain entries within the tar file. The Untar
+	// handler will loop over and call to these functions. They return a boolean
+	// which should be true when the built in logic for handling the tar entry
+	// should be skipped. They also return an error which will cause the untar
+	// function to abort and bubble up the handler's error. The functions are
+	// passed the root path where the tar is being extracted on disk, the
+	// *tar.Header entry, and an io.Reader to the entry's contents (if it is a
+	// file).
+	CustomHandlers []UntarCustomHandler
 }
 
 // NewUntar returns an Untar to use to extract the contents of r into targetDir.
@@ -295,6 +309,33 @@ func (u *Untar) processEntry(header *tar.Header) error {
 		os.RemoveAll(name)
 	}
 
+	// process the uid/gid ownership
+	uid, gid := u.MappedUserID, u.MappedGroupID
+	if u.PreserveOwners {
+		if uid, err = u.OwnerMappingFunc(header.Uid); err != nil {
+			return fmt.Errorf("failed to map UID for file: %v", err)
+		}
+		if gid, err = u.GroupMappingFunc(header.Gid); err != nil {
+			return fmt.Errorf("failed to map GID for file: %v", err)
+		}
+	}
+	header.Uid, header.Gid = uid, gid
+
+	// Loop over custom handlers to see if any of them should be used to process the entry.
+	for _, handler := range u.CustomHandlers {
+		var reader io.Reader
+		if header.Typeflag == tar.TypeReg || header.Typeflag == tar.TypeRegA {
+			reader = u.archive
+		}
+		bypass, err := handler(u.target, header, reader)
+		if err != nil {
+			return err
+		}
+		if bypass {
+			return nil
+		}
+	}
+
 	// handle individual types
 	switch {
 	case header.Typeflag == tar.TypeDir:
@@ -428,27 +469,15 @@ func (u *Untar) processEntry(header *tar.Header) error {
 		return fmt.Errorf("Unrecognized type: %d", header.Typeflag)
 	}
 
-	// process the uid/gid ownership
-	uid := u.MappedUserID
-	gid := u.MappedGroupID
-	if u.PreserveOwners {
-		if uid, err = u.OwnerMappingFunc(header.Uid); err != nil {
-			return fmt.Errorf("failed to map UID for file: %v", err)
-		}
-		if gid, err = u.GroupMappingFunc(header.Gid); err != nil {
-			return fmt.Errorf("failed to map GID for file: %v", err)
-		}
-	}
-
-	// apply it
+	// apply the uid/gid
 	switch header.Typeflag {
 	case tar.TypeSymlink:
-		os.Lchown(name, uid, gid)
+		os.Lchown(name, header.Uid, header.Gid)
 	case tar.TypeLink:
 		// don't chown on hard links or symlinks. doing this also removes setuid
 		// from mode and the hard link will already pick up the same owner
 	default:
-		os.Chown(name, uid, gid)
+		os.Chown(name, header.Uid, header.Gid)
 	}
 
 	return nil
