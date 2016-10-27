@@ -8,7 +8,7 @@ import (
 	"io"
 
 	"github.com/apcera/util/tarhelper"
-	xz "github.com/apcera/util/tarhelper/Godeps/_workspace/src/github.com/remyoudompheng/go-liblzma"
+	xz "github.com/remyoudompheng/go-liblzma"
 )
 
 func init() {
