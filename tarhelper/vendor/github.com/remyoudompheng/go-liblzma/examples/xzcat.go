@@ -6,9 +6,9 @@ package main
 
 import (
 	"fmt"
-	xz "github.com/apcera/util/tarhelper/Godeps/_workspace/src/github.com/remyoudompheng/go-liblzma"
 	"io"
 	"os"
+	xz "github.com/remyoudompheng/go-liblzma"
 )
 
 func main() {
