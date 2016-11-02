@@ -568,11 +568,9 @@ func (u *Untar) convertToDestination(dir string) (string, error) {
 		// NOTE: by the time this is executed, the location of the directory has
 		// already been validated as safe.
 		if os.IsNotExist(err) {
-			if err := os.MkdirAll(dir, os.FileMode(0755)); err != nil {
+			if err := u.recursivelyCreateDir(dir); err != nil {
 				return "", err
 			}
-			// we don't error check on chown incase the process is unprivledged
-			os.Chown(dir, u.MappedUserID, u.MappedGroupID)
 			lstat, err = os.Lstat(dir)
 		}
 	}
@@ -602,6 +600,48 @@ func (u *Untar) convertToDestination(dir string) (string, error) {
 
 	// not a symlink, so return the dir
 	return dir, nil
+}
+
+// recursivelyCreateDir is used to recursively create multiple elements of a
+// path individually to ensure the uid/gid mapping functions get applied and
+// they have the proper owners.
+func (u *Untar) recursivelyCreateDir(dir string) error {
+	// process the uid/gid ownership
+	uid := u.MappedUserID
+	gid := u.MappedGroupID
+	if u.PreserveOwners {
+		var err error
+		if uid, err = u.OwnerMappingFunc(uid); err != nil {
+			return fmt.Errorf("failed to map UID for file: %v", err)
+		}
+		if gid, err = u.GroupMappingFunc(gid); err != nil {
+			return fmt.Errorf("failed to map GID for file: %v", err)
+		}
+	}
+
+	abs := filepath.IsAbs(dir)
+	parts := strings.Split(dir, string(os.PathSeparator))
+	if abs {
+		parts = parts[1:]
+	}
+
+	for i := range parts {
+		p := filepath.Join(parts[:i+1]...)
+		if abs {
+			p = string(os.PathSeparator) + p
+		}
+
+		if err := os.Mkdir(p, os.FileMode(0755)); err != nil {
+			if os.IsExist(err) {
+				continue
+			}
+			return err
+		}
+		// We don't error check on chown incase the process is
+		// unprivledged. Additionally, only chown when we actually created it.
+		os.Chown(p, uid, gid)
+	}
+	return nil
 }
 
 // checkEntryAgainstWhitelist will check if the specified file should be allowed
