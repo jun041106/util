@@ -134,6 +134,13 @@ func (s *S3Uploader) buildS3Request(fileBase string, buffer *bytes.Buffer) (*htt
 		return nil, err
 	}
 
+	// FIXME: Send 'Connection: close' header on HTTP requests
+	// as reusing the connection is still prone to EOF/Connection reset errors
+	// in certain network environments...
+	// See: ENGT-9670
+	// https://stackoverflow.com/questions/17714494/golang-http-request-results-in-eof-errors
+	req.Close = true
+
 	// Generate MD5 to ensure reliable delivery
 	h := md5.New()
 	if _, err := h.Write(buffer.Bytes()); err != nil {
