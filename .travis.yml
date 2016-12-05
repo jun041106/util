@@ -10,7 +10,6 @@ before_install:
   - sudo apt-get install -qq liblzma-dev
 
 install:
-  - go get -u github.com/appc/spec/discovery
   - go get -u github.com/apcera/logray
 
 script:
