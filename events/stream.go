@@ -31,7 +31,8 @@ func (e *EventClient) StreamEvents(w io.Writer, streamFQN string, timeout time.D
 
 	// By default, nginx terminates inactive connections after 60 seconds. So,
 	// we pong.
-	keepAlive := time.NewTicker(30 * time.Second).C
+	keepAlive := time.NewTicker(30 * time.Second)
+	defer keepAlive.Stop()
 	for {
 		select {
 		// Streams till the connection is closed by the API Server
@@ -42,7 +43,7 @@ func (e *EventClient) StreamEvents(w io.Writer, streamFQN string, timeout time.D
 			return nil
 		// NGINX terminates inactive connections post 60 seconds.
 		// Sending a WAMP Hello{} message (harmless) as a packet ping to NGINX
-		case <-keepAlive:
+		case <-keepAlive.C:
 			e.Send(&turnpike.Hello{})
 		}
 	}
