@@ -11,34 +11,34 @@ import (
 )
 
 func TestReadInt64(t *testing.T) {
-	testHelper := tt.StartTest(t)
-	defer testHelper.FinishTest()
+	tt.StartTest(t)
+	defer tt.FinishTest(t)
 
-	f := testHelper.WriteTempFile("foo\nbar")
+	f := tt.WriteTempFile(t, "foo\nbar")
 
 	_, err := ReadInt64(f)
 	tt.TestExpectError(t, err)
 
-	f = testHelper.WriteTempFile("123\n456")
+	f = tt.WriteTempFile(t, "123\n456")
 
 	v, err := ReadInt64(f)
 	tt.TestExpectSuccess(t, err)
 	tt.TestEqual(t, v, int64(123))
 
-	f = testHelper.WriteTempFile("123456789")
+	f = tt.WriteTempFile(t, "123456789")
 	v, err = ReadInt64(f)
 	tt.TestExpectSuccess(t, err)
 	tt.TestEqual(t, v, int64(123456789))
 
 	maxInt64 := fmt.Sprintf("%d", int64(1<<63-1))
-	f = testHelper.WriteTempFile(maxInt64)
+	f = tt.WriteTempFile(t, maxInt64)
 
 	v, err = ReadInt64(f)
 	tt.TestExpectSuccess(t, err)
 	tt.TestEqual(t, v, int64(1<<63-1))
 
 	maxInt64WithExtra := fmt.Sprintf("%d666", int64(1<<63-1))
-	f = testHelper.WriteTempFile(maxInt64WithExtra)
+	f = tt.WriteTempFile(t, maxInt64WithExtra)
 
 	v, err = ReadInt64(f)
 	tt.TestExpectSuccess(t, err)
@@ -46,8 +46,8 @@ func TestReadInt64(t *testing.T) {
 }
 
 func TestParseSimpleProcFile(t *testing.T) {
-	testHelper := tt.StartTest(t)
-	defer testHelper.FinishTest()
+	tt.StartTest(t)
+	defer tt.FinishTest(t)
 
 	// Test 1: Success.
 	lines := []string{
@@ -55,7 +55,7 @@ func TestParseSimpleProcFile(t *testing.T) {
 		" belm0  belm1\t belm2\t\t\t",
 		"",
 		"delm0"}
-	f := testHelper.WriteTempFile(strings.Join(lines, "\n"))
+	f := tt.WriteTempFile(t, strings.Join(lines, "\n"))
 	err := ParseSimpleProcFile(
 		f,
 		func(index int, line string) error {

@@ -13,8 +13,8 @@ import (
 )
 
 func TestEnvMapSimple(t *testing.T) {
-	testHelper := tt.StartTest(t)
-	defer testHelper.FinishTest()
+	tt.StartTest(t)
+	defer tt.FinishTest(t)
 
 	// Simple case.
 	e := NewEnvMap()
@@ -30,8 +30,8 @@ func TestEnvMapSimple(t *testing.T) {
 }
 
 func TestEnvMapRecursive(t *testing.T) {
-	testHelper := tt.StartTest(t)
-	defer testHelper.FinishTest()
+	tt.StartTest(t)
+	defer tt.FinishTest(t)
 
 	// Simple case.
 	e := NewEnvMap()
@@ -52,8 +52,8 @@ func TestEnvMapRecursive(t *testing.T) {
 }
 
 func TestEnvMapDoubleAdd(t *testing.T) {
-	testHelper := tt.StartTest(t)
-	defer testHelper.FinishTest()
+	tt.StartTest(t)
+	defer tt.FinishTest(t)
 
 	// Simple case.
 	e := NewEnvMap()
@@ -70,8 +70,8 @@ func TestEnvMapDoubleAdd(t *testing.T) {
 }
 
 func TestEnvMap(t *testing.T) {
-	testHelper := tt.StartTest(t)
-	defer testHelper.FinishTest()
+	tt.StartTest(t)
+	defer tt.FinishTest(t)
 
 	expected := []string{
 		"START_COMMAND=XYZ",
@@ -131,8 +131,8 @@ func TestEnvMap(t *testing.T) {
 }
 
 func TestEnvMapGetRaw(t *testing.T) {
-	testHelper := tt.StartTest(t)
-	defer testHelper.FinishTest()
+	tt.StartTest(t)
+	defer tt.FinishTest(t)
 
 	root := NewEnvMap()
 	root.Set("VARIABLE", "foo bar $STR")
@@ -155,8 +155,8 @@ func TestEnvMapGetRaw(t *testing.T) {
 }
 
 func TestEnvMapGetUnflattened(t *testing.T) {
-	testHelper := tt.StartTest(t)
-	defer testHelper.FinishTest()
+	tt.StartTest(t)
+	defer tt.FinishTest(t)
 
 	root := NewEnvMap()
 	root.Set("VARIABLE", "foo bar $STR")
@@ -172,8 +172,8 @@ func TestEnvMapGetUnflattened(t *testing.T) {
 }
 
 func TestJsonMarshalUnmarshal(t *testing.T) {
-	testHelper := tt.StartTest(t)
-	defer testHelper.FinishTest()
+	tt.StartTest(t)
+	defer tt.FinishTest(t)
 
 	e := NewEnvMap()
 	e.Set("A", "1")

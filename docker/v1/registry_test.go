@@ -19,8 +19,8 @@ func init() {
 }
 
 func TestGetImage(t *testing.T) {
-	testHelper := tt.StartTest(t)
-	defer testHelper.FinishTest()
+	tt.StartTest(t)
+	defer tt.FinishTest(t)
 
 	img, statusCode, err := GetImage("", "")
 	tt.TestExpectError(t, err)
@@ -39,8 +39,8 @@ func TestGetImage(t *testing.T) {
 }
 
 func TestGetImageHistory(t *testing.T) {
-	testHelper := tt.StartTest(t)
-	defer testHelper.FinishTest()
+	tt.StartTest(t)
+	defer tt.FinishTest(t)
 
 	img, statusCode, err := GetImage("foo/bar", "")
 	tt.TestExpectSuccess(t, err)
@@ -58,8 +58,8 @@ func TestGetImageHistory(t *testing.T) {
 }
 
 func TestGetImageTags(t *testing.T) {
-	testHelper := tt.StartTest(t)
-	defer testHelper.FinishTest()
+	tt.StartTest(t)
+	defer tt.FinishTest(t)
 
 	img, statusCode, err := GetImage("foo/bar", "")
 	tt.TestExpectSuccess(t, err)
@@ -71,8 +71,8 @@ func TestGetImageTags(t *testing.T) {
 }
 
 func TestGetImageTagLayerID(t *testing.T) {
-	testHelper := tt.StartTest(t)
-	defer testHelper.FinishTest()
+	tt.StartTest(t)
+	defer tt.FinishTest(t)
 
 	img, statusCode, err := GetImage("foo/bar", "")
 	tt.TestExpectSuccess(t, err)
@@ -92,8 +92,8 @@ func TestGetImageTagLayerID(t *testing.T) {
 }
 
 func TestGetImageMetadata(t *testing.T) {
-	testHelper := tt.StartTest(t)
-	defer testHelper.FinishTest()
+	tt.StartTest(t)
+	defer tt.FinishTest(t)
 
 	img, statusCode, err := GetImage("foo/bar", "")
 	tt.TestExpectSuccess(t, err)
@@ -120,8 +120,8 @@ func TestGetImageMetadata(t *testing.T) {
 }
 
 func TestReadLayer(t *testing.T) {
-	testHelper := tt.StartTest(t)
-	defer testHelper.FinishTest()
+	tt.StartTest(t)
+	defer tt.FinishTest(t)
 
 	img, statusCode, err := GetImage("foo/bar", "")
 	tt.TestExpectSuccess(t, err)

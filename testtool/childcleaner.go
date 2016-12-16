@@ -4,9 +4,12 @@ package testtool
 
 import (
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"strings"
+	"sync"
 )
 
 const startupInterceptorToken = "sdf908s0dijflk23423"
@@ -42,32 +45,57 @@ func init() {
 	os.Exit(0)
 }
 
-// RootTempDir creates a directory that will exist until the process running the
-// tests exits.
-func RootTempDir(t *TestTool) string {
-	if rd, ok := t.Parameters["RootDir"].(string); ok && rd != "" {
-		return rd
+// Stores the persistent root directory.
+var rootDirectory string
+
+// Protect access
+var mu sync.Mutex
+
+var rootDirectoryStdin io.Writer
+
+// Creates a directory that will exist until the process running the tests
+// exits.
+func RootTempDir(l Logger) string {
+	mu.Lock()
+	defer mu.Unlock()
+
+	if rootDirectory != "" {
+		return rootDirectory
 	}
 
-	var rootDirectory string
-
+	var reader *os.File
 	var err error
 
 	mode := os.FileMode(0777)
-	rootDirectory, err = ioutil.TempDir("", t.RandomTestString)
+	rootDirectory, err = ioutil.TempDir("", "rootunittest")
 	if rootDirectory == "" {
-		Fatalf(t, "ioutil.TempFile() return an empty string.")
+		Fatalf(l, "ioutil.TempFile() return an empty string.")
 	} else if err != nil {
-		Fatalf(t, "ioutil.TempFile() return an err: %s", err)
+		Fatalf(l, "ioutil.TempFile() return an err: %s", err)
 	} else if err := os.Chmod(rootDirectory, mode); err != nil {
-		Fatalf(t, "os.Chmod error: %s", err)
+		Fatalf(l, "os.Chmod error: %s", err)
+	} else if reader, rootDirectoryStdin, err = os.Pipe(); err != nil {
+		Fatalf(l, "io.Pipe() failed: %s", err)
+	}
+	cmd := exec.Command(os.Args[0], startupInterceptorToken, rootDirectory)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = reader
+	if err := cmd.Start(); err != nil {
+		Fatalf(l, "cmd.Start() failed: %s", err)
+	} else if err := reader.Close(); err != nil {
+		Fatalf(l, "Close() error: %s", err)
 	}
 
-	t.Parameters["RootDir"] = rootDirectory
-
-	t.AddTestFinalizer(func() {
-		os.RemoveAll(rootDirectory)
-	})
-
 	return rootDirectory
+}
+
+func ResetRootTempDir() {
+	mu.Lock()
+	defer mu.Unlock()
+	if rootDirectory == "" {
+		return
+	}
+	os.RemoveAll(rootDirectory)
+	rootDirectory = ""
 }
