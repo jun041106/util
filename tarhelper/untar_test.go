@@ -17,12 +17,12 @@ import (
 	"testing"
 	"time"
 
-	tt "github.com/apcera/util/testtool"
+	. "github.com/apcera/util/testtool"
 )
 
 func TestUntarResolveDestinations(t *testing.T) {
-	testHelper := tt.StartTest(t)
-	defer testHelper.FinishTest()
+	StartTest(t)
+	defer FinishTest(t)
 
 	u := new(Untar)
 	u.resolvedLinks = make([]resolvedLink, 0)
@@ -31,8 +31,8 @@ func TestUntarResolveDestinations(t *testing.T) {
 
 	runTest := func(p, e string) {
 		dst, err := u.resolveDestination(p)
-		tt.TestExpectSuccess(t, err)
-		tt.TestEqual(t, dst, e)
+		TestExpectSuccess(t, err)
+		TestEqual(t, dst, e)
 	}
 
 	runTest("a", "a")
@@ -64,8 +64,8 @@ func TestUntarResolveDestinations(t *testing.T) {
 }
 
 func TestUntarExtractFollowingSymlinks(t *testing.T) {
-	testHelper := tt.StartTest(t)
-	defer testHelper.FinishTest()
+	StartTest(t)
+	defer FinishTest(t)
 
 	// create a buffer and tar.Writer
 	buffer := bytes.NewBufferString("")
@@ -78,7 +78,7 @@ func TestUntarExtractFollowingSymlinks(t *testing.T) {
 		header.Mode = 0755
 		header.Mode |= c_ISDIR
 		header.ModTime = time.Now()
-		tt.TestExpectSuccess(t, archive.WriteHeader(header))
+		TestExpectSuccess(t, archive.WriteHeader(header))
 	}
 
 	writeFile := func(name, contents string) {
@@ -91,10 +91,10 @@ func TestUntarExtractFollowingSymlinks(t *testing.T) {
 		header.ModTime = time.Now()
 		header.Size = int64(len(b))
 
-		tt.TestExpectSuccess(t, archive.WriteHeader(header))
+		TestExpectSuccess(t, archive.WriteHeader(header))
 		_, err := archive.Write(b)
-		tt.TestExpectSuccess(t, err)
-		tt.TestExpectSuccess(t, archive.Flush())
+		TestExpectSuccess(t, err)
+		TestExpectSuccess(t, archive.Flush())
 	}
 
 	writeSymlink := func(name, link string) {
@@ -105,7 +105,7 @@ func TestUntarExtractFollowingSymlinks(t *testing.T) {
 		header.Mode = 0644
 		header.Mode |= c_ISLNK
 		header.ModTime = time.Now()
-		tt.TestExpectSuccess(t, archive.WriteHeader(header))
+		TestExpectSuccess(t, archive.WriteHeader(header))
 	}
 
 	// generate the mock tar
@@ -122,34 +122,34 @@ func TestUntarExtractFollowingSymlinks(t *testing.T) {
 	archive.Close()
 
 	// create temp folder to extract to
-	tempDir := testHelper.TempDir()
+	tempDir := TempDir(t)
 	extractionPath := path.Join(tempDir, "pkg")
 	err := os.MkdirAll(extractionPath, 0755)
-	tt.TestExpectSuccess(t, err)
+	TestExpectSuccess(t, err)
 	err = os.MkdirAll(path.Join(tempDir, "realetc"), 0755)
-	tt.TestExpectSuccess(t, err)
+	TestExpectSuccess(t, err)
 
 	// extract
 	r := bytes.NewReader(buffer.Bytes())
 	u := NewUntar(r, extractionPath)
 	u.AbsoluteRoot = tempDir
-	tt.TestExpectSuccess(t, u.Extract())
+	TestExpectSuccess(t, u.Extract())
 
 	fileExists := func(name string) {
 		_, err := os.Stat(path.Join(tempDir, name))
-		tt.TestExpectSuccess(t, err)
+		TestExpectSuccess(t, err)
 	}
 
 	fileContents := func(name, contents string) {
 		b, err := ioutil.ReadFile(path.Join(tempDir, name))
-		tt.TestExpectSuccess(t, err)
-		tt.TestEqual(t, string(b), contents)
+		TestExpectSuccess(t, err)
+		TestEqual(t, string(b), contents)
 	}
 
 	fileSymlinks := func(name, link string) {
 		l, err := os.Readlink(path.Join(tempDir, name))
-		tt.TestExpectSuccess(t, err)
-		tt.TestEqual(t, l, link)
+		TestExpectSuccess(t, err)
+		TestEqual(t, l, link)
 	}
 
 	fileExists("./pkg/foo")
@@ -171,8 +171,8 @@ func TestUntarExtractFollowingSymlinks(t *testing.T) {
 }
 
 func TestUntarCreatesDeeperPathsIfNotMentioned(t *testing.T) {
-	testHelper := tt.StartTest(t)
-	defer testHelper.FinishTest()
+	StartTest(t)
+	defer FinishTest(t)
 
 	// create a buffer and tar.Writer
 	buffer := bytes.NewBufferString("")
@@ -188,10 +188,10 @@ func TestUntarCreatesDeeperPathsIfNotMentioned(t *testing.T) {
 		header.ModTime = time.Now()
 		header.Size = int64(len(b))
 
-		tt.TestExpectSuccess(t, archive.WriteHeader(header))
+		TestExpectSuccess(t, archive.WriteHeader(header))
 		_, err := archive.Write(b)
-		tt.TestExpectSuccess(t, err)
-		tt.TestExpectSuccess(t, archive.Flush())
+		TestExpectSuccess(t, err)
+		TestExpectSuccess(t, archive.Flush())
 	}
 
 	// generate the mock tar... this will write to a file in a directory that
@@ -200,26 +200,26 @@ func TestUntarCreatesDeeperPathsIfNotMentioned(t *testing.T) {
 	archive.Close()
 
 	// create temp folder to extract to
-	tempDir := testHelper.TempDir()
+	tempDir := TempDir(t)
 	extractionPath := path.Join(tempDir, "pkg")
 	err := os.MkdirAll(extractionPath, 0755)
-	tt.TestExpectSuccess(t, err)
+	TestExpectSuccess(t, err)
 
 	// extract
 	r := bytes.NewReader(buffer.Bytes())
 	u := NewUntar(r, extractionPath)
 	u.AbsoluteRoot = tempDir
-	tt.TestExpectSuccess(t, u.Extract())
+	TestExpectSuccess(t, u.Extract())
 
 	fileExists := func(name string) {
 		_, err := os.Stat(path.Join(tempDir, name))
-		tt.TestExpectSuccess(t, err)
+		TestExpectSuccess(t, err)
 	}
 
 	fileContents := func(name, contents string) {
 		b, err := ioutil.ReadFile(path.Join(tempDir, name))
-		tt.TestExpectSuccess(t, err)
-		tt.TestEqual(t, string(b), contents)
+		TestExpectSuccess(t, err)
+		TestEqual(t, string(b), contents)
 	}
 
 	fileExists("./pkg/a_directory/file")
@@ -227,8 +227,8 @@ func TestUntarCreatesDeeperPathsIfNotMentioned(t *testing.T) {
 }
 
 func TestUntarExtractOverwriting(t *testing.T) {
-	testHelper := tt.StartTest(t)
-	defer testHelper.FinishTest()
+	StartTest(t)
+	defer FinishTest(t)
 
 	// create a buffer and tar.Writer
 	buffer := bytes.NewBufferString("")
@@ -241,7 +241,7 @@ func TestUntarExtractOverwriting(t *testing.T) {
 		header.Mode = 0755
 		header.Mode |= c_ISDIR
 		header.ModTime = time.Now()
-		tt.TestExpectSuccess(t, archive.WriteHeader(header))
+		TestExpectSuccess(t, archive.WriteHeader(header))
 	}
 
 	writeFile := func(name, contents string) {
@@ -254,10 +254,10 @@ func TestUntarExtractOverwriting(t *testing.T) {
 		header.ModTime = time.Now()
 		header.Size = int64(len(b))
 
-		tt.TestExpectSuccess(t, archive.WriteHeader(header))
+		TestExpectSuccess(t, archive.WriteHeader(header))
 		_, err := archive.Write(b)
-		tt.TestExpectSuccess(t, err)
-		tt.TestExpectSuccess(t, archive.Flush())
+		TestExpectSuccess(t, err)
+		TestExpectSuccess(t, archive.Flush())
 	}
 
 	writeSymlink := func(name, link string) {
@@ -268,27 +268,27 @@ func TestUntarExtractOverwriting(t *testing.T) {
 		header.Mode = 0644
 		header.Mode |= c_ISLNK
 		header.ModTime = time.Now()
-		tt.TestExpectSuccess(t, archive.WriteHeader(header))
+		TestExpectSuccess(t, archive.WriteHeader(header))
 	}
 
 	// create temp folder to extract to
-	tempDir := testHelper.TempDir()
+	tempDir := TempDir(t)
 
 	fileExists := func(name string) {
 		_, err := os.Stat(path.Join(tempDir, name))
-		tt.TestExpectSuccess(t, err)
+		TestExpectSuccess(t, err)
 	}
 
 	fileContents := func(name, contents string) {
 		b, err := ioutil.ReadFile(path.Join(tempDir, name))
-		tt.TestExpectSuccess(t, err)
-		tt.TestEqual(t, string(b), contents)
+		TestExpectSuccess(t, err)
+		TestEqual(t, string(b), contents)
 	}
 
 	fileSymlinks := func(name, link string) {
 		l, err := os.Readlink(path.Join(tempDir, name))
-		tt.TestExpectSuccess(t, err)
-		tt.TestEqual(t, l, link)
+		TestExpectSuccess(t, err)
+		TestEqual(t, l, link)
 	}
 
 	// generate the mock tar
@@ -306,7 +306,7 @@ func TestUntarExtractOverwriting(t *testing.T) {
 	// extract
 	r := bytes.NewReader(buffer.Bytes())
 	u := NewUntar(r, tempDir)
-	tt.TestExpectSuccess(t, u.Extract())
+	TestExpectSuccess(t, u.Extract())
 
 	// validate the first tar
 	fileExists("./foo")
@@ -340,7 +340,7 @@ func TestUntarExtractOverwriting(t *testing.T) {
 	// extract the 2nd tar
 	r = bytes.NewReader(buffer2.Bytes())
 	u = NewUntar(r, tempDir)
-	tt.TestExpectSuccess(t, u.Extract())
+	TestExpectSuccess(t, u.Extract())
 
 	// verify the contents were overwritten as expected
 	fileContents("./foo", "bar")
@@ -351,8 +351,8 @@ func TestUntarExtractOverwriting(t *testing.T) {
 }
 
 func TestUntarIDMappings(t *testing.T) {
-	testHelper := tt.StartTest(t)
-	defer testHelper.FinishTest()
+	StartTest(t)
+	defer FinishTest(t)
 
 	// create a buffer and tar.Writer
 	buffer := bytes.NewBufferString("")
@@ -367,7 +367,7 @@ func TestUntarIDMappings(t *testing.T) {
 		header.ModTime = time.Now()
 		header.Uid = uid
 		header.Gid = gid
-		tt.TestExpectSuccess(t, archive.WriteHeader(header))
+		TestExpectSuccess(t, archive.WriteHeader(header))
 	}
 
 	writeFileWithOwners := func(name, contents string, uid, gid int) {
@@ -382,10 +382,10 @@ func TestUntarIDMappings(t *testing.T) {
 		header.Uid = uid
 		header.Gid = gid
 
-		tt.TestExpectSuccess(t, archive.WriteHeader(header))
+		TestExpectSuccess(t, archive.WriteHeader(header))
 		_, err := archive.Write(b)
-		tt.TestExpectSuccess(t, err)
-		tt.TestExpectSuccess(t, archive.Flush())
+		TestExpectSuccess(t, err)
+		TestExpectSuccess(t, archive.Flush())
 	}
 
 	writeDirectoryWithOwners(".", 0, 0)
@@ -394,70 +394,70 @@ func TestUntarIDMappings(t *testing.T) {
 
 	// setup our mapping func
 	usr, err := user.Current()
-	tt.TestExpectSuccess(t, err)
+	TestExpectSuccess(t, err)
 	myUid, err := strconv.Atoi(usr.Uid)
-	tt.TestExpectSuccess(t, err)
+	TestExpectSuccess(t, err)
 	myGid, err := strconv.Atoi(usr.Gid)
-	tt.TestExpectSuccess(t, err)
+	TestExpectSuccess(t, err)
 	uidFuncCalled := false
 	gidFuncCalled := false
 	uidMappingFunc := func(uid int) (int, error) {
 		uidFuncCalled = true
-		tt.TestEqual(t, uid, 0)
+		TestEqual(t, uid, 0)
 		return myUid, nil
 	}
 	gidMappingFunc := func(gid int) (int, error) {
 		gidFuncCalled = true
-		tt.TestEqual(t, gid, 0)
+		TestEqual(t, gid, 0)
 		return myGid, nil
 	}
 
 	// extract
-	tempDir := testHelper.TempDir()
+	tempDir := TempDir(t)
 	r := bytes.NewReader(buffer.Bytes())
 	u := NewUntar(r, tempDir)
 	u.PreserveOwners = true
 	u.OwnerMappingFunc = uidMappingFunc
 	u.GroupMappingFunc = gidMappingFunc
-	tt.TestExpectSuccess(t, u.Extract())
+	TestExpectSuccess(t, u.Extract())
 
 	// verify it was called
-	tt.TestEqual(t, uidFuncCalled, true)
-	tt.TestEqual(t, gidFuncCalled, true)
+	TestEqual(t, uidFuncCalled, true)
+	TestEqual(t, gidFuncCalled, true)
 
 	// verify the file
 	stat, err := os.Stat(path.Join(tempDir, "foo"))
-	tt.TestExpectSuccess(t, err)
+	TestExpectSuccess(t, err)
 	sys := stat.Sys().(*syscall.Stat_t)
-	tt.TestEqual(t, sys.Uid, uint32(myUid))
-	tt.TestEqual(t, sys.Gid, uint32(myGid))
+	TestEqual(t, sys.Uid, uint32(myUid))
+	TestEqual(t, sys.Gid, uint32(myGid))
 }
 
 func TestUntarFailures(t *testing.T) {
-	testHelper := tt.StartTest(t)
-	defer testHelper.FinishTest()
+	StartTest(t)
+	defer FinishTest(t)
 
 	// Bad compression type.
 	u := NewUntar(strings.NewReader("bad"), "/tmp")
 	u.Compression = Compression(-1)
-	tt.TestExpectError(t, u.Extract())
+	TestExpectError(t, u.Extract())
 
 	// FIXME(brady): add more cases here!
 }
 
 func TestCannotDetectCompression(t *testing.T) {
-	testHelper := tt.StartTest(t)
-	defer testHelper.FinishTest()
+	StartTest(t)
+	defer FinishTest(t)
 
 	u := NewUntar(strings.NewReader("bad"), "/tmp")
 	u.Compression = DETECT
 
-	tt.TestExpectError(t, u.Extract())
+	TestExpectError(t, u.Extract())
 }
 
 func TestUntarWhitelist(t *testing.T) {
-	testHelper := tt.StartTest(t)
-	defer testHelper.FinishTest()
+	StartTest(t)
+	defer FinishTest(t)
 
 	// create a buffer and tar.Writer
 	buffer := bytes.NewBufferString("")
@@ -470,7 +470,7 @@ func TestUntarWhitelist(t *testing.T) {
 		header.Mode = 0755
 		header.Mode |= c_ISDIR
 		header.ModTime = time.Now()
-		tt.TestExpectSuccess(t, archive.WriteHeader(header))
+		TestExpectSuccess(t, archive.WriteHeader(header))
 	}
 
 	writeFile := func(name, contents string) {
@@ -483,10 +483,10 @@ func TestUntarWhitelist(t *testing.T) {
 		header.ModTime = time.Now()
 		header.Size = int64(len(b))
 
-		tt.TestExpectSuccess(t, archive.WriteHeader(header))
+		TestExpectSuccess(t, archive.WriteHeader(header))
 		_, err := archive.Write(b)
-		tt.TestExpectSuccess(t, err)
-		tt.TestExpectSuccess(t, archive.Flush())
+		TestExpectSuccess(t, err)
+		TestExpectSuccess(t, archive.Flush())
 	}
 
 	writeDirectory(".")
@@ -508,7 +508,7 @@ func TestUntarWhitelist(t *testing.T) {
 	archive.Close()
 
 	// create temp folder to extract to
-	tempDir := testHelper.TempDir()
+	tempDir := TempDir(t)
 
 	// extract
 	r := bytes.NewReader(buffer.Bytes())
@@ -518,16 +518,16 @@ func TestUntarWhitelist(t *testing.T) {
 		"/usr/bin/",
 		"/usr/justdir",
 	}
-	tt.TestExpectSuccess(t, u.Extract())
+	TestExpectSuccess(t, u.Extract())
 
 	fileExists := func(name string) {
 		_, err := os.Stat(path.Join(tempDir, name))
-		tt.TestExpectSuccess(t, err)
+		TestExpectSuccess(t, err)
 	}
 
 	fileNotExists := func(name string) {
 		_, err := os.Stat(path.Join(tempDir, name))
-		tt.TestExpectError(t, err)
+		TestExpectError(t, err)
 	}
 
 	fileExists("/foo")
@@ -542,8 +542,8 @@ func TestUntarWhitelist(t *testing.T) {
 }
 
 func TestUntarCustomHandler(t *testing.T) {
-	testHelper := tt.StartTest(t)
-	defer testHelper.FinishTest()
+	StartTest(t)
+	defer FinishTest(t)
 
 	// create a buffer and tar.Writer
 	buffer := bytes.NewBufferString("")
@@ -556,7 +556,7 @@ func TestUntarCustomHandler(t *testing.T) {
 		header.Mode = 0755
 		header.Mode |= c_ISDIR
 		header.ModTime = time.Now()
-		tt.TestExpectSuccess(t, archive.WriteHeader(header))
+		TestExpectSuccess(t, archive.WriteHeader(header))
 	}
 
 	writeFile := func(name, contents string) {
@@ -569,10 +569,10 @@ func TestUntarCustomHandler(t *testing.T) {
 		header.ModTime = time.Now()
 		header.Size = int64(len(b))
 
-		tt.TestExpectSuccess(t, archive.WriteHeader(header))
+		TestExpectSuccess(t, archive.WriteHeader(header))
 		_, err := archive.Write(b)
-		tt.TestExpectSuccess(t, err)
-		tt.TestExpectSuccess(t, archive.Flush())
+		TestExpectSuccess(t, err)
+		TestExpectSuccess(t, archive.Flush())
 	}
 
 	writeDirectory(".")
@@ -582,7 +582,7 @@ func TestUntarCustomHandler(t *testing.T) {
 	archive.Close()
 
 	// create temp folder to extract to
-	tempDir := testHelper.TempDir()
+	tempDir := TempDir(t)
 
 	// extract
 	r := bytes.NewReader(buffer.Bytes())
@@ -604,16 +604,16 @@ func TestUntarCustomHandler(t *testing.T) {
 			return true, nil
 		},
 	}
-	tt.TestExpectSuccess(t, u.Extract())
+	TestExpectSuccess(t, u.Extract())
 
 	fileExists := func(name string) {
 		_, err := os.Stat(path.Join(tempDir, name))
-		tt.TestExpectSuccess(t, err)
+		TestExpectSuccess(t, err)
 	}
 
 	fileNotExists := func(name string) {
 		_, err := os.Stat(path.Join(tempDir, name))
-		tt.TestExpectError(t, err)
+		TestExpectError(t, err)
 	}
 
 	fileExists("/foo")

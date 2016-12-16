@@ -10,8 +10,8 @@ import (
 
 // Make sure that HMAC Sha1 is calculated correctly
 func TestComputeHmacSha1(t *testing.T) {
-	testHelper := tt.StartTest(t)
-	defer testHelper.FinishTest()
+	tt.StartTest(t)
+	defer tt.FinishTest(t)
 
 	hmacSha1 := ComputeHmacSha1("message", "secret")
 	tt.TestEqual(t, hmacSha1, "DK9kn+7klT2Hv5A6wRdsReAo3xY=")

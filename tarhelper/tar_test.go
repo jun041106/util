@@ -13,68 +13,65 @@ import (
 	"testing"
 	"time"
 
-	tt "github.com/apcera/util/testtool"
+	. "github.com/apcera/util/testtool"
 )
 
 func makeTestDir(t *testing.T) string {
-	testHelper := tt.StartTest(t)
-	//defer testHelper.FinishTest()
-
 	cwd, err := os.Getwd()
-	tt.TestExpectSuccess(t, err)
-	testHelper.AddTestFinalizer(func() {
-		tt.TestExpectSuccess(t, os.Chdir(cwd))
+	TestExpectSuccess(t, err)
+	AddTestFinalizer(func() {
+		TestExpectSuccess(t, os.Chdir(cwd))
 	})
-	dir := testHelper.TempDir()
-	tt.TestExpectSuccess(t, os.Chdir(dir))
+	dir := TempDir(t)
+	TestExpectSuccess(t, os.Chdir(dir))
 	mode := os.FileMode(0755)
 	os.Mkdir(cwd, mode) //Don't care about return value.  For some reason CWD is not created by go test on all systems.
-	tt.TestExpectSuccess(t, os.Mkdir("a", mode))
-	tt.TestExpectSuccess(t, os.Mkdir("a/b", mode))
-	tt.TestExpectSuccess(t, os.Mkdir("a/b/c", mode))
-	tt.TestExpectSuccess(t, os.Mkdir("a/b/c/d", mode))
-	tt.TestExpectSuccess(t, os.Mkdir("a/b/i", mode))
-	tt.TestExpectSuccess(t, os.Mkdir("a/b/i/j", mode))
-	tt.TestExpectSuccess(t, ioutil.WriteFile("a/b/c/d/e", []byte{}, mode))
-	tt.TestExpectSuccess(t, ioutil.WriteFile("a/b/c/f", []byte{}, mode))
-	tt.TestExpectSuccess(t, ioutil.WriteFile("a/b/g", []byte{}, mode))
-	tt.TestExpectSuccess(t, ioutil.WriteFile("a/b/i/j/k", []byte{}, mode))
-	tt.TestExpectSuccess(t, os.Symlink("/bin/bash", "a/b/bash"))
-	tt.TestExpectSuccess(t, os.Symlink("../i", "a/b/c/l"))
-	tt.TestExpectSuccess(t, os.Symlink("g", "a/b/h"))
-	tt.TestExpectSuccess(t, os.Symlink("k", "a/b/i/j/l"))
-	tt.TestExpectSuccess(t, os.Symlink("../../g", "a/b/i/j/m"))
+	TestExpectSuccess(t, os.Mkdir("a", mode))
+	TestExpectSuccess(t, os.Mkdir("a/b", mode))
+	TestExpectSuccess(t, os.Mkdir("a/b/c", mode))
+	TestExpectSuccess(t, os.Mkdir("a/b/c/d", mode))
+	TestExpectSuccess(t, os.Mkdir("a/b/i", mode))
+	TestExpectSuccess(t, os.Mkdir("a/b/i/j", mode))
+	TestExpectSuccess(t, ioutil.WriteFile("a/b/c/d/e", []byte{}, mode))
+	TestExpectSuccess(t, ioutil.WriteFile("a/b/c/f", []byte{}, mode))
+	TestExpectSuccess(t, ioutil.WriteFile("a/b/g", []byte{}, mode))
+	TestExpectSuccess(t, ioutil.WriteFile("a/b/i/j/k", []byte{}, mode))
+	TestExpectSuccess(t, os.Symlink("/bin/bash", "a/b/bash"))
+	TestExpectSuccess(t, os.Symlink("../i", "a/b/c/l"))
+	TestExpectSuccess(t, os.Symlink("g", "a/b/h"))
+	TestExpectSuccess(t, os.Symlink("k", "a/b/i/j/l"))
+	TestExpectSuccess(t, os.Symlink("../../g", "a/b/i/j/m"))
 	return dir
 }
 
 func TestTarSimple(t *testing.T) {
-	testHelper := tt.StartTest(t)
-	defer testHelper.FinishTest()
+	StartTest(t)
+	defer FinishTest(t)
 
 	w := bytes.NewBufferString("")
 	tw := NewTar(w, makeTestDir(t))
-	tt.TestExpectSuccess(t, tw.Archive())
+	TestExpectSuccess(t, tw.Archive())
 }
 
 func TestTarVirtualPath(t *testing.T) {
-	testHelper := tt.StartTest(t)
-	defer testHelper.FinishTest()
+	StartTest(t)
+	defer FinishTest(t)
 
 	w := bytes.NewBufferString("")
 	tw := NewTar(w, makeTestDir(t))
 	tw.VirtualPath = "foo"
-	tt.TestExpectSuccess(t, tw.Archive())
+	TestExpectSuccess(t, tw.Archive())
 }
 
 func TestExcludeRootPath(t *testing.T) {
-	testHelper := tt.StartTest(t)
-	defer testHelper.FinishTest()
+	StartTest(t)
+	defer FinishTest(t)
 
 	w := bytes.NewBufferString("")
 	tw := NewTar(w, makeTestDir(t))
 	tw.ExcludeRootPath = true
-	tt.TestEqual(t, tw.excludeRootPath("./"), true)
-	tt.TestExpectSuccess(t, tw.Archive())
+	TestEqual(t, tw.excludeRootPath("./"), true)
+	TestExpectSuccess(t, tw.Archive())
 
 	archive := tar.NewReader(w)
 	rootHeader := ""
@@ -88,18 +85,18 @@ func TestExcludeRootPath(t *testing.T) {
 		}
 	}
 
-	tt.TestNotEqual(t, rootHeader, "./")
+	TestNotEqual(t, rootHeader, "./")
 }
 
 func TestIncludeRootPath(t *testing.T) {
-	testHelper := tt.StartTest(t)
-	defer testHelper.FinishTest()
+	StartTest(t)
+	defer FinishTest(t)
 
 	w := bytes.NewBufferString("")
 	tw := NewTar(w, makeTestDir(t))
 	tw.ExcludeRootPath = false
-	tt.TestEqual(t, tw.excludeRootPath("./"), false)
-	tt.TestExpectSuccess(t, tw.Archive())
+	TestEqual(t, tw.excludeRootPath("./"), false)
+	TestExpectSuccess(t, tw.Archive())
 
 	archive := tar.NewReader(w)
 	rootHeader := ""
@@ -113,12 +110,12 @@ func TestIncludeRootPath(t *testing.T) {
 		}
 	}
 
-	tt.TestEqual(t, rootHeader, "./")
+	TestEqual(t, rootHeader, "./")
 }
 
 func TestPathExclusion(t *testing.T) {
-	testHelper := tt.StartTest(t)
-	defer testHelper.FinishTest()
+	StartTest(t)
+	defer FinishTest(t)
 
 	type testcase struct {
 		RE       string // e.g. "p.*h"
@@ -189,9 +186,9 @@ func TestPathExclusion(t *testing.T) {
 	// test the "empty exclusion list" cases
 	w := bytes.NewBufferString("")
 	tw := NewTar(w, makeTestDir(t))
-	tt.TestEqual(t, tw.shouldBeExcluded("/any/thing", false), false)
+	TestEqual(t, tw.shouldBeExcluded("/any/thing", false), false)
 	tw.ExcludePath("")
-	tt.TestEqual(t, tw.shouldBeExcluded("/any/thing", false), false)
+	TestEqual(t, tw.shouldBeExcluded("/any/thing", false), false)
 
 	// test these cases on new instances of Tar object to avoid any
 	// possible side effects/conflicts
@@ -218,13 +215,13 @@ func TestPathExclusion(t *testing.T) {
 		}
 
 		for _, path := range stdPaths {
-			tt.TestEqual(t, tw.shouldBeExcluded(path, false), tc.Expected[path],
+			TestEqual(t, tw.shouldBeExcluded(path, false), tc.Expected[path],
 				fmt.Sprintf("Path:%q, tc:%v", path, tc))
 			delete(tc.Expected, path)
 		}
 
 		for path, exp := range tc.Expected {
-			tt.TestEqual(t, tw.shouldBeExcluded(path, false), exp)
+			TestEqual(t, tw.shouldBeExcluded(path, false), exp)
 		}
 	}
 
@@ -236,14 +233,14 @@ func TestPathExclusion(t *testing.T) {
 	tw.ExcludePath("/two/two/.*")
 	tw.ExcludePath("/three/three/three.*")
 	var fi staticFileInfo
-	tt.TestExpectSuccess(t, tw.processEntry("/one/something", fi, []string{}))
-	tt.TestExpectSuccess(t, tw.processEntry("/two/two/something", fi, []string{}))
-	tt.TestExpectSuccess(t, tw.processEntry("/three/three/three-something", fi, []string{}))
+	TestExpectSuccess(t, tw.processEntry("/one/something", fi, []string{}))
+	TestExpectSuccess(t, tw.processEntry("/two/two/something", fi, []string{}))
+	TestExpectSuccess(t, tw.processEntry("/three/three/three-something", fi, []string{}))
 }
 
 func TestTarIDMapping(t *testing.T) {
-	testHelper := tt.StartTest(t)
-	defer testHelper.FinishTest()
+	StartTest(t)
+	defer FinishTest(t)
 
 	// set up our mapping funcs
 	uidFuncCalled := false
@@ -263,7 +260,7 @@ func TestTarIDMapping(t *testing.T) {
 	tw.IncludeOwners = true
 	tw.OwnerMappingFunc = uidMappingFunc
 	tw.GroupMappingFunc = gidMappingFunc
-	tt.TestExpectSuccess(t, tw.Archive())
+	TestExpectSuccess(t, tw.Archive())
 
 	// untar it and verify all of the uid/gids are 0
 	archive := tar.NewReader(w)
@@ -272,61 +269,61 @@ func TestTarIDMapping(t *testing.T) {
 		if err == io.EOF {
 			break
 		}
-		tt.TestExpectSuccess(t, err)
-		tt.TestEqual(t, header.Uid, 0)
-		tt.TestEqual(t, header.Gid, 0)
+		TestExpectSuccess(t, err)
+		TestEqual(t, header.Uid, 0)
+		TestEqual(t, header.Gid, 0)
 	}
 }
 
 func TestSymlinkOptDereferenceLinkToFile(t *testing.T) {
-	testHelper := tt.StartTest(t)
-	defer testHelper.FinishTest()
-
 	cwd, err := os.Getwd()
-	tt.TestExpectSuccess(t, err)
-	testHelper.AddTestFinalizer(func() {
-		tt.TestExpectSuccess(t, os.Chdir(cwd))
+	TestExpectSuccess(t, err)
+	AddTestFinalizer(func() {
+		TestExpectSuccess(t, os.Chdir(cwd))
 	})
 
-	dir := testHelper.TempDir()
-	tt.TestExpectSuccess(t, os.Chdir(dir))
+	StartTest(t)
+	defer FinishTest(t)
+
+	dir := TempDir(t)
+	TestExpectSuccess(t, os.Chdir(dir))
 	mode := os.FileMode(0755)
-	tt.TestExpectSuccess(t, os.Mkdir("a", mode))
-	tt.TestExpectSuccess(t, os.Mkdir("a/b", mode))
-	tt.TestExpectSuccess(t, os.Mkdir("a/b/c", mode))
-	tt.TestExpectSuccess(t, os.Mkdir("a/b/c/d", mode))
-	tt.TestExpectSuccess(t, os.Mkdir("a/b/i", mode))
-	tt.TestExpectSuccess(t, ioutil.WriteFile("a/b/i/j", []byte{'t', 'e', 's', 't'}, mode))
-	tt.TestExpectSuccess(t, os.Symlink("/bin/bash", "a/b/bash"))
-	tt.TestExpectSuccess(t, os.Symlink("../i/j", "a/b/c/lj"))
+	TestExpectSuccess(t, os.Mkdir("a", mode))
+	TestExpectSuccess(t, os.Mkdir("a/b", mode))
+	TestExpectSuccess(t, os.Mkdir("a/b/c", mode))
+	TestExpectSuccess(t, os.Mkdir("a/b/c/d", mode))
+	TestExpectSuccess(t, os.Mkdir("a/b/i", mode))
+	TestExpectSuccess(t, ioutil.WriteFile("a/b/i/j", []byte{'t', 'e', 's', 't'}, mode))
+	TestExpectSuccess(t, os.Symlink("/bin/bash", "a/b/bash"))
+	TestExpectSuccess(t, os.Symlink("../i/j", "a/b/c/lj"))
 	w := bytes.NewBufferString("")
 	tw := NewTar(w, dir)
 	tw.UserOptions |= c_DEREF
-	tt.TestExpectSuccess(t, tw.Archive())
+	TestExpectSuccess(t, tw.Archive())
 
 	extractionPath := path.Join(dir, "pkg")
 	err = os.MkdirAll(extractionPath, 0755)
-	tt.TestExpectSuccess(t, err)
+	TestExpectSuccess(t, err)
 
 	// extract
 	r := bytes.NewReader(w.Bytes())
 	u := NewUntar(r, extractionPath)
 	u.AbsoluteRoot = dir
-	tt.TestExpectSuccess(t, u.Extract())
+	TestExpectSuccess(t, u.Extract())
 
 	dirExists := func(name string) {
 		f, err := os.Stat(path.Join(extractionPath, name))
-		tt.TestExpectSuccess(t, err)
-		tt.TestEqual(t, true, f.IsDir())
+		TestExpectSuccess(t, err)
+		TestEqual(t, true, f.IsDir())
 	}
 
 	sameFileContents := func(f1 string, f2 string) {
 		b1, err := ioutil.ReadFile(f1)
-		tt.TestExpectSuccess(t, err)
+		TestExpectSuccess(t, err)
 
 		b2, err := ioutil.ReadFile(f2)
-		tt.TestExpectSuccess(t, err)
-		tt.TestEqual(t, b1, b2)
+		TestExpectSuccess(t, err)
+		TestEqual(t, b1, b2)
 	}
 
 	// Verify dirs a, a/b, a/b/c, a/b/c/d
@@ -344,54 +341,54 @@ func TestSymlinkOptDereferenceLinkToFile(t *testing.T) {
 }
 
 func TestSymlinkOptDereferenceLinkToDir(t *testing.T) {
-	testHelper := tt.StartTest(t)
-	defer testHelper.FinishTest()
-
 	cwd, err := os.Getwd()
-	tt.TestExpectSuccess(t, err)
-	testHelper.AddTestFinalizer(func() {
-		tt.TestExpectSuccess(t, os.Chdir(cwd))
+	TestExpectSuccess(t, err)
+	AddTestFinalizer(func() {
+		TestExpectSuccess(t, os.Chdir(cwd))
 	})
 
-	dir := testHelper.TempDir()
-	tt.TestExpectSuccess(t, os.Chdir(dir))
+	StartTest(t)
+	defer FinishTest(t)
+
+	dir := TempDir(t)
+	TestExpectSuccess(t, os.Chdir(dir))
 	mode := os.FileMode(0755)
-	tt.TestExpectSuccess(t, os.Mkdir("a", mode))
-	tt.TestExpectSuccess(t, os.Mkdir("a/b", mode))
-	tt.TestExpectSuccess(t, os.Mkdir("a/b/c", mode))
-	tt.TestExpectSuccess(t, os.Mkdir("a/b/c/d", mode))
-	tt.TestExpectSuccess(t, os.Mkdir("a/b/i", mode))
-	tt.TestExpectSuccess(t, ioutil.WriteFile("a/b/i/j", []byte{'t', 'e', 's', 't'}, mode))
-	tt.TestExpectSuccess(t, os.Symlink("/bin/bash", "a/b/bash"))
-	tt.TestExpectSuccess(t, os.Symlink("../i", "a/b/c/l"))
+	TestExpectSuccess(t, os.Mkdir("a", mode))
+	TestExpectSuccess(t, os.Mkdir("a/b", mode))
+	TestExpectSuccess(t, os.Mkdir("a/b/c", mode))
+	TestExpectSuccess(t, os.Mkdir("a/b/c/d", mode))
+	TestExpectSuccess(t, os.Mkdir("a/b/i", mode))
+	TestExpectSuccess(t, ioutil.WriteFile("a/b/i/j", []byte{'t', 'e', 's', 't'}, mode))
+	TestExpectSuccess(t, os.Symlink("/bin/bash", "a/b/bash"))
+	TestExpectSuccess(t, os.Symlink("../i", "a/b/c/l"))
 	w := bytes.NewBufferString("")
 	tw := NewTar(w, dir)
 	tw.UserOptions |= c_DEREF
-	tt.TestExpectSuccess(t, tw.Archive())
+	TestExpectSuccess(t, tw.Archive())
 
 	extractionPath := path.Join(dir, "pkg")
 	err = os.MkdirAll(extractionPath, 0755)
-	tt.TestExpectSuccess(t, err)
+	TestExpectSuccess(t, err)
 
 	// extract
 	r := bytes.NewReader(w.Bytes())
 	u := NewUntar(r, extractionPath)
 	u.AbsoluteRoot = dir
-	tt.TestExpectSuccess(t, u.Extract())
+	TestExpectSuccess(t, u.Extract())
 
 	dirExists := func(name string) {
 		f, err := os.Stat(path.Join(extractionPath, name))
-		tt.TestExpectSuccess(t, err)
-		tt.TestEqual(t, true, f.IsDir())
+		TestExpectSuccess(t, err)
+		TestEqual(t, true, f.IsDir())
 	}
 
 	sameFileContents := func(f1 string, f2 string) {
 		b1, err := ioutil.ReadFile(f1)
-		tt.TestExpectSuccess(t, err)
+		TestExpectSuccess(t, err)
 
 		b2, err := ioutil.ReadFile(f2)
-		tt.TestExpectSuccess(t, err)
-		tt.TestEqual(t, b1, b2)
+		TestExpectSuccess(t, err)
+		TestEqual(t, b1, b2)
 	}
 
 	// Verify dirs a, a/b, a/b/c, a/b/c/d
@@ -409,60 +406,60 @@ func TestSymlinkOptDereferenceLinkToDir(t *testing.T) {
 }
 
 func TestSymlinkOptDereferenceCircular(t *testing.T) {
-	testHelper := tt.StartTest(t)
-	defer testHelper.FinishTest()
-
 	cwd, err := os.Getwd()
-	tt.TestExpectSuccess(t, err)
-	testHelper.AddTestFinalizer(func() {
-		tt.TestExpectSuccess(t, os.Chdir(cwd))
+	TestExpectSuccess(t, err)
+	AddTestFinalizer(func() {
+		TestExpectSuccess(t, os.Chdir(cwd))
 	})
 
-	dir := testHelper.TempDir()
-	tt.TestExpectSuccess(t, os.Chdir(dir))
+	StartTest(t)
+	defer FinishTest(t)
+
+	dir := TempDir(t)
+	TestExpectSuccess(t, os.Chdir(dir))
 	mode := os.FileMode(0755)
-	tt.TestExpectSuccess(t, os.Mkdir("a", mode))
-	tt.TestExpectSuccess(t, os.Mkdir("a/b", mode))
-	tt.TestExpectSuccess(t, os.Mkdir("a/b/c", mode))
-	tt.TestExpectSuccess(t, os.Mkdir("a/b/c/d", mode))
-	tt.TestExpectSuccess(t, os.Mkdir("a/b/i", mode))
-	tt.TestExpectSuccess(t, ioutil.WriteFile("a/b/i/j", []byte{'t', 'e', 's', 't'}, mode))
-	tt.TestExpectSuccess(t, os.Symlink("/bin/bash", "a/b/bash"))
-	tt.TestExpectSuccess(t, os.Symlink(dir+"/a/b/c/l", "a/b/i/ll"))
-	tt.TestExpectSuccess(t, os.Symlink("../i", "a/b/c/l"))
+	TestExpectSuccess(t, os.Mkdir("a", mode))
+	TestExpectSuccess(t, os.Mkdir("a/b", mode))
+	TestExpectSuccess(t, os.Mkdir("a/b/c", mode))
+	TestExpectSuccess(t, os.Mkdir("a/b/c/d", mode))
+	TestExpectSuccess(t, os.Mkdir("a/b/i", mode))
+	TestExpectSuccess(t, ioutil.WriteFile("a/b/i/j", []byte{'t', 'e', 's', 't'}, mode))
+	TestExpectSuccess(t, os.Symlink("/bin/bash", "a/b/bash"))
+	TestExpectSuccess(t, os.Symlink(dir+"/a/b/c/l", "a/b/i/ll"))
+	TestExpectSuccess(t, os.Symlink("../i", "a/b/c/l"))
 	w := bytes.NewBufferString("")
 	tw := NewTar(w, dir)
 	tw.UserOptions |= c_DEREF
-	tt.TestExpectSuccess(t, tw.Archive())
+	TestExpectSuccess(t, tw.Archive())
 
 	extractionPath := path.Join(dir, "pkg")
 	err = os.MkdirAll(extractionPath, 0755)
-	tt.TestExpectSuccess(t, err)
+	TestExpectSuccess(t, err)
 
 	// extract
 	r := bytes.NewReader(w.Bytes())
 	u := NewUntar(r, extractionPath)
 	u.AbsoluteRoot = dir
-	tt.TestExpectSuccess(t, u.Extract())
+	TestExpectSuccess(t, u.Extract())
 
 	fileExists := func(name string) {
 		_, err := os.Stat(path.Join(extractionPath, name))
-		tt.TestExpectSuccess(t, err)
+		TestExpectSuccess(t, err)
 	}
 
 	dirExists := func(name string) {
 		f, err := os.Stat(path.Join(extractionPath, name))
-		tt.TestExpectSuccess(t, err)
-		tt.TestEqual(t, true, f.IsDir())
+		TestExpectSuccess(t, err)
+		TestEqual(t, true, f.IsDir())
 	}
 
 	sameFileContents := func(f1 string, f2 string) {
 		b1, err := ioutil.ReadFile(f1)
-		tt.TestExpectSuccess(t, err)
+		TestExpectSuccess(t, err)
 
 		b2, err := ioutil.ReadFile(f2)
-		tt.TestExpectSuccess(t, err)
-		tt.TestEqual(t, b1, b2)
+		TestExpectSuccess(t, err)
+		TestEqual(t, b1, b2)
 	}
 
 	// Verify dirs a, a/b, a/b/c, a/b/c/d
@@ -484,63 +481,63 @@ func TestSymlinkOptDereferenceCircular(t *testing.T) {
 
 	// Verify that the circular symbolic link a/b/i/ll does not exis
 	_, err = os.Stat(path.Join(extractionPath, "./a/b/i/ll"))
-	tt.TestEqual(t, true, os.IsNotExist(err))
+	TestEqual(t, true, os.IsNotExist(err))
 }
 
 func TestSymlinkOptDereferenceCircularToRoot(t *testing.T) {
-	testHelper := tt.StartTest(t)
-	defer testHelper.FinishTest()
-
 	cwd, err := os.Getwd()
-	tt.TestExpectSuccess(t, err)
-	testHelper.AddTestFinalizer(func() {
-		tt.TestExpectSuccess(t, os.Chdir(cwd))
+	TestExpectSuccess(t, err)
+	AddTestFinalizer(func() {
+		TestExpectSuccess(t, os.Chdir(cwd))
 	})
 
-	dir := testHelper.TempDir()
-	tt.TestExpectSuccess(t, os.Chdir(dir))
+	StartTest(t)
+	defer FinishTest(t)
+
+	dir := TempDir(t)
+	TestExpectSuccess(t, os.Chdir(dir))
 	mode := os.FileMode(0755)
-	tt.TestExpectSuccess(t, os.Mkdir("a", mode))
-	tt.TestExpectSuccess(t, os.Mkdir("a/b", mode))
-	tt.TestExpectSuccess(t, os.Mkdir("a/b/c", mode))
-	tt.TestExpectSuccess(t, os.Mkdir("a/b/c/d", mode))
-	tt.TestExpectSuccess(t, os.Mkdir("a/b/i", mode))
-	tt.TestExpectSuccess(t, ioutil.WriteFile("a/b/i/j", []byte{'t', 'e', 's', 't'}, mode))
-	tt.TestExpectSuccess(t, os.Symlink("/bin/bash", "a/b/bash"))
-	tt.TestExpectSuccess(t, os.Symlink(dir+"/a", "a/b/i/ll"))
+	TestExpectSuccess(t, os.Mkdir("a", mode))
+	TestExpectSuccess(t, os.Mkdir("a/b", mode))
+	TestExpectSuccess(t, os.Mkdir("a/b/c", mode))
+	TestExpectSuccess(t, os.Mkdir("a/b/c/d", mode))
+	TestExpectSuccess(t, os.Mkdir("a/b/i", mode))
+	TestExpectSuccess(t, ioutil.WriteFile("a/b/i/j", []byte{'t', 'e', 's', 't'}, mode))
+	TestExpectSuccess(t, os.Symlink("/bin/bash", "a/b/bash"))
+	TestExpectSuccess(t, os.Symlink(dir+"/a", "a/b/i/ll"))
 	w := bytes.NewBufferString("")
 	tw := NewTar(w, dir)
 	tw.UserOptions |= c_DEREF
-	tt.TestExpectSuccess(t, tw.Archive())
+	TestExpectSuccess(t, tw.Archive())
 
 	extractionPath := path.Join(dir, "pkg")
 	err = os.MkdirAll(extractionPath, 0755)
-	tt.TestExpectSuccess(t, err)
+	TestExpectSuccess(t, err)
 
 	// extract
 	r := bytes.NewReader(w.Bytes())
 	u := NewUntar(r, extractionPath)
 	u.AbsoluteRoot = dir
-	tt.TestExpectSuccess(t, u.Extract())
+	TestExpectSuccess(t, u.Extract())
 
 	fileExists := func(name string) {
 		_, err := os.Stat(path.Join(extractionPath, name))
-		tt.TestExpectSuccess(t, err)
+		TestExpectSuccess(t, err)
 	}
 
 	dirExists := func(name string) {
 		f, err := os.Stat(path.Join(extractionPath, name))
-		tt.TestExpectSuccess(t, err)
-		tt.TestEqual(t, true, f.IsDir())
+		TestExpectSuccess(t, err)
+		TestEqual(t, true, f.IsDir())
 	}
 
 	sameFileContents := func(f1 string, f2 string) {
 		b1, err := ioutil.ReadFile(f1)
-		tt.TestExpectSuccess(t, err)
+		TestExpectSuccess(t, err)
 
 		b2, err := ioutil.ReadFile(f2)
-		tt.TestExpectSuccess(t, err)
-		tt.TestEqual(t, b1, b2)
+		TestExpectSuccess(t, err)
+		TestEqual(t, b1, b2)
 	}
 
 	// Verify dirs a, a/b, a/b/c, a/b/c/d
@@ -558,76 +555,76 @@ func TestSymlinkOptDereferenceCircularToRoot(t *testing.T) {
 
 	// Verify that the circular symbolic link a/b/i/ll does not exist
 	_, err = os.Stat(path.Join(extractionPath, "./a/b/i/ll"))
-	tt.TestEqual(t, true, os.IsNotExist(err))
+	TestEqual(t, true, os.IsNotExist(err))
 }
 
 func TestTarPointedToFile(t *testing.T) {
-	testHelper := tt.StartTest(t)
-	defer testHelper.FinishTest()
+	StartTest(t)
+	defer FinishTest(t)
 
-	dir := testHelper.TempDir()
+	dir := TempDir(t)
 	apath := path.Join(dir, "a")
 
 	// write the file, then read it the same way that we'll validate it
-	tt.TestExpectSuccess(t, ioutil.WriteFile(apath, []byte("hello world"), os.FileMode(0644)))
+	TestExpectSuccess(t, ioutil.WriteFile(apath, []byte("hello world"), os.FileMode(0644)))
 	contents, err := ioutil.ReadFile(apath)
-	tt.TestExpectSuccess(t, err)
-	tt.TestEqual(t, string(contents), "hello world")
+	TestExpectSuccess(t, err)
+	TestEqual(t, string(contents), "hello world")
 
 	// tar the file
 	w := bytes.NewBufferString("")
 	tw := NewTar(w, apath)
-	tt.TestExpectSuccess(t, tw.Archive())
+	TestExpectSuccess(t, tw.Archive())
 
 	// should then also be able to untar it
-	dir = testHelper.TempDir()
+	dir = TempDir(t)
 	u := NewUntar(w, dir)
 	u.AbsoluteRoot = dir
-	tt.TestExpectSuccess(t, u.Extract())
+	TestExpectSuccess(t, u.Extract())
 
 	// stat it, ensure it exists and is a file, not a directory
 	stat, err := os.Stat(path.Join(dir, "a"))
-	tt.TestExpectSuccess(t, err)
-	tt.TestEqual(t, stat.IsDir(), false, "should be a file, not a directory")
+	TestExpectSuccess(t, err)
+	TestEqual(t, stat.IsDir(), false, "should be a file, not a directory")
 
 	// read the contents to verify
 	contents, err = ioutil.ReadFile(path.Join(dir, "a"))
-	tt.TestExpectSuccess(t, err)
-	tt.TestEqual(t, string(contents), "hello world")
+	TestExpectSuccess(t, err)
+	TestEqual(t, string(contents), "hello world")
 }
 
 func TestTarPreserveSetuid(t *testing.T) {
-	testHelper := tt.StartTest(t)
-	defer testHelper.FinishTest()
+	StartTest(t)
+	defer FinishTest(t)
 
-	dir := testHelper.TempDir()
+	dir := TempDir(t)
 	apath := path.Join(dir, "a")
 
 	err := ioutil.WriteFile(apath, []byte("hello world"), os.FileMode(0644))
-	tt.TestExpectSuccess(t, err)
+	TestExpectSuccess(t, err)
 
 	err = os.Chmod(apath, os.FileMode(0644)|os.ModeSetuid)
-	tt.TestExpectSuccess(t, err)
+	TestExpectSuccess(t, err)
 
 	w := bytes.NewBufferString("")
 	tw := NewTar(w, apath)
 	err = tw.Archive()
-	tt.TestExpectSuccess(t, err)
+	TestExpectSuccess(t, err)
 
-	dir = testHelper.TempDir()
+	dir = TempDir(t)
 	u := NewUntar(w, dir)
 	u.AbsoluteRoot = dir
 	err = u.Extract()
-	tt.TestExpectSuccess(t, err)
+	TestExpectSuccess(t, err)
 
 	stat, err := os.Stat(path.Join(dir, "a"))
-	tt.TestExpectSuccess(t, err)
-	tt.TestEqual(t, stat.Mode()&os.ModeSetuid != 0, true, "must have setuid bit")
+	TestExpectSuccess(t, err)
+	TestEqual(t, stat.Mode()&os.ModeSetuid != 0, true, "must have setuid bit")
 }
 
 func TestTarCustomHandler(t *testing.T) {
-	testHelper := tt.StartTest(t)
-	defer testHelper.FinishTest()
+	StartTest(t)
+	defer FinishTest(t)
 
 	w := bytes.NewBufferString("")
 	tw := NewTar(w, makeTestDir(t))
@@ -641,7 +638,7 @@ func TestTarCustomHandler(t *testing.T) {
 			return false, nil
 		},
 	}
-	tt.TestExpectSuccess(t, tw.Archive())
+	TestExpectSuccess(t, tw.Archive())
 
 	archive := tar.NewReader(w)
 	hasRenamedFile := false
@@ -651,14 +648,14 @@ func TestTarCustomHandler(t *testing.T) {
 			break
 		}
 		if header.Name == "a/b/i/j/m" {
-			tt.Fatalf(t, "The \"a/b/i/j/m\" file should have been omitted")
+			Fatalf(t, "The \"a/b/i/j/m\" file should have been omitted")
 		}
 		if header.Name == "a/b/i/j/n" {
 			hasRenamedFile = true
 		}
 	}
 
-	tt.TestEqual(t, hasRenamedFile, true, "The tar file did not include the renamed file")
+	TestEqual(t, hasRenamedFile, true, "The tar file did not include the renamed file")
 }
 
 type staticFileInfo struct{}
