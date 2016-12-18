@@ -22,8 +22,8 @@ type person struct {
 }
 
 func TestResourceURL(t *testing.T) {
-	tt.StartTest(t)
-	defer tt.FinishTest(t)
+	testHelper := tt.StartTest(t)
+	defer testHelper.FinishTest()
 
 	base := "http://example.com:8080/v1/resources"
 	baseURL, err := url.Parse(base)
@@ -47,8 +47,8 @@ func TestResourceURL(t *testing.T) {
 }
 
 func TestHelper_newRequest(t *testing.T) {
-	tt.StartTest(t)
-	defer tt.FinishTest(t)
+	testHelper := tt.StartTest(t)
+	defer testHelper.FinishTest()
 
 	client, err := New("http://example.com/resources")
 	tt.TestExpectSuccess(t, err)
@@ -60,8 +60,8 @@ func TestHelper_newRequest(t *testing.T) {
 }
 
 func TestHelper_newRequestWithParams(t *testing.T) {
-	tt.StartTest(t)
-	defer tt.FinishTest(t)
+	testHelper := tt.StartTest(t)
+	defer testHelper.FinishTest()
 
 	client, err := New("http://example.com/resources")
 	tt.TestExpectSuccess(t, err)
@@ -73,8 +73,8 @@ func TestHelper_newRequestWithParams(t *testing.T) {
 }
 
 func TestNewRequest(t *testing.T) {
-	tt.StartTest(t)
-	defer tt.FinishTest(t)
+	testHelper := tt.StartTest(t)
+	defer testHelper.FinishTest()
 
 	// create a test server
 	method, path, body := "", "", ""
@@ -107,8 +107,8 @@ func TestNewRequest(t *testing.T) {
 }
 
 func TestNewRequestHeaders(t *testing.T) {
-	tt.StartTest(t)
-	defer tt.FinishTest(t)
+	testHelper := tt.StartTest(t)
+	defer testHelper.FinishTest()
 
 	// create a test server
 	headerValue := ""
@@ -131,8 +131,8 @@ func TestNewRequestHeaders(t *testing.T) {
 }
 
 func TestBasicJsonRequest(t *testing.T) {
-	tt.StartTest(t)
-	defer tt.FinishTest(t)
+	testHelper := tt.StartTest(t)
+	defer testHelper.FinishTest()
 
 	// create a test server
 	method, path, body := "", "", ""
@@ -173,8 +173,8 @@ func TestBasicJsonRequest(t *testing.T) {
 }
 
 func TestJsonStructRequest(t *testing.T) {
-	tt.StartTest(t)
-	defer tt.FinishTest(t)
+	testHelper := tt.StartTest(t)
+	defer testHelper.FinishTest()
 
 	var receivedPerson *person
 
@@ -210,8 +210,8 @@ func TestJsonStructRequest(t *testing.T) {
 }
 
 func TestFormRequest(t *testing.T) {
-	tt.StartTest(t)
-	defer tt.FinishTest(t)
+	testHelper := tt.StartTest(t)
+	defer testHelper.FinishTest()
 
 	// create a test server
 	var form url.Values
@@ -239,8 +239,8 @@ func TestFormRequest(t *testing.T) {
 }
 
 func TestErrorResult(t *testing.T) {
-	tt.StartTest(t)
-	defer tt.FinishTest(t)
+	testHelper := tt.StartTest(t)
+	defer testHelper.FinishTest()
 
 	// create a test server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -274,8 +274,8 @@ func TestErrorResult(t *testing.T) {
 }
 
 func TestErrorResponse(t *testing.T) {
-	tt.StartTest(t)
-	defer tt.FinishTest(t)
+	testHelper := tt.StartTest(t)
+	defer testHelper.FinishTest()
 
 	// create a test server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -303,8 +303,8 @@ func TestErrorResponse(t *testing.T) {
 }
 
 func TestErrorResponseWithJson(t *testing.T) {
-	tt.StartTest(t)
-	defer tt.FinishTest(t)
+	testHelper := tt.StartTest(t)
+	defer testHelper.FinishTest()
 
 	// create a test server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -332,8 +332,8 @@ func TestErrorResponseWithJson(t *testing.T) {
 }
 
 func TestErrorResponseNoBody(t *testing.T) {
-	tt.StartTest(t)
-	defer tt.FinishTest(t)
+	testHelper := tt.StartTest(t)
+	defer testHelper.FinishTest()
 
 	// create a test server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -359,8 +359,8 @@ func TestErrorResponseNoBody(t *testing.T) {
 }
 
 func TestInvalidJsonResponse(t *testing.T) {
-	tt.StartTest(t)
-	defer tt.FinishTest(t)
+	testHelper := tt.StartTest(t)
+	defer testHelper.FinishTest()
 
 	// create a test server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -381,8 +381,8 @@ func TestInvalidJsonResponse(t *testing.T) {
 }
 
 func TestParseMimetype(t *testing.T) {
-	tt.StartTest(t)
-	defer tt.FinishTest(t)
+	testHelper := tt.StartTest(t)
+	defer testHelper.FinishTest()
 
 	// create a test server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -404,8 +404,8 @@ func TestParseMimetype(t *testing.T) {
 }
 
 func TestEmptyPostRequest(t *testing.T) {
-	tt.StartTest(t)
-	defer tt.FinishTest(t)
+	testHelper := tt.StartTest(t)
+	defer testHelper.FinishTest()
 
 	// create a test server
 	body := ""
