@@ -7,6 +7,7 @@
 package v1
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -24,15 +25,23 @@ var (
 
 // Image is a Docker image info (constructed from Docker API response).
 type Image struct {
+	// Name is the image's repository, without tag.
 	Name string
-
-	tags      map[string]string // Tags available for the image.
-	endpoints []string          // Docker registry endpoints.
-	token     string            // Docker auth token.
-
+	// tags are all the tags of this image available in the registry.
+	// It maps a tag name to its topmost layer id.
+	tags map[string]string
+	// endpoints are the endpoints where requests for layers are to
+	// be made. Requested with the X-Docker-Endpoints header.
+	endpoints []string
+	// token is the Docker auth token. Requested with the X-Docker-Token
+	// header.
+	token string
 	// scheme is an original index URL scheme (will be used to talk to endpoints returned by API).
 	scheme string
+	// client is used to connect and make requests to the registry.
 	client *http.Client
+	// credentials are the username and password supplied in the URL.
+	credentials *url.Userinfo
 }
 
 // GetImage fetches Docker repository information from the specified Docker
@@ -109,11 +118,12 @@ func GetImage(name, registryURL string) (*Image, int, error) {
 	}
 
 	img := &Image{
-		Name:      name,
-		client:    client,
-		endpoints: endpoints,
-		token:     token,
-		scheme:    ru.Scheme,
+		Name:        name,
+		client:      client,
+		endpoints:   endpoints,
+		token:       token,
+		scheme:      ru.Scheme,
+		credentials: ru.User,
 	}
 
 	img.tags, err = img.fetchTags()
@@ -196,10 +206,12 @@ func (i *Image) LayerURLs(id string) []string {
 // AuthorizationHeader exposes the authorization header created for the image
 // for external layer downloads.
 func (i *Image) AuthorizationHeader() string {
-	if i.token == "" {
-		return ""
+	if i.token != "" {
+		return fmt.Sprintf("Token %s", i.token)
+	} else if i.credentials != nil {
+		return fmt.Sprintf("Basic %s", base64.StdEncoding.EncodeToString([]byte(i.credentials.String())))
 	}
-	return fmt.Sprintf("Token %s", i.token)
+	return ""
 }
 
 // fetchTags fetches tags for the image and caches them in the Image struct,
@@ -259,7 +271,10 @@ func (i *Image) getResponseFromURL(u string) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Authorization", "Token "+i.token)
+
+	if authHdr := i.AuthorizationHeader(); authHdr != "" {
+		req.Header.Set("Authorization", authHdr)
+	}
 
 	res, err := i.client.Do(req)
 	if err != nil {
