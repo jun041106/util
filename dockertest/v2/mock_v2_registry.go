@@ -39,7 +39,7 @@ func RunMockRegistry() *httptest.Server {
 	r := mux.NewRouter()
 
 	r.HandleFunc("/token", handlerToken).Methods("GET")
-	r.HandleFunc("/v2", handlerSupport).Methods("GET")
+	r.HandleFunc("/v2/", handlerSupport).Methods("GET")
 	r.HandleFunc("/v2/{repo:[^/]+}/{image_name:[^/]+}/manifests/{image_ref:[^/]+}", handlerImageManifest).Methods("GET")
 	r.HandleFunc("/v2/{repo:[^/]+}/{image_name:[^/]+}/blobs/{blob_ref:[^/]+}", handlerBlob).Methods("GET")
 
