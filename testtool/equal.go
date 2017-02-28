@@ -80,7 +80,7 @@ func TestEqual(t Logger, have, want interface{}, msg ...string) {
 	} else if haveNil && !wantNil {
 		Fatalf(t, "%sExpected non nil, got nil.", reason)
 	} else if !haveNil && wantNil {
-		Fatalf(t, "%sExpected nil, got non nil.", reason)
+		Fatalf(t, "%sExpected nil, got non nil: %#v", reason, have)
 	}
 	haveValue := reflect.ValueOf(have)
 	wantValue := reflect.ValueOf(want)
