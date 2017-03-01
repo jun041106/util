@@ -38,6 +38,11 @@ const (
 	DELETE = Method("DELETE")
 )
 
+const (
+	vndMediaTypePrefix  = "application/vnd"
+	mediaTypeJSONSuffix = "+json"
+)
+
 // Client represents a client bound to a given REST base URL.
 type Client struct {
 	// Driver is the *http.Client that performs requests.
@@ -316,23 +321,41 @@ func splitPathQuery(relPath string) (retPath, rawQuery string) {
 	return
 }
 
+// unmarshal unmarshals a JSON object from the response object's body. If the
+// Content-Type is not application/json or application/vnd* (or we can't detect
+// the media type) an error is returned. The response body is always closed.
 func unmarshal(resp *http.Response, v interface{}) error {
+	defer resp.Body.Close()
+
 	// Don't Unmarshal Body if v is nil
 	if v == nil {
-		resp.Body.Close() // Not going to read resp.Body
 		return nil
 	}
 
 	ctype, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
-	switch {
-	case err != nil:
+	if err != nil {
 		return err
-	case ctype == "application/json":
-		defer resp.Body.Close()
-		return json.NewDecoder(resp.Body).Decode(v)
-	default:
+	}
+
+	if !isJSONContentType(ctype) {
 		return fmt.Errorf("unexpected response: %s %s", resp.Status, ctype)
 	}
+
+	return json.NewDecoder(resp.Body).Decode(v)
+}
+
+// isJSONContentType returns whether or not the media type should be expected to
+// contain JSON. Explicit application/json as well as types of the form
+// application/vnd* and *+json are permitted. The simple checks prevent us from
+// running http.DetectContentType on every request or trying to decode things
+// that are clearly not JSON.
+func isJSONContentType(mediaType string) bool {
+	if mediaType == "application/json" ||
+		strings.HasPrefix(mediaType, vndMediaTypePrefix) ||
+		strings.HasSuffix(mediaType, mediaTypeJSONSuffix) {
+		return true
+	}
+	return false
 }
 
 // RestError is returned from REST transmissions to allow for inspection of
