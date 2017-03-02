@@ -380,27 +380,71 @@ func TestInvalidJsonResponse(t *testing.T) {
 	tt.TestNotEqual(t, err.(*json.UnmarshalTypeError), nil, "Should have been a json unmarshal error")
 }
 
+// TestParseMimetype ensures that client.Result handles the expected media types
+// correctly.
 func TestParseMimetype(t *testing.T) {
 	testHelper := tt.StartTest(t)
 	defer testHelper.FinishTest()
 
-	// create a test server
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		w.WriteHeader(200)
-		io.WriteString(w, `{"Name":"Molly","Age":45}`)
-	}))
-	defer server.Close()
+	testCases := []struct {
+		desc           string
+		handler        http.Handler
+		expectedPerson person
+		expectedErr    error
+	}{
+		{
+			desc: "Response with application/json should work",
+			handler: http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				w.Header().Set("Content-Type", "application/json; charset=utf-8")
+				w.WriteHeader(200)
+				io.WriteString(w, `{"Name":"Molly","Age":45}`)
+			}),
+			expectedPerson: person{Name: "Molly", Age: 45},
+		},
+		{
+			desc: "Response with application/vnd type should work",
+			handler: http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				w.Header().Set("Content-Type", "application/vnd.Foo; charset=utf-8")
+				w.WriteHeader(200)
+				io.WriteString(w, `{"Name":"Molly","Age":45}`)
+			}),
+			expectedPerson: person{Name: "Molly", Age: 45},
+		},
+		{
+			desc: "Response with +json suffix should work",
+			handler: http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				w.Header().Set("Content-Type", "application/foo+json; charset=utf-8")
+				w.WriteHeader(200)
+				io.WriteString(w, `{"Name":"Molly","Age":45}`)
+			}),
+			expectedPerson: person{Name: "Molly", Age: 45},
+		},
+		{
+			desc: "Response with any other type should error",
+			handler: http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				w.Header().Set("Content-Type", "foo")
+				w.WriteHeader(200)
+				io.WriteString(w, `{"Name":"Molly","Age":45}`)
+			}),
+			expectedErr: fmt.Errorf("unexpected response: 200 OK foo"),
+		},
+	}
 
-	client, err := New(server.URL)
-	tt.TestExpectSuccess(t, err)
-	req := client.NewJsonRequest("GET", "/", nil)
+	for _, tc := range testCases {
+		// Create test server; defer close will leave them open for the duration
+		// longer than one loop but will ensure they all get shutdown even when
+		// testing fails.
+		server := httptest.NewServer(tc.handler)
+		defer server.Close()
+		client, err := New(server.URL)
+		tt.TestExpectSuccess(t, err)
 
-	var responsePerson person
-	err = client.Result(req, &responsePerson)
-	tt.TestExpectSuccess(t, err)
-	tt.TestEqual(t, responsePerson.Name, "Molly")
-	tt.TestEqual(t, responsePerson.Age, 45)
+		req := client.NewJsonRequest("GET", "/", nil)
+		var responsePerson person
+		err = client.Result(req, &responsePerson)
+		tt.TestEqual(t, err, tc.expectedErr, tc.desc)
+		tt.TestEqual(t, responsePerson, tc.expectedPerson, tc.desc)
+	}
 }
 
 func TestEmptyPostRequest(t *testing.T) {
