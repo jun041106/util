@@ -47,3 +47,15 @@ func AssertChanNoReceive(
 	case <-time.After(timeout):
 	}
 }
+
+// SendWithCancel expects a channel to write a signal to, and also a
+// channel that indicates when the signal listener is no longer
+// listening.
+func SendWithCancel(w chan<- struct{}, done <-chan struct{}) {
+	select {
+	case w <- struct{}{}:
+		return
+	case <-done:
+		return
+	}
+}
