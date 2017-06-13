@@ -75,7 +75,7 @@ func init() {
 
 // TestTool type allows for parallel tests.
 type TestTool struct {
-	*testing.T
+	testing.TB
 
 	// Stores output from the logging system so it can be written only if
 	// the test actually fails.
@@ -102,14 +102,14 @@ func (tt *TestTool) AddTestFinalizer(f func()) {
 
 // StartTest should be called at the start of a test to setup all the various
 // state bits that are needed.
-func StartTest(t *testing.T) *TestTool {
+func StartTest(tb testing.TB) *TestTool {
 	tt := TestTool{
 		Parameters:       make(map[string]interface{}),
-		T:                t,
+		TB:               tb,
 		RandomTestString: RandomTestString(10),
 	}
 
-	tt.TestData = GetTestData(t)
+	tt.TestData = GetTestData(tb)
 
 	if tt.TestData == nil {
 		panic("Failed to read information about the test.")
@@ -135,7 +135,7 @@ func (tt *TestTool) FinishTest() {
 	}
 	tt.Finalizers = nil
 	if tt.LogBuffer != nil {
-		tt.LogBuffer.FinishTest(tt.T)
+		tt.LogBuffer.FinishTest(tt.TB)
 	}
 }
 
@@ -209,11 +209,11 @@ func (tt *TestTool) WriteTempFile(contents string) string {
 func (tt *TestTool) WriteTempFileMode(contents string, mode os.FileMode) string {
 	f, err := ioutil.TempFile("", "golangunittest")
 	if f == nil {
-		Fatalf(tt.T, "ioutil.TempFile() return nil.")
+		Fatalf(tt.TB, "ioutil.TempFile() return nil.")
 	} else if err != nil {
-		Fatalf(tt.T, "ioutil.TempFile() return an err: %s", err)
+		Fatalf(tt.TB, "ioutil.TempFile() return an err: %s", err)
 	} else if err := os.Chmod(f.Name(), mode); err != nil {
-		Fatalf(tt.T, "os.Chmod() returned an error: %s", err)
+		Fatalf(tt.TB, "os.Chmod() returned an error: %s", err)
 	}
 	defer f.Close()
 	tt.Finalizers = append(tt.Finalizers, func() {
@@ -222,9 +222,9 @@ func (tt *TestTool) WriteTempFileMode(contents string, mode os.FileMode) string 
 	contentsBytes := []byte(contents)
 	n, err := f.Write(contentsBytes)
 	if err != nil {
-		Fatalf(tt.T, "Error writing to %s: %s", f.Name(), err)
+		Fatalf(tt.TB, "Error writing to %s: %s", f.Name(), err)
 	} else if n != len(contentsBytes) {
-		Fatalf(tt.T, "Short write to %s", f.Name())
+		Fatalf(tt.TB, "Short write to %s", f.Name())
 	}
 	return f.Name()
 }
@@ -238,11 +238,11 @@ func (tt *TestTool) TempDir() string {
 func (tt *TestTool) TempDirMode(mode os.FileMode) string {
 	f, err := ioutil.TempDir(RootTempDir(tt), "golangunittest")
 	if f == "" {
-		Fatalf(tt.T, "ioutil.TempFile() return an empty string.")
+		Fatalf(tt.TB, "ioutil.TempFile() return an empty string.")
 	} else if err != nil {
-		Fatalf(tt.T, "ioutil.TempFile() return an err: %s", err)
+		Fatalf(tt.TB, "ioutil.TempFile() return an err: %s", err)
 	} else if err := os.Chmod(f, mode); err != nil {
-		Fatalf(tt.T, "os.Chmod failure.")
+		Fatalf(tt.TB, "os.Chmod failure.")
 	}
 
 	tt.Finalizers = append(tt.Finalizers, func() {
@@ -261,9 +261,9 @@ func (tt *TestTool) TempFile() string {
 func (tt *TestTool) TempFileMode(mode os.FileMode) string {
 	f, err := ioutil.TempFile(RootTempDir(tt), "unittest")
 	if err != nil {
-		Fatalf(tt.T, "Error making temporary file: %s", err)
+		Fatalf(tt.TB, "Error making temporary file: %s", err)
 	} else if err := os.Chmod(f.Name(), mode); err != nil {
-		Fatalf(tt.T, "os.Chmod failure.")
+		Fatalf(tt.TB, "os.Chmod failure.")
 	}
 	defer f.Close()
 	name := f.Name()
