@@ -18,7 +18,7 @@ type TestData struct {
 // GetTestData goes through the call stack of the current goroutine and creates
 // a ordered set of strings for the files, function names, and line numbers then
 // adds this data to the error message.
-func GetTestData(t *testing.T) *TestData {
+func GetTestData(tb testing.TB) *TestData {
 	var pcs [20]uintptr
 	pcCount := runtime.Callers(2, pcs[:])
 	pcCount -= 2
