@@ -23,25 +23,39 @@ func GetTestData(tb testing.TB) *TestData {
 	pcCount := runtime.Callers(2, pcs[:])
 	pcCount -= 2
 
+	scanned := []string{}
 	for _, pc := range pcs[0:pcCount] {
 		f := runtime.FuncForPC(pc)
 		file, line := f.FileLine(pc - 1)
-		basePkgDir, pkgFname := path.Split(f.Name())
-		fname := path.Ext(pkgFname)
-		pkg := strings.TrimSuffix(pkgFname, fname)
-		fname = strings.TrimLeft(fname, ".")
-		pkgDir := path.Join(basePkgDir, pkg)
+		dir, packageFunction := path.Split(f.Name())
 
-		if strings.HasPrefix(fname, "Test") {
+		ss := strings.SplitN(packageFunction, ".", 2)
+		pkg := ""
+		function := ""
+		switch len(ss) {
+		case 1:
+			function = ss[0]
+		case 2:
+			pkg = ss[0]
+			function = ss[1]
+		}
+		dir = path.Join(dir, pkg)
+
+		scanned = append(scanned, function)
+		if strings.HasPrefix(function, "Test") ||
+			strings.HasPrefix(function, "Benchmark") {
+
 			return &TestData{
 				File:       file,
 				Line:       line,
-				TestName:   fname,
+				TestName:   function,
 				Package:    pkg,
-				PackageDir: pkgDir,
+				PackageDir: dir,
 			}
 		}
 	}
 
+	tb.Fatalf("No TestXXX or BenchmarkXXX function name found on the call stack of:\n%s",
+		strings.Join(scanned, "\n\t"))
 	return nil
 }
