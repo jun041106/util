@@ -56,6 +56,27 @@ func TestTarSimple(t *testing.T) {
 	tt.TestExpectSuccess(t, tw.Archive())
 }
 
+func TestTarHooks(t *testing.T) {
+	testHelper := tt.StartTest(t)
+	defer testHelper.FinishTest()
+
+	w := bytes.NewBufferString("")
+	tw := NewTar(w, makeTestDir(t))
+	prefixRan := false
+	suffixRan := false
+	tw.PrefixHook = func(archive *tar.Writer) error {
+		prefixRan = true
+		return nil
+	}
+	tw.SuffixHook = func(archive *tar.Writer) error {
+		suffixRan = true
+		return nil
+	}
+	tt.TestExpectSuccess(t, tw.Archive())
+	tt.TestTrue(t, prefixRan)
+	tt.TestTrue(t, suffixRan)
+}
+
 func TestTarVirtualPath(t *testing.T) {
 	testHelper := tt.StartTest(t)
 	defer testHelper.FinishTest()
