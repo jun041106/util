@@ -43,6 +43,10 @@ type ignoreInfo struct {
 // description.
 type TarCustomHandler func(fullpath string, fi os.FileInfo, header *tar.Header) (bool, error)
 
+// TarCustomHook can inject additional header and file data into the archive. For
+// more information, see Tar.PrefixHook and Tar.SuffixHook.
+type TarCustomHook func(archive *tar.Writer) error
+
 // Tar manages state for a TAR archive.
 type Tar struct {
 	target string
@@ -120,6 +124,16 @@ type Tar struct {
 	// passed the path where the entry are located on disk, the os.FileInfo for
 	// the file, and the *tar.Header entry for it.
 	CustomHandlers []TarCustomHandler
+
+	// PrefixHook executes before the file system is traversed and can be used to inject
+	// content into the archive which does not exist within the file system tree. This
+	// content will be extracted before any file system data.
+	PrefixHook TarCustomHook
+
+	// SuffixHook executes after the file system is traversed and like PrefixHook can be
+	// used to inject additional content into the archive. This content will be extracted
+	// after data from the file system.
+	SuffixHook TarCustomHook
 }
 
 // UserOption definitions.
@@ -184,6 +198,13 @@ func (t *Tar) Archive() error {
 		return err
 	}
 
+	if t.PrefixHook != nil {
+		err = t.PrefixHook(t.archive)
+		if err != nil {
+			return err
+		}
+	}
+
 	// If the target is a file rather than a directory, adjust our initial entry
 	// name and target. It will still get just that directory, but want to ensure
 	// we don't tar a file named "."
@@ -196,6 +217,13 @@ func (t *Tar) Archive() error {
 	// walk the directory tree
 	if err := t.processEntry(startFullName, f, []string{}); err != nil {
 		return err
+	}
+
+	if t.SuffixHook != nil {
+		err = t.SuffixHook(t.archive)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
