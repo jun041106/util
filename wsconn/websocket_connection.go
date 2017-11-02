@@ -1,4 +1,4 @@
-// Copyright 2013 Apcera Inc. All rights reserved.
+// Copyright 2013-2017 Apcera Inc. All rights reserved.
 
 package wsconn
 
@@ -12,32 +12,24 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// Conn is an interface which a websocket library should implement to be
-// compatible with this wrapper.
-type Conn interface {
-	WriteControl(messageType int, data []byte, deadline time.Time) error
-	NextReader() (messageType int, r io.Reader, err error)
-	NextWriter(messageType int) (io.WriteCloser, error)
-
-	LocalAddr() net.Addr
-	RemoteAddr() net.Addr
-
-	SetReadDeadline(t time.Time) error
-	SetWriteDeadline(t time.Time) error
-
-	Close() error
-}
-
 // Returns a websocket connection wrapper to the net.Conn interface.
 func NewWebsocketConnection(ws Conn) net.Conn {
 	wsconn := &WebsocketConnection{
-		ws:           ws,
-		readTimeout:  60 * time.Second,
-		writeTimeout: 10 * time.Second,
-		pingInterval: 10 * time.Second,
-		closedChan:   make(chan bool),
-		textChan:     make(chan []byte, 100),
+		ws:         ws,
+		closedChan: make(chan bool),
+		textChan:   make(chan []byte, 100),
 	}
+	ws.SetPingHandler(makePingHandler(ws, &wsconn.writeMutex))
+	ws.SetPongHandler(makePongHandler(ws))
+	ws.SetCloseHandler(func(code int, msg string) error {
+		wsconn.writeMutex.Lock()
+		defer wsconn.writeMutex.Unlock()
+		wsconn.closeCode = code
+		return ws.WriteControl(
+			websocket.CloseMessage,
+			websocket.FormatCloseMessage(code, ""),
+			time.Now().Add(defaultWriteTimeout))
+	})
 	wsconn.startPingInterval()
 	return wsconn
 }
@@ -45,28 +37,28 @@ func NewWebsocketConnection(ws Conn) net.Conn {
 // WebsocketConnection is a wrapper around a websocket connect from a lower
 // level API.  It supports things such as automatic ping/pong keepalive.
 type WebsocketConnection struct {
-	ws           Conn
-	reader       io.Reader
-	writeMutex   sync.Mutex
-	readTimeout  time.Duration
-	writeTimeout time.Duration
-	pingInterval time.Duration
-	closedChan   chan bool
-	textChan     chan []byte
+	ws         Conn
+	reader     io.Reader
+	writeMutex sync.Mutex
+	closedChan chan bool
+	textChan   chan []byte
+	closeCode  int
 }
 
 // Begins a goroutine to send a periodic ping to the other end
 func (conn *WebsocketConnection) startPingInterval() {
 	go func() {
+		// Set the initial read timeout
+		conn.ws.SetReadDeadline(time.Now().Add(defaultReadTimeout))
 		for {
 			select {
 			case <-conn.closedChan:
 				return
-			case <-time.After(conn.pingInterval):
+			case <-time.After(defaultPingInterval):
 				func() {
 					conn.writeMutex.Lock()
 					defer conn.writeMutex.Unlock()
-					conn.ws.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(conn.writeTimeout))
+					conn.ws.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(defaultWriteTimeout))
 				}()
 			}
 		}
@@ -80,6 +72,14 @@ func (conn *WebsocketConnection) waitForReader() error {
 	for {
 		opCode, reader, err := conn.ws.NextReader()
 		if err != nil {
+			// Gorilla Websockets 1.2 no longer emits websocket.CloseMessage
+			// from NextReader(), and instead registers a close handler. If that
+			// close handler was called conn.closeCode will have the value.
+			conn.writeMutex.Lock()
+			defer conn.writeMutex.Unlock()
+			if conn.closeCode != 0 {
+				return io.EOF
+			}
 			return err
 		}
 
@@ -95,22 +95,6 @@ func (conn *WebsocketConnection) waitForReader() error {
 			if err == nil {
 				conn.textChan <- b
 			}
-
-		case websocket.PingMessage:
-			// receeived a ping, so send a pong
-			go func() {
-				conn.writeMutex.Lock()
-				defer conn.writeMutex.Unlock()
-				conn.ws.WriteControl(websocket.PongMessage, []byte{}, time.Now().Add(conn.writeTimeout))
-			}()
-
-		case websocket.PongMessage:
-			// received a pong, update read deadline
-			conn.ws.SetReadDeadline(time.Now().Add(conn.readTimeout))
-
-		case websocket.CloseMessage:
-			// received close, so return EOF
-			return io.EOF
 		}
 	}
 }

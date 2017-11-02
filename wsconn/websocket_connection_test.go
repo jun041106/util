@@ -1,16 +1,20 @@
-// Copyright 2013 Apcera Inc. All rights reserved.
+// Copyright 2013-2017 Apcera Inc. All rights reserved.
 
 package wsconn
 
 import (
 	"io"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"regexp"
 	"testing"
+	"time"
 
+	"github.com/apcera/util/testtool"
+	"github.com/apcera/util/timeoutwg"
 	"github.com/gorilla/websocket"
 )
 
@@ -28,7 +32,7 @@ func (t wsTestServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if m, _ := regexp.MatchString("http://127\\.0\\.0\\.1:\\d+/endpoint", r.Header.Get("Origin")); !m {
+	if m, _ := regexp.MatchString("ws://127\\.0\\.0\\.1:\\d+/endpoint", r.Header.Get("Origin")); !m {
 		http.Error(w, "Origin not allowed", 403)
 		t.Logf("Bad origin: %s", r.Header.Get("Origin"))
 		return
@@ -56,7 +60,6 @@ func (t wsTestServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			} else if n == 0 && err == nil {
 				continue
 			} else if err != nil {
-				t.Logf("Read error: %v", err)
 				finishedChan <- true
 				return
 			}
@@ -96,6 +99,7 @@ func TestWebsocketConnection(t *testing.T) {
 		t.Fatalf("url.ParseRequestURI returned an error: %v", err)
 	}
 	nurl.Path = "/endpoint"
+	nurl.Scheme = "ws"
 
 	// intialize headers
 	headers := http.Header{
@@ -168,4 +172,41 @@ func TestWebsocketConnection(t *testing.T) {
 	testWrite("another string")
 	testRead("one last read")
 	testWrite("Another write!")
+}
+
+func TestWebsocketConnectionTimeout(t *testing.T) {
+	aWS, bWS := getTestWebsockets(t)
+
+	oldDefaultPingInterval := defaultPingInterval
+	defaultPingInterval = 200 * time.Millisecond
+	oldDefaultReadTimeout := defaultReadTimeout
+	defaultReadTimeout = 1 * time.Second
+	oldDefaultWriteTimeout := defaultWriteTimeout
+	defaultWriteTimeout = 1 * time.Second
+	defer func() {
+		defaultPingInterval = oldDefaultPingInterval
+		defaultReadTimeout = oldDefaultReadTimeout
+		defaultWriteTimeout = oldDefaultWriteTimeout
+	}()
+
+	defer aWS.Close()
+	defer bWS.Close()
+	// bWS will stay inactive, not responding to pings from the proxy.
+	bWS.SetPingHandler(func(_ string) error { return nil })
+	// WebsocketConnection runs a pinger goroutine
+	aWSConn := NewWebsocketConnection(aWS)
+
+	var twg timeoutwg.TimeoutWaitGroup
+
+	twg.Add(1)
+	go func() {
+		defer twg.Done()
+		_, err := io.Copy(ioutil.Discard, aWSConn)
+		testtool.TestExpectError(t, err)
+		netErr, ok := err.(net.Error)
+		testtool.TestTrue(t, ok)
+		testtool.TestTrue(t, netErr.Timeout())
+	}()
+
+	testtool.TestEqual(t, twg.Wait(3*time.Second), 0)
 }
